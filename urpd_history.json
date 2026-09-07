@@ -1,1 +1,327 @@
-{}
+{
+  "2026-09-06": {
+    "date": "2026-09-06",
+    "price": 79109.0,
+    "top_btc": 4280365.2633412,
+    "bottom_btc": 4900960.43405,
+    "total_urpd": 18100661.7954,
+    "urpd": [
+      {
+        "price_low": 0.0,
+        "price_high": 1000.0,
+        "btc_amount": 1927010.6457
+      },
+      {
+        "price_low": 1000.0,
+        "price_high": 3000.0,
+        "btc_amount": 422177.4324
+      },
+      {
+        "price_low": 3000.0,
+        "price_high": 5000.0,
+        "btc_amount": 229316.7419
+      },
+      {
+        "price_low": 5000.0,
+        "price_high": 7000.0,
+        "btc_amount": 398346.8743
+      },
+      {
+        "price_low": 7000.0,
+        "price_high": 9000.0,
+        "btc_amount": 414223.4389
+      },
+      {
+        "price_low": 9000.0,
+        "price_high": 11000.0,
+        "btc_amount": 256036.7227
+      },
+      {
+        "price_low": 11000.0,
+        "price_high": 13000.0,
+        "btc_amount": 148492.3756
+      },
+      {
+        "price_low": 13000.0,
+        "price_high": 15000.0,
+        "btc_amount": 68405.9565
+      },
+      {
+        "price_low": 15000.0,
+        "price_high": 17000.0,
+        "btc_amount": 399292.9983
+      },
+      {
+        "price_low": 17000.0,
+        "price_high": 19000.0,
+        "btc_amount": 135375.1602
+      },
+      {
+        "price_low": 19000.0,
+        "price_high": 21000.0,
+        "btc_amount": 249050.7573
+      },
+      {
+        "price_low": 21000.0,
+        "price_high": 23000.0,
+        "btc_amount": 118630.4463
+      },
+      {
+        "price_low": 23000.0,
+        "price_high": 25000.0,
+        "btc_amount": 92626.8748
+      },
+      {
+        "price_low": 25000.0,
+        "price_high": 27000.0,
+        "btc_amount": 252982.1806
+      },
+      {
+        "price_low": 27000.0,
+        "price_high": 29000.0,
+        "btc_amount": 158485.6877
+      },
+      {
+        "price_low": 29000.0,
+        "price_high": 31000.0,
+        "btc_amount": 111703.8072
+      },
+      {
+        "price_low": 31000.0,
+        "price_high": 33000.0,
+        "btc_amount": 78341.8824
+      },
+      {
+        "price_low": 33000.0,
+        "price_high": 35000.0,
+        "btc_amount": 91222.4326
+      },
+      {
+        "price_low": 35000.0,
+        "price_high": 37000.0,
+        "btc_amount": 129433.3065
+      },
+      {
+        "price_low": 37000.0,
+        "price_high": 39000.0,
+        "btc_amount": 311187.3623
+      },
+      {
+        "price_low": 39000.0,
+        "price_high": 41000.0,
+        "btc_amount": 124561.2853
+      },
+      {
+        "price_low": 41000.0,
+        "price_high": 43000.0,
+        "btc_amount": 158741.7845
+      },
+      {
+        "price_low": 43000.0,
+        "price_high": 45000.0,
+        "btc_amount": 61497.1402
+      },
+      {
+        "price_low": 45000.0,
+        "price_high": 47000.0,
+        "btc_amount": 142362.1776
+      },
+      {
+        "price_low": 47000.0,
+        "price_high": 49000.0,
+        "btc_amount": 122406.0851
+      },
+      {
+        "price_low": 49000.0,
+        "price_high": 51000.0,
+        "btc_amount": 69442.2668
+      },
+      {
+        "price_low": 51000.0,
+        "price_high": 53000.0,
+        "btc_amount": 34128.6807
+      },
+      {
+        "price_low": 53000.0,
+        "price_high": 55000.0,
+        "btc_amount": 152683.0424
+      },
+      {
+        "price_low": 55000.0,
+        "price_high": 57000.0,
+        "btc_amount": 113272.7163
+      },
+      {
+        "price_low": 57000.0,
+        "price_high": 59000.0,
+        "btc_amount": 184220.1879
+      },
+      {
+        "price_low": 59000.0,
+        "price_high": 61000.0,
+        "btc_amount": 414351.2602
+      },
+      {
+        "price_low": 61000.0,
+        "price_high": 63000.0,
+        "btc_amount": 1049289.247
+      },
+      {
+        "price_low": 63000.0,
+        "price_high": 65000.0,
+        "btc_amount": 880578.1848
+      },
+      {
+        "price_low": 65000.0,
+        "price_high": 67000.0,
+        "btc_amount": 456207.5231
+      },
+      {
+        "price_low": 67000.0,
+        "price_high": 69000.0,
+        "btc_amount": 376538.0627
+      },
+      {
+        "price_low": 69000.0,
+        "price_high": 71000.0,
+        "btc_amount": 338211.8729
+      },
+      {
+        "price_low": 71000.0,
+        "price_high": 73000.0,
+        "btc_amount": 182782.2634
+      },
+      {
+        "price_low": 73000.0,
+        "price_high": 75000.0,
+        "btc_amount": 189900.5122
+      },
+      {
+        "price_low": 75000.0,
+        "price_high": 77000.0,
+        "btc_amount": 585818.3018
+      },
+      {
+        "price_low": 77000.0,
+        "price_high": 79000.0,
+        "btc_amount": 670346.224
+      },
+      {
+        "price_low": 79000.0,
+        "price_high": 81000.0,
+        "btc_amount": 360156.8383
+      },
+      {
+        "price_low": 81000.0,
+        "price_high": 83000.0,
+        "btc_amount": 121562.4689
+      },
+      {
+        "price_low": 83000.0,
+        "price_high": 85000.0,
+        "btc_amount": 928100.6057
+      },
+      {
+        "price_low": 85000.0,
+        "price_high": 87000.0,
+        "btc_amount": 266653.9496
+      },
+      {
+        "price_low": 87000.0,
+        "price_high": 89000.0,
+        "btc_amount": 215701.3563
+      },
+      {
+        "price_low": 89000.0,
+        "price_high": 91000.0,
+        "btc_amount": 410207.8467
+      },
+      {
+        "price_low": 91000.0,
+        "price_high": 93000.0,
+        "btc_amount": 340521.3497
+      },
+      {
+        "price_low": 93000.0,
+        "price_high": 95000.0,
+        "btc_amount": 261952.1034
+      },
+      {
+        "price_low": 95000.0,
+        "price_high": 97000.0,
+        "btc_amount": 286011.5366
+      },
+      {
+        "price_low": 97000.0,
+        "price_high": 99000.0,
+        "btc_amount": 151677.6299
+      },
+      {
+        "price_low": 99000.0,
+        "price_high": 101000.0,
+        "btc_amount": 161815.7912
+      },
+      {
+        "price_low": 101000.0,
+        "price_high": 103000.0,
+        "btc_amount": 178209.82
+      },
+      {
+        "price_low": 103000.0,
+        "price_high": 105000.0,
+        "btc_amount": 217844.9971
+      },
+      {
+        "price_low": 105000.0,
+        "price_high": 107000.0,
+        "btc_amount": 392487.7757
+      },
+      {
+        "price_low": 107000.0,
+        "price_high": 109000.0,
+        "btc_amount": 266695.4162
+      },
+      {
+        "price_low": 109000.0,
+        "price_high": 111000.0,
+        "btc_amount": 300751.2328
+      },
+      {
+        "price_low": 111000.0,
+        "price_high": 113000.0,
+        "btc_amount": 240484.4169
+      },
+      {
+        "price_low": 113000.0,
+        "price_high": 115000.0,
+        "btc_amount": 240776.2856
+      },
+      {
+        "price_low": 115000.0,
+        "price_high": 117000.0,
+        "btc_amount": 224060.2216
+      },
+      {
+        "price_low": 117000.0,
+        "price_high": 119000.0,
+        "btc_amount": 166490.426
+      },
+      {
+        "price_low": 119000.0,
+        "price_high": 121000.0,
+        "btc_amount": 35096.4358
+      },
+      {
+        "price_low": 121000.0,
+        "price_high": 123000.0,
+        "btc_amount": 33524.2573
+      },
+      {
+        "price_low": 123000.0,
+        "price_high": 125000.0,
+        "btc_amount": 197.131
+      }
+    ],
+    "source": "BGeometrics /v1/urpd"
+  }
+}
