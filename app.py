@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -8,6 +9,34 @@ import numpy as np
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide", page_title="BTC URPD Monitor", page_icon="🪙")
+
+# Giao diện dashboard gọn và dễ đọc
+st.markdown("""
+<style>
+.block-container {padding-top: 2rem; padding-bottom: 2rem; max-width: 1500px;}
+[data-testid="stMetric"] {
+    background: linear-gradient(135deg, rgba(30,41,59,.95), rgba(15,23,42,.95));
+    border: 1px solid rgba(148,163,184,.22);
+    padding: 18px 20px;
+    border-radius: 14px;
+    box-shadow: 0 5px 18px rgba(0,0,0,.12);
+}
+[data-testid="stMetricLabel"] {font-size: .9rem; color: #cbd5e1;}
+[data-testid="stMetricValue"] {font-size: 1.65rem;}
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg,#111827 0%,#0f172a 100%);
+}
+section[data-testid="stSidebar"] * {color: #e5e7eb;}
+h1 {letter-spacing: -.035em;}
+h2, h3 {letter-spacing: -.02em;}
+div[data-testid="stDataFrame"] {border-radius: 12px; overflow: hidden;}
+.stButton > button, .stDownloadButton > button {
+    border-radius: 9px;
+    font-weight: 600;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 TOP_START = 85831.0
 BOTTOM_START = 58000.0
@@ -217,19 +246,38 @@ st.caption("URPD thực tế từ BGeometrics • Supply in Loss trực tiếp �
 with st.sidebar:
     st.header("Thiết lập")
     token = st.secrets.get("RESEARCHBITCOIN_API_TOKEN", "")
+    if token:
+        st.success("ResearchBitcoin API: đã kết nối")
+    else:
+        st.warning("ResearchBitcoin API: chưa có token")
     uploaded = st.file_uploader(
         "Hoặc tải URPD CSV/Excel thực tế", type=["csv", "xlsx"]
     )
     top_start = st.number_input(
-        "Ngưỡng vùng đỉnh (USD)", value=TOP_START, step=100.0
+        "Ngưỡng tham khảo vùng giá cao (USD)", value=TOP_START, step=100.0
     )
     bottom_start = st.number_input(
         "Vùng đáy từ (USD)", value=BOTTOM_START, step=100.0
     )
-    bottom_end = st.number_input(
-        "Vùng đáy đến (USD)", value=BOTTOM_END, step=100.0
-    )
     ath = st.number_input("ATH (USD)", value=DEFAULT_ATH, step=100.0)
+
+# Đọc lịch sử cục bộ trước khi gọi API.
+# Mục tiêu: Rerun/F5 không gọi BGeometrics lại nếu đã có dữ liệu lưu.
+history_file = "urpd_history.json"
+try:
+    with open(history_file, "r", encoding="utf-8") as f:
+        history = json.load(f)
+except Exception:
+    history = {}
+
+with st.sidebar:
+    st.markdown("### Dữ liệu URPD")
+    refresh_api = st.button("🔄 Cập nhật dữ liệu từ BGeometrics", use_container_width=True)
+    if refresh_api:
+        st.cache_data.clear()
+        st.session_state["force_urpd_refresh"] = True
+
+force_refresh = st.session_state.pop("force_urpd_refresh", False)
 
 urpd = None
 urpd_source = "Chưa có dữ liệu URPD"
@@ -249,15 +297,30 @@ if uploaded:
     except Exception as e:
         st.error(f"Lỗi URPD từ file: {e}")
 
-# Nếu không có file, tự lấy ngày hôm qua từ BGeometrics.
+# Nếu không có file, ưu tiên dùng dữ liệu đã lưu. Chỉ gọi API khi:
+# 1) Chưa có dữ liệu lịch sử; hoặc 2) người dùng bấm nút cập nhật.
 if urpd is None:
-    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
-    try:
-        urpd, urpd_url = bgeometrics_urpd(yesterday)
-        urpd_source = "BGeometrics /v1/urpd"
-        urpd_date = yesterday
-    except Exception as e:
-        st.warning(f"Chưa lấy được URPD BGeometrics: {e}")
+    saved_dates = sorted(
+        k for k, v in history.items()
+        if isinstance(k, str) and len(k) == 10 and isinstance(v, dict) and v.get("urpd")
+    )
+    latest_saved_date = saved_dates[-1] if saved_dates else None
+
+    if latest_saved_date and not force_refresh:
+        saved_latest = history[latest_saved_date]
+        urpd = records_to_urpd(saved_latest["urpd"]) if "records_to_urpd" in globals() else normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
+        urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
+        urpd_date = latest_saved_date
+        st.info(f"Đang dùng dữ liệu URPD đã lưu ngày {urpd_date}. Rerun không gọi API lại.")
+    else:
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        try:
+            urpd, urpd_url = bgeometrics_urpd(yesterday)
+            urpd_source = "BGeometrics /v1/urpd"
+            urpd_date = yesterday
+            st.success(f"Đã gọi API BGeometrics và lấy dữ liệu ngày {urpd_date}.")
+        except Exception as e:
+            st.warning(f"Chưa lấy được URPD BGeometrics: {e}")
 
 price = btc_price()
 if price is None:
@@ -265,6 +328,18 @@ if price is None:
     price_source = "Giá nhập thủ công"
 else:
     price_source = "Giá thị trường trực tiếp"
+
+# Vùng đáy đến luôn bám theo giá BTC hiện tại, không cho nhập thủ công.
+bottom_end = float(price)
+with st.sidebar:
+    st.number_input(
+        "Vùng đáy đến (USD) — tự động theo giá BTC",
+        value=bottom_end,
+        step=100.0,
+        disabled=True,
+        format="%.2f",
+        key="auto_bottom_end_display",
+    )
 
 loss_btc = None
 loss_percent = None
@@ -286,10 +361,30 @@ if urpd is not None:
     urpd = urpd.copy()
     urpd["mid_price"] = (urpd.price_low + urpd.price_high) / 2
     total_urpd = float(urpd.btc_amount.sum())
-    top_btc = btc_in_range(urpd, top_start, float("inf"))
+    # Chỉ số chính: nguồn cung có giá vốn nằm từ giá BTC hiện tại đến ATH.
+    # Có xử lý phần bucket cắt ngang giá hiện tại bằng nội suy theo tỷ lệ.
+    above_price_btc = btc_in_range(urpd, float(price), float(ath))
+    top_btc = above_price_btc  # tương thích với phần lịch sử cũ
     bottom_btc = btc_in_range(urpd, bottom_start, bottom_end)
 else:
-    total_urpd = top_btc = bottom_btc = None
+    total_urpd = above_price_btc = top_btc = bottom_btc = None
+
+today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+if isinstance(urpd_date, str) and len(urpd_date) == 10 and urpd_date[4] == "-":
+    data_date = urpd_date
+else:
+    data_date = today_key
+
+# So sánh với snapshot URPD gần nhất trước đó.
+previous_dates = sorted(k for k in history if isinstance(k, str) and k < data_date)
+previous_above_price_btc = None
+if previous_dates:
+    previous_above_price_btc = history[previous_dates[-1]].get("above_price_btc")
+if above_price_btc is not None and previous_above_price_btc is not None:
+    above_delta = above_price_btc - float(previous_above_price_btc)
+    above_delta_pct = (above_delta / float(previous_above_price_btc) * 100) if previous_above_price_btc else 0
+else:
+    above_delta = above_delta_pct = None
 
 ath_discount = (price - ath) / ath * 100 if ath else 0
 
@@ -297,11 +392,9 @@ c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Giá BTC hiện tại", f"${price:,.0f}")
 c2.metric("Chiết khấu từ ATH", f"{ath_discount:.2f}%")
 c3.metric(
-    "BTC vùng đỉnh",
-    f"{top_btc:,.0f} BTC" if top_btc is not None else "N/A",
-    f"{top_btc / total_urpd * 100:.2f}% URPD"
-    if total_urpd and top_btc is not None
-    else "Chưa có URPD",
+    "BTC mắc kẹt từ giá hiện tại đến ATH",
+    f"{above_price_btc:,.0f} BTC" if above_price_btc is not None else "N/A",
+    ((f"{above_delta:+,.0f} BTC | {above_delta_pct:+.2f}%" if above_delta is not None else "Chưa có lần trước"))
 )
 c4.metric(
     "Tổng BTC theo URPD",
@@ -316,14 +409,15 @@ c5.metric(
 )
 
 st.markdown("---")
-st.subheader("Bảng cung vùng đỉnh và cung đang lỗ")
+st.subheader("Bảng nguồn cung từ giá hiện tại đến ATH và cung đang lỗ")
 
 summary = pd.DataFrame(
     {
         "Chỉ số": [
-            "BTC vùng đỉnh",
+            "BTC mắc kẹt từ giá hiện tại đến ATH",
+            "Thay đổi so với snapshot trước",
             "Tổng BTC theo URPD",
-            "% cung vùng đỉnh",
+            "% cung từ giá hiện tại đến ATH",
             "Cung đang lỗ trực tiếp",
             "% cung đang lỗ trực tiếp",
             "Ngày dữ liệu URPD",
@@ -333,35 +427,153 @@ summary = pd.DataFrame(
             "Nguồn Supply in Loss",
         ],
         "Giá trị": [
-            f"{top_btc:,.2f}" if top_btc is not None else "N/A",
+            f"{above_price_btc:,.2f}" if above_price_btc is not None else "N/A",
+            (f"{above_delta:+,.2f} BTC ({above_delta_pct:+.2f}%)" if above_delta is not None else "N/A"),
             f"{total_urpd:,.2f}" if total_urpd is not None else "N/A",
-            f"{top_btc / total_urpd * 100:.4f}%"
-            if total_urpd and top_btc is not None
+            f"{above_price_btc / total_urpd * 100:.4f}%"
+            if total_urpd and above_price_btc is not None
             else "N/A",
             f"{loss_btc:,.2f}" if loss_btc is not None else "N/A",
             f"{loss_percent:.4f}%" if loss_percent is not None else "N/A",
             urpd_date or "N/A",
             f"${price:,.2f}",
-            f">= ${top_start:,.0f}",
+            f"${price:,.0f}–${ath:,.0f}",
             urpd_source,
             loss_source or "Chưa có dữ liệu",
         ],
-        "Đơn vị": ["BTC", "BTC", "%", "BTC", "%", "", "USD", "USD", "", ""],
+        "Đơn vị": ["BTC", "BTC", "BTC", "%", "BTC", "%", "", "USD", "USD", "", ""],
     }
 )
 st.dataframe(summary, hide_index=True, use_container_width=True)
-
-st.info(
-    "BTC vùng đỉnh được tính trực tiếp từ URPD BGeometrics của ngày hôm qua "
-    "(hoặc file URPD tải lên). Supply in Loss vẫn lấy trực tiếp từ ResearchBitcoin."
+st.download_button(
+    "Tải bảng tổng hợp CSV",
+    data=summary.to_csv(index=False).encode("utf-8-sig"),
+    file_name="btc_urpd_summary.csv",
+    mime="text/csv",
 )
 
-st.subheader("Phân bố nguồn cung theo bucket URPD")
+st.info(
+    f"Đang sử dụng URPD mới nhất của ngày {data_date} "
+    "(BGeometrics có thể chưa cập nhật ngày hiện tại). "
+    "Supply in Loss vẫn lấy trực tiếp từ ResearchBitcoin."
+)
 
-if urpd is None:
+# Lịch sử URPD: lưu toàn bộ bucket gốc theo từng ngày.
+# File này nằm cùng thư mục với app.py khi chạy local.
+def urpd_to_records(df):
+    return df[["price_low", "price_high", "btc_amount"]].to_dict("records")
+
+def records_to_urpd(records):
+    return normalize_urpd(pd.DataFrame(records))
+
+# Lưu URPD gốc của ngày hiện tại; không ghi đè các ngày cũ.
+if urpd is not None:
+    history[data_date] = {
+        "date": data_date,
+        "price": float(price) if price is not None else None,
+        "top_btc": float(top_btc) if top_btc is not None else None,
+        "above_price_btc": float(above_price_btc) if above_price_btc is not None else None,
+        "bottom_btc": float(bottom_btc) if bottom_btc is not None else None,
+        "total_urpd": float(total_urpd) if total_urpd is not None else None,
+        "urpd": urpd_to_records(urpd),
+        "source": urpd_source,
+    }
+    # Giữ tối đa 365 ngày gần nhất.
+    history = dict(sorted(history.items())[-365:])
+    try:
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.warning(f"Không lưu được lịch sử URPD: {e}")
+
+st.markdown("---")
+st.subheader("Lịch sử biến động nguồn cung")
+st.caption("Chọn mốc lịch sử để xem lại đúng biểu đồ URPD của ngày đó.")
+
+# Lấy ngày dữ liệu URPD mới nhất làm mốc. Ví dụ nếu hôm nay là 07/09
+# nhưng BGeometrics mới có dữ liệu 06/09 thì "Hiện tại" = 06/09,
+# còn "1 ngày trước" = 05/09, tránh hiển thị trùng ngày.
+base_date = datetime.strptime(data_date, "%Y-%m-%d").date()
+
+# Gắn ngày cụ thể ngay trên nút để tránh nhầm giữa ngày chạy app
+# và ngày dữ liệu URPD thực tế.
+choices = {
+    f"Hiện tại [{base_date.strftime('%d/%m/%Y')}]": 0,
+    f"1 ngày trước [{(base_date - timedelta(days=1)).strftime('%d/%m/%Y')}]": 1,
+    f"7 ngày trước [{(base_date - timedelta(days=7)).strftime('%d/%m/%Y')}]": 7,
+    f"30 ngày trước [{(base_date - timedelta(days=30)).strftime('%d/%m/%Y')}]": 30,
+    f"120 ngày trước [{(base_date - timedelta(days=120)).strftime('%d/%m/%Y')}]": 120,
+    f"180 ngày trước [{(base_date - timedelta(days=180)).strftime('%d/%m/%Y')}]": 180,
+}
+selected = st.radio("Xem biểu đồ:", list(choices), horizontal=True)
+
+selected_days = choices[selected]
+selected_date = (base_date - timedelta(days=selected_days)).strftime("%Y-%m-%d")
+
+if selected_days == 0:
+    chart_urpd = urpd
+    chart_date = data_date
+    chart_price = price
+    chart_top_btc = top_btc
+    chart_bottom_btc = bottom_btc
+    chart_total_urpd = total_urpd
+else:
+    saved = history.get(selected_date)
+    if saved and saved.get("urpd"):
+        chart_urpd = records_to_urpd(saved["urpd"])
+        chart_date = selected_date
+        chart_price = saved.get("price") or price
+        chart_top_btc = saved.get("top_btc")
+        chart_bottom_btc = saved.get("bottom_btc")
+        chart_total_urpd = saved.get("total_urpd")
+        st.success(f"Đang xem URPD gốc của ngày {selected_date}. Không gọi API lại.")
+    else:
+        chart_urpd = None
+        chart_date = selected_date
+        chart_price = price
+        chart_top_btc = chart_bottom_btc = chart_total_urpd = None
+        st.info(
+            f"Chưa có dữ liệu URPD gốc cho ngày {selected_date}. "
+            "Hãy chạy app vào ngày đó hoặc thêm dữ liệu bằng file URPD."
+        )
+
+# So sánh nhanh với dữ liệu đã lưu.
+if selected_days > 0 and chart_urpd is not None:
+    current_saved = history.get(data_date, {})
+    old_saved = history.get(selected_date, {})
+    if old_saved:
+        def hist_diff(key):
+            a, b = current_saved.get(key), old_saved.get(key)
+            return a - b if a is not None and b is not None else None
+
+        delta_bottom = hist_diff("bottom_btc")
+        delta_top = hist_diff("top_btc")
+        delta_total = hist_diff("total_urpd")
+        st.write(
+            f"Trong kỳ **{selected_date} → {data_date}**, "
+            f"tổng URPD thay đổi **{delta_total:+,.2f} BTC**."
+            if delta_total is not None else
+            "Chưa đủ dữ liệu để tính thay đổi."
+        )
+        history_df = pd.DataFrame({
+            "Nguồn cung": ["Từ vùng đáy", "Từ vùng đỉnh", "Tổng URPD"],
+            "Thay đổi BTC": [
+                f"{x:+,.2f} BTC" if x is not None else "N/A"
+                for x in [delta_bottom, delta_top, delta_total]
+            ],
+        })
+        st.dataframe(history_df, hide_index=True, use_container_width=True)
+
+st.subheader("Phân bố nguồn cung theo bucket URPD")
+st.caption("Cột xanh: giá vốn thấp hơn giá BTC hiện tại • Cột đỏ: giá vốn cao hơn giá BTC hiện tại")
+
+if chart_urpd is None:
     st.warning("Chưa có dữ liệu URPD để vẽ biểu đồ.")
 else:
-    colors = np.where(urpd.mid_price < price, "#10b981", "#ef4444")
+    urpd = chart_urpd.copy()
+    urpd["mid_price"] = (urpd.price_low + urpd.price_high) / 2
+    price_for_chart = chart_price if chart_price is not None else price
+    colors = np.where(urpd.mid_price < price_for_chart, "#10b981", "#ef4444")
     fig = go.Figure(
         go.Bar(
             x=urpd.mid_price,
@@ -378,27 +590,78 @@ else:
             ),
         )
     )
+    # Tô nền vùng đáy theo khoảng giá người dùng thiết lập.
+    fig.add_vrect(
+        x0=bottom_start,
+        x1=bottom_end,
+        fillcolor="#2563eb",
+        opacity=0.13,
+        line_width=0,
+        layer="below",
+    )
+
+    # Tách riêng nhãn giá hiện tại và ngưỡng vùng đỉnh.
     fig.add_vline(
-        x=price,
+        x=price_for_chart,
         line_dash="dash",
         line_color="white",
-        annotation_text=f"Giá hiện tại: ${price:,.0f}",
+        annotation_text=f"Giá ngày {chart_date}: ${price_for_chart:,.0f}",
+        annotation_position="top left",
+        annotation_y=1.02,
     )
     fig.add_vline(
         x=top_start,
         line_dash="dot",
         line_color="#f59e0b",
-        annotation_text=f"Vùng đỉnh từ ${top_start:,.0f}",
+        annotation_text=f"Ngưỡng vùng đỉnh: ${top_start:,.0f}",
+        annotation_position="top right",
+        annotation_y=0.90,
+    )
+    # Đặt nhãn vùng đáy thấp xuống trong phần nền xanh,
+    # tránh chồng lên nhãn giá hiện tại.
+    fig.add_annotation(
+        x=(bottom_start + bottom_end) / 2,
+        y=0.08,
+        yref="paper",
+        text=f"Vùng đáy: ${bottom_start:,.0f}–${bottom_end:,.0f}",
+        showarrow=False,
+        font=dict(color="#93c5fd", size=12),
+        bgcolor="rgba(15, 23, 42, 0.78)",
+        bordercolor="rgba(96, 165, 250, 0.45)",
+        borderwidth=1,
+        borderpad=5,
     )
     fig.update_layout(
         template="plotly_dark",
-        height=500,
+        height=560,
         xaxis_title="Giá vốn on-chain ($)",
         yaxis_title="BTC",
-        margin=dict(l=40, r=40, t=35, b=40),
+        margin=dict(l=55, r=55, t=75, b=55),
         bargap=0.02,
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # Bảng tổng hợp ngay dưới biểu đồ.
+    chart_summary = pd.DataFrame({
+        "Vùng giá": [
+            f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}",
+            f"Vùng đỉnh từ ${top_start:,.0f}",
+            "Giá hiện tại",
+        ],
+        "BTC": [
+            f"{chart_bottom_btc:,.2f}" if chart_bottom_btc is not None else "N/A",
+            f"{chart_top_btc:,.2f}" if chart_top_btc is not None else "N/A",
+            f"{price_for_chart:,.2f}",
+        ],
+        "Tỷ trọng URPD": [
+            f"{chart_bottom_btc / chart_total_urpd * 100:.4f}%"
+            if chart_total_urpd and chart_bottom_btc is not None else "N/A",
+            f"{chart_top_btc / chart_total_urpd * 100:.4f}%"
+            if chart_total_urpd and chart_top_btc is not None else "N/A",
+            "—",
+        ],
+    })
+    st.dataframe(chart_summary, hide_index=True, use_container_width=True)
 
     with st.expander("Xem URPD gốc"):
         st.dataframe(urpd, hide_index=True, use_container_width=True)
