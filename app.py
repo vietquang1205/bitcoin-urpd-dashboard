@@ -216,7 +216,7 @@ st.caption("URPD thực tế từ BGeometrics • Supply in Loss trực tiếp �
 
 with st.sidebar:
     st.header("Thiết lập")
-    token = st.text_input("ResearchBitcoin API token (nếu cần)", type="password")
+    token = st.secrets.get("cb1937c4-cd4d-42eb-acc2-3611bf08ff95", "")
     uploaded = st.file_uploader(
         "Hoặc tải URPD CSV/Excel thực tế", type=["csv", "xlsx"]
     )
