@@ -472,7 +472,8 @@ def records_to_urpd(records):
     return normalize_urpd(pd.DataFrame(records))
 
 # Ngày phải lấy từ dữ liệu BGeometrics thực tế, không lấy ngày chạy app.
-data_date = urpd_date if isinstance(urpd_date, str) and len(urpd_date) == 10 and urpd_date[4] == "-" else None
+today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+data_date = urpd_date if isinstance(urpd_date, str) and len(urpd_date) == 10 and urpd_date[4] == "-" else today_key
 history = load_history_local()
 github_sha = None
 remote = github_get_history()
@@ -539,12 +540,24 @@ base_date = datetime.strptime(latest_data_date, "%Y-%m-%d").date()
 selected_date = (base_date - timedelta(days=selected_days)).strftime("%Y-%m-%d")
 
 if selected_days == 0:
-    chart_urpd = urpd
+    current_saved = history.get(latest_data_date, {})
+    if urpd is not None:
+        chart_urpd = urpd
+        chart_price = price
+        chart_top_btc = top_btc
+        chart_bottom_btc = bottom_btc
+        chart_total_urpd = total_urpd
+    elif current_saved.get("urpd"):
+        chart_urpd = records_to_urpd(current_saved["urpd"])
+        chart_price = current_saved.get("price")
+        chart_top_btc = current_saved.get("top_btc")
+        chart_bottom_btc = current_saved.get("bottom_btc")
+        chart_total_urpd = current_saved.get("total_urpd")
+    else:
+        chart_urpd = None
+        chart_price = price
+        chart_top_btc = chart_bottom_btc = chart_total_urpd = None
     chart_date = latest_data_date
-    chart_price = price
-    chart_top_btc = top_btc
-    chart_bottom_btc = bottom_btc
-    chart_total_urpd = total_urpd
 else:
     saved = history.get(selected_date)
     if saved and saved.get("urpd"):
