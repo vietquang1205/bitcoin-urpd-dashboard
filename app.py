@@ -499,20 +499,22 @@ if urpd is None:
         urpd_date = latest_saved_date
         st.info(f"Đang dùng dữ liệu URPD đã lưu ngày {urpd_date}. Rerun không gọi API lại.")
     else:
-        yesterday_date = datetime.now(timezone.utc).date() - timedelta(days=1)
+        # Bitview có thể đã phát hành snapshot của chính ngày UTC hiện tại.
+        # Vì vậy mốc cập nhật phải chạy đến HÔM NAY, không dừng ở hôm qua.
+        target_end_date = datetime.now(timezone.utc).date()
 
         if latest_saved_date:
             start_date = datetime.strptime(latest_saved_date, "%Y-%m-%d").date() + timedelta(days=1)
         else:
-            start_date = yesterday_date
+            start_date = target_end_date
 
         # Không gọi quá 7 ngày trong một lần cập nhật.
-        if start_date < yesterday_date - timedelta(days=6):
-            start_date = yesterday_date - timedelta(days=6)
+        if start_date < target_end_date - timedelta(days=6):
+            start_date = target_end_date - timedelta(days=6)
 
         dates_to_fetch = []
         d = start_date
-        while d <= yesterday_date:
+        while d <= target_end_date:
             dates_to_fetch.append(d.strftime("%Y-%m-%d"))
             d += timedelta(days=1)
 
@@ -571,9 +573,9 @@ if urpd is None:
             else:
                 # Chỉ khi chưa có history nào, thử BGeometrics làm nguồn dự phòng.
                 try:
-                    urpd, urpd_url = bgeometrics_urpd(yesterday_date.strftime("%Y-%m-%d"))
+                    urpd, urpd_url = bgeometrics_urpd(target_end_date.strftime("%Y-%m-%d"))
                     urpd_source = "BGeometrics /v1/urpd (dự phòng)"
-                    urpd_date = yesterday_date.strftime("%Y-%m-%d")
+                    urpd_date = target_end_date.strftime("%Y-%m-%d")
                     history_should_save = True
                     st.success(
                         f"Bitview chưa trả dữ liệu; đã lấy được URPD "
