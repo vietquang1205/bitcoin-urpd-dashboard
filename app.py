@@ -1359,18 +1359,110 @@ else:
             else:
                 st.write("Không có bucket giảm đáng kể / chưa đủ dữ liệu 1 ngày.")
 
-        with st.expander("🔎 Phân tích xu hướng 3 ngày"):
-            if inc3 or dec3:
-                if inc3:
-                    st.write("**Tăng mạnh:**")
-                    for r in inc3:
-                        st.write("• " + _bucket_text(r))
-                if dec3:
-                    st.write("**Giảm mạnh:**")
-                    for r in dec3:
-                        st.write("• " + _bucket_text(r))
+        with st.expander("🔎 Phân tích 3 ngày & kết luận"):
+            if d3_top is None and d3_bottom is None and d3_total is None and not inc3 and not dec3:
+                st.warning("Chưa đủ snapshot 3 ngày để đưa ra đánh giá.")
             else:
-                st.write("Chưa đủ snapshot để phân tích 3 ngày.")
+                # Chấm riêng tín hiệu 3 ngày để người dùng có một kết luận
+                # dễ đọc, nhưng không biến nó thành xác suất dự báo.
+                score_3d = 50.0
+
+                # Cung hiện tại -> ATH giảm là tín hiệu thuận lợi; tăng là
+                # áp lực cung phía trên tăng.
+                if d3_top is not None:
+                    score_3d += float(np.clip((-d3_top / 150000.0) * 25.0, -25.0, 25.0))
+
+                # Vùng đáy tăng được xem là tín hiệu nền hỗ trợ, nhưng không
+                # coi đó là bằng chứng chắc chắn của tích lũy.
+                if d3_bottom is not None:
+                    score_3d += float(np.clip((d3_bottom / 150000.0) * 12.0, -12.0, 12.0))
+
+                # Dịch chuyển quanh giá: tăng nhẹ nghiêng hỗ trợ, giảm nghiêng yếu.
+                if near_net3 is not None:
+                    score_3d += float(np.clip((near_net3 / 120000.0) * 10.0, -10.0, 10.0))
+
+                score_3d = float(np.clip(score_3d, 0.0, 100.0))
+
+                if score_3d >= 65:
+                    strength_3d = "🟢 Mạnh"
+                elif score_3d >= 55:
+                    strength_3d = "🟢 Hơi mạnh"
+                elif score_3d >= 45:
+                    strength_3d = "🟡 Trung tính"
+                elif score_3d >= 35:
+                    strength_3d = "🟠 Hơi yếu"
+                else:
+                    strength_3d = "🔴 Yếu"
+
+                # Xác nhận xu hướng bằng cả điểm 3D và hướng cung phía trên.
+                if score_3d >= 65 and (d3_top is None or d3_top < 0):
+                    trend_3d = "📈 Nghiêng tăng"
+                    trend_detail_3d = "Nguồn cung phía trên giảm trong 3 ngày, cho thấy áp lực cản phía trên đang nhẹ đi."
+                elif score_3d <= 35 and (d3_top is None or d3_top > 0):
+                    trend_3d = "📉 Nghiêng giảm"
+                    trend_detail_3d = "Nguồn cung phía trên tăng trong 3 ngày, cho thấy áp lực cản phía trên đang dày lên."
+                else:
+                    trend_3d = "➡️ Chưa xác nhận"
+                    trend_detail_3d = "Các tín hiệu 3 ngày chưa đồng thuận đủ mạnh để xác nhận một hướng rõ ràng."
+
+                # Hành động và rủi ro được suy ra từ cùng bộ tín hiệu 3D.
+                if score_3d >= 65:
+                    action_3d = "Có thể ưu tiên giữ vị thế hoặc giải ngân từng phần nếu kế hoạch của ông cho phép; tránh FOMO khi giá tăng nhanh."
+                    caution_3d = "Cẩn thận khi cung phía trên bắt đầu tăng trở lại hoặc giá tăng nhưng nguồn cung vùng hiện tại không tiếp tục được hấp thụ."
+                elif score_3d >= 55:
+                    action_3d = "Ưu tiên quan sát và vào từng phần nhỏ thay vì đuổi giá; chờ thêm xác nhận từ 1D/7D."
+                    caution_3d = "Cẩn thận với tín hiệu tăng ngắn hạn nhưng 3D chưa đủ mạnh; tránh dùng đòn bẩy cao."
+                elif score_3d >= 45:
+                    action_3d = "Nên đứng ngoài hoặc giữ quy mô vừa phải, chờ thêm 1–3 snapshot để xác nhận hướng."
+                    caution_3d = "Cẩn thận với việc diễn giải một bucket tăng/giảm đơn lẻ thành mua, bán hoặc tích lũy/phân phối."
+                elif score_3d >= 35:
+                    action_3d = "Ưu tiên giảm rủi ro và hạn chế đòn bẩy; chờ nguồn cung phía trên ổn định lại."
+                    caution_3d = "Cẩn thận khi giá không hấp thụ được cung phía trên và quay xuống kiểm tra vùng hỗ trợ."
+                else:
+                    action_3d = "Ưu tiên phòng thủ, hạn chế mở vị thế lớn và không bắt đáy chỉ dựa vào URPD."
+                    caution_3d = "Cẩn thận với áp lực cung phía trên tăng đồng thời vùng hỗ trợ suy yếu."
+
+                st.markdown("### 🧭 Kết luận 3 ngày")
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("Đánh giá sức mạnh", f"{score_3d:.0f}/100")
+                    st.write(f"**{strength_3d}**")
+                with c2:
+                    st.metric("Xu hướng sắp tới", trend_3d)
+                with c3:
+                    st.write("**Cần cẩn thận**")
+                    st.write(caution_3d)
+
+                st.info(f"**Nên làm gì lúc này:** {action_3d}")
+                st.caption(trend_detail_3d)
+
+                st.markdown("**📊 Thống kê 3 ngày**")
+                stat_rows_3d = [
+                    ["Cung hiện tại → ATH", _fmt_btc(d3_top) if d3_top is not None else "N/A",
+                     "Giảm là thuận lợi; tăng là áp lực cung phía trên tăng"],
+                    [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", _fmt_btc(d3_bottom) if d3_bottom is not None else "N/A",
+                     "Tăng có thể hỗ trợ nền giá, nhưng không đồng nghĩa chắc chắn tích lũy"],
+                    ["Dịch chuyển quanh giá", _fmt_btc(near_net3) if near_net3 is not None else "N/A",
+                     "Tăng nghiêng hỗ trợ; giảm nghiêng yếu"],
+                    ["Tổng URPD", _fmt_btc(d3_total) if d3_total is not None else "N/A",
+                     "Biến động tổng thể của snapshot, không tự nó cho biết mua/bán"],
+                ]
+                st.dataframe(
+                    pd.DataFrame(stat_rows_3d, columns=["Chỉ số", "Thay đổi 3 ngày", "Cách đọc"]),
+                    hide_index=True,
+                    use_container_width=True,
+                )
+
+                if inc3 or dec3:
+                    st.markdown("**Các bucket biến động mạnh trong 3 ngày**")
+                    if inc3:
+                        st.write("**Tăng mạnh:**")
+                        for r in inc3:
+                            st.write("• " + _bucket_text(r))
+                    if dec3:
+                        st.write("**Giảm mạnh:**")
+                        for r in dec3:
+                            st.write("• " + _bucket_text(r))
 
         with st.expander("🔎 Phân tích xu hướng 7 ngày"):
             if inc7 or dec7:
