@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V17", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -42,7 +42,7 @@ div[data-testid="stDataFrame"] {border-radius: 12px; overflow: hidden;}
 TOP_START = 85831.0
 BOTTOM_START = 58000.0
 BOTTOM_END = 78000.0
-DEFAULT_ATH = 126223.0
+DEFAULT_ATH = 126198.07
 
 
 def pick_col(df, candidates):
@@ -642,7 +642,17 @@ else:
 previous_dates = sorted(k for k in history if isinstance(k, str) and k < data_date)
 previous_above_price_btc = None
 if previous_dates:
-    previous_above_price_btc = history[previous_dates[-1]].get("above_price_btc")
+    prev_saved = history.get(previous_dates[-1], {})
+    if isinstance(prev_saved, dict) and prev_saved.get("urpd"):
+        try:
+            prev_df = normalize_urpd(pd.DataFrame(prev_saved["urpd"]))
+            prev_price = prev_saved.get("price")
+            if prev_price is not None:
+                previous_above_price_btc = btc_in_range(
+                    prev_df, float(prev_price), float(ath)
+                )
+        except Exception:
+            previous_above_price_btc = None
 if above_price_btc is not None and previous_above_price_btc is not None:
     above_delta = above_price_btc - float(previous_above_price_btc)
     above_delta_pct = (above_delta / float(previous_above_price_btc) * 100) if previous_above_price_btc else 0
@@ -655,10 +665,15 @@ c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Giá BTC hiện tại", f"${price:,.0f}")
 c2.metric("Chiết khấu từ ATH", f"{ath_discount:.2f}%")
 c3.metric(
-    "BTC mắc kẹt từ giá hiện tại đến ATH",
+    "Cung BTC trong vùng giá hiện tại → ATH",
     f"{above_price_btc:,.0f} BTC" if above_price_btc is not None else "N/A",
-    ((f"{above_delta:+,.0f} BTC | {above_delta_pct:+.2f}%" if above_delta is not None else "Chưa có lần trước"))
+    (f"{above_delta:+,.0f} BTC | {above_delta_pct:+.2f}%" if above_delta is not None else "Chưa có lần trước")
 )
+if total_urpd and above_price_btc is not None:
+    c3.caption(
+        f"{above_price_btc / total_urpd * 100:.2f}% tổng URPD • "
+        f"${price:,.0f} → ${ath:,.0f}"
+    )
 c4.metric(
     "Tổng BTC theo URPD",
     f"{total_urpd:,.0f} BTC" if total_urpd is not None else "N/A",
@@ -672,12 +687,12 @@ c5.metric(
 )
 
 st.markdown("---")
-st.subheader("Bảng nguồn cung từ giá hiện tại đến ATH và cung đang lỗ")
+st.subheader("Bảng cung BTC từ giá hiện tại đến ATH và cung đang lỗ")
 
 summary = pd.DataFrame(
     {
         "Chỉ số": [
-            "BTC mắc kẹt từ giá hiện tại đến ATH",
+            "Cung BTC trong vùng giá hiện tại → ATH",
             "Thay đổi so với snapshot trước",
             "Tổng BTC theo URPD",
             "% cung từ giá hiện tại đến ATH",
@@ -715,10 +730,17 @@ st.download_button(
     mime="text/csv",
 )
 
+st.caption(
+    "Định nghĩa: 'Cung BTC trong vùng giá hiện tại → ATH' là lượng BTC ước tính "
+    "có giá vốn thực hiện (realized price) nằm trong khoảng giá này theo URPD. "
+    "Phần bucket bị cắt ở biên giá được nội suy theo tỷ lệ chiều rộng bucket; "
+    "đây không đồng nghĩa toàn bộ lượng BTC đó chắc chắn đang 'mắc kẹt'."
+)
+
 st.info(
-    f"Đang sử dụng URPD mới nhất của ngày {data_date}. "
-    "Nguồn URPD ưu tiên Bitview; BGeometrics chỉ dùng dự phòng. "
-    "Supply in Loss vẫn lấy trực tiếp từ ResearchBitcoin."
+    f"Snapshot URPD mới nhất: {data_date}. Nguồn URPD ưu tiên Bitview; "
+    "BGeometrics chỉ dùng dự phòng. Khi xem lịch sử, biểu đồ và báo cáo dùng "
+    "đúng snapshot của ngày được chọn. Supply in Loss vẫn lấy trực tiếp từ ResearchBitcoin."
 )
 
 # Lịch sử URPD: lưu toàn bộ bucket gốc theo từng ngày.
@@ -816,9 +838,11 @@ else:
         chart_urpd = records_to_urpd(saved["urpd"])
         chart_date = selected_date
         chart_price = saved.get("price") or price
-        chart_top_btc = saved.get("top_btc")
-        chart_bottom_btc = saved.get("bottom_btc")
-        chart_total_urpd = saved.get("total_urpd")
+        # Tính lại các metric từ snapshot gốc để không phụ thuộc vào ATH
+        # hoặc ngưỡng vùng đáy đã dùng khi snapshot được lưu trước đây.
+        chart_top_btc = btc_in_range(chart_urpd, float(chart_price), float(ath))
+        chart_bottom_btc = btc_in_range(chart_urpd, float(bottom_start), float(bottom_end))
+        chart_total_urpd = float(chart_urpd.btc_amount.sum())
         st.success(f"Đang xem URPD gốc của ngày {selected_date}. Không gọi API lại.")
     else:
         chart_urpd = None
@@ -843,8 +867,24 @@ if selected_days > 0 and chart_urpd is not None and selected_date:
             a, b = current_saved.get(key), old_saved.get(key)
             return a - b if a is not None and b is not None else None
 
-        delta_bottom = hist_diff("bottom_btc")
-        delta_top = hist_diff("top_btc")
+        # Top/bottom được tính lại từ URPD gốc để mọi thay đổi ATH/ngưỡng
+        # trong sidebar không làm lịch sử bị lệch với snapshot hiện tại.
+        try:
+            cur_hist_df = records_to_urpd(current_saved["urpd"])
+            old_hist_df = records_to_urpd(old_saved["urpd"])
+            cur_hist_price = float(current_saved.get("price", price))
+            old_hist_price = float(old_saved.get("price", price))
+            delta_top = (
+                btc_in_range(cur_hist_df, cur_hist_price, float(ath))
+                - btc_in_range(old_hist_df, old_hist_price, float(ath))
+            )
+            delta_bottom = (
+                btc_in_range(cur_hist_df, float(bottom_start), float(bottom_end))
+                - btc_in_range(old_hist_df, float(bottom_start), float(bottom_end))
+            )
+        except Exception:
+            delta_top = hist_diff("top_btc")
+            delta_bottom = hist_diff("bottom_btc")
         delta_total = hist_diff("total_urpd")
         st.write(
             f"Trong kỳ **{selected_date} → {data_date}**, "
