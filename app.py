@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V27", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V30", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -317,6 +317,72 @@ def bitview_urpd(day, agg="lin1000"):
     out = normalize_urpd(out)
     return out, r.url, payload.get("close"), payload.get("total_supply")
 
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def bitview_period_snapshots(start_date, end_date, mode_days, ath_value, bottom_start_value, bottom_end_value):
+    """Lấy chuỗi snapshot cho báo cáo xu hướng.
+
+    1–30 ngày: lấy từng ngày.
+    31–180 ngày: lấy mốc đầu/cuối và các mốc cách nhau 7 ngày để giảm
+    số request. Các snapshot đã được cache ở bitview_urpd().
+    """
+    start = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    if end < start:
+        return pd.DataFrame(), {}
+
+    dates = []
+    if mode_days <= 30:
+        d = start
+        while d <= end:
+            dates.append(d)
+            d += timedelta(days=1)
+    else:
+        dates.append(start)
+        d = start + timedelta(days=7)
+        while d < end:
+            dates.append(d)
+            d += timedelta(days=7)
+        if dates[-1] != end:
+            dates.append(end)
+
+    snapshots = {}
+    rows = []
+    for d in dates:
+        day = d.strftime("%Y-%m-%d")
+        try:
+            frame, url, close, total_supply = bitview_urpd(day)
+            px = float(close) if close is not None else None
+            if px is None or px <= 0:
+                continue
+            total = float(frame.btc_amount.sum())
+            overhead = btc_in_range(frame, px, float(ath_value))
+            bottom = btc_in_range(frame, float(bottom_start_value), float(bottom_end_value))
+            near_low = max(0.0, px * 0.90)
+            near_high = px * 1.10
+            support = btc_in_range(frame, near_low, px)
+            resistance = btc_in_range(frame, px, near_high)
+            below = float(frame.loc[frame.price_high <= px, "btc_amount"].sum())
+            snapshots[day] = frame
+            rows.append({
+                "date": day,
+                "price": px,
+                "total_urpd": total,
+                "below_price": below,
+                "overhead_ath": overhead,
+                "bottom_supply": bottom,
+                "support_near": support,
+                "resistance_near": resistance,
+                "sr_ratio": (support / resistance) if resistance > 0 else np.nan,
+                "url": url,
+                "bitview_total_supply": float(total_supply) if total_supply is not None else np.nan,
+            })
+        except Exception:
+            continue
+
+    df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True) if rows else pd.DataFrame()
+    return df, snapshots
 
 def extract_scalar(payload):
     if isinstance(payload, (int, float)):
@@ -1237,7 +1303,7 @@ if urpd is not None and data_date and history_should_save:
 
 st.markdown("---")
 st.subheader("Lịch sử biến động nguồn cung")
-st.caption("Chọn mốc lịch sử để xem lại đúng biểu đồ URPD của ngày đó.")
+st.caption("Chọn mốc lịch sử để xem đúng snapshot URPD của ngày đó. Nếu history chưa có, dashboard sẽ lấy trực tiếp từ Bitview API và cache kết quả. Với 7/30/120/180 ngày, báo cáo bên dưới còn phân tích cả khoảng thời gian.")
 
 # Lấy ngày dữ liệu URPD mới nhất làm mốc. Nếu nguồn chưa có ngày hôm qua,
 # dashboard giữ snapshot gần nhất đã lưu và không tạo ngày giả.
@@ -1273,25 +1339,79 @@ if selected_days == 0:
     chart_total_urpd = total_urpd
 else:
     saved = history.get(selected_date)
-    if saved and saved.get("urpd"):
-        chart_urpd = records_to_urpd(saved["urpd"])
+
+    # V29: mọi mốc lịch sử khác 0 đều ưu tiên lấy TRỰC TIẾP từ Bitview
+    # theo đúng ngày được chọn. bitview_urpd() có cache 30 phút nên việc
+    # rerun dashboard hoặc đổi qua lại giữa các mốc không spam API.
+    # Nếu Bitview tạm lỗi, fallback về history đã lưu để biểu đồ vẫn dùng được.
+    try:
+        fetched_hist_urpd, fetched_hist_url, fetched_hist_close, fetched_hist_total = bitview_urpd(selected_date)
+        chart_urpd = fetched_hist_urpd
         chart_date = selected_date
-        chart_price = saved.get("price") or price
-        # Tính lại các metric từ snapshot gốc để không phụ thuộc vào ATH
-        # hoặc ngưỡng vùng đáy đã dùng khi snapshot được lưu trước đây.
-        chart_top_btc = btc_in_range(chart_urpd, float(chart_price), float(ath))
+        chart_price = float(fetched_hist_close) if fetched_hist_close is not None else (saved.get("price") if saved else price)
+        chart_top_btc = (
+            btc_in_range(chart_urpd, float(chart_price), float(ath))
+            if chart_price is not None else None
+        )
         chart_bottom_btc = btc_in_range(chart_urpd, float(bottom_start), float(bottom_end))
         chart_total_urpd = float(chart_urpd.btc_amount.sum())
-        st.success(f"Đang xem URPD gốc của ngày {selected_date}. Không gọi API lại.")
-    else:
-        chart_urpd = None
-        chart_date = selected_date
-        chart_price = price
-        chart_top_btc = chart_bottom_btc = chart_total_urpd = None
-        st.info(
-            f"Chưa có dữ liệu URPD gốc cho ngày {selected_date}. "
-            "Hãy chạy app vào ngày đó hoặc thêm dữ liệu bằng file URPD."
+
+        fetched_snapshot = {
+            "date": selected_date,
+            "price": float(chart_price) if chart_price is not None else None,
+            "top_btc": float(chart_top_btc) if chart_top_btc is not None else None,
+            "above_price_btc": float(chart_top_btc) if chart_top_btc is not None else None,
+            "bottom_btc": float(chart_bottom_btc) if chart_bottom_btc is not None else None,
+            "total_urpd": float(chart_total_urpd),
+            "urpd": urpd_to_records(chart_urpd),
+            "source": "Bitview historical API",
+            "url": fetched_hist_url,
+            "bitview_total_supply": float(fetched_hist_total) if fetched_hist_total is not None else None,
+        }
+
+        # Cập nhật history trong phiên để báo cáo/so sánh 1D/3D/7D dùng
+        # chính snapshot Bitview vừa lấy. Không ghi đè bằng giá hiện tại.
+        history[selected_date] = fetched_snapshot
+        history = dict(sorted(history.items())[-365:])
+
+        # Best-effort: lưu snapshot lịch sử vào GitHub để lần sau không mất
+        # dữ liệu, nhưng request Bitview vẫn là nguồn ưu tiên khi xem lịch sử.
+        try:
+            if github_token and github_repo:
+                latest_data, latest_sha = github_history_get()
+                latest_data[selected_date] = fetched_snapshot
+                latest_data = dict(sorted(latest_data.items())[-365:])
+                github_history_save(latest_data, latest_sha)
+                history = latest_data
+            else:
+                github_history_save(history)
+        except Exception as e:
+            st.caption(f"Đã lấy được Bitview nhưng chưa lưu GitHub: {e}")
+
+        st.success(
+            f"Đang xem snapshot {selected_date} lấy trực tiếp từ Bitview API "
+            f"({len(chart_urpd):,} bucket)."
         )
+    except Exception as bitview_error:
+        if saved and saved.get("urpd"):
+            chart_urpd = records_to_urpd(saved["urpd"])
+            chart_date = selected_date
+            chart_price = saved.get("price") or price
+            chart_top_btc = btc_in_range(chart_urpd, float(chart_price), float(ath))
+            chart_bottom_btc = btc_in_range(chart_urpd, float(bottom_start), float(bottom_end))
+            chart_total_urpd = float(chart_urpd.btc_amount.sum())
+            st.warning(
+                f"Bitview tạm thời không lấy được {selected_date}; đang dùng history đã lưu. "
+                f"Chi tiết: {bitview_error}"
+            )
+        else:
+            chart_urpd = None
+            chart_date = selected_date
+            chart_price = price
+            chart_top_btc = chart_bottom_btc = chart_total_urpd = None
+            st.warning(
+                f"Bitview chưa trả được URPD cho ngày {selected_date}: {bitview_error}"
+            )
 
 # Giữ chart_urpd là snapshot GỐC đầy đủ.
 # Bucket giá 0 chỉ được lọc ở biến chart_plot_urpd ngay trước khi vẽ.
@@ -1759,6 +1879,150 @@ else:
             chart_price if chart_date == report_date and chart_price is not None
             else (report_price_saved if report_price_saved is not None else price)
         )
+
+        # =========================================================
+        # V30 — BÁO CÁO XU HƯỚNG THEO CẢ KHOẢNG THỜI GIAN
+        # ---------------------------------------------------------
+        # Biểu đồ vẫn là snapshot đúng report_date. Nếu chọn 7/30/120/180D,
+        # phần này phân tích cả khoảng từ report_date đến ngày trước base_date.
+        # =========================================================
+        trend_df = pd.DataFrame()
+        trend_frames = {}
+        trend_period_start = None
+        trend_period_end = None
+        trend_score = None
+        trend_bias = None
+        trend_price_pct = None
+        trend_overhead_change = None
+        trend_support_change = None
+        trend_resistance_change = None
+        trend_bottom_change = None
+        trend_total_change = None
+        if selected_days >= 7 and base_date:
+            trend_period_start = report_date
+            trend_period_end = (base_date - timedelta(days=1)).strftime("%Y-%m-%d")
+            try:
+                trend_df, trend_frames = bitview_period_snapshots(
+                    trend_period_start, trend_period_end, selected_days,
+                    float(ath), float(bottom_start), float(bottom_end)
+                )
+            except Exception:
+                trend_df, trend_frames = pd.DataFrame(), {}
+
+            if len(trend_df) >= 2:
+                first = trend_df.iloc[0]
+                last = trend_df.iloc[-1]
+                trend_price_change = float(last["price"] - first["price"])
+                trend_price_pct = trend_price_change / float(first["price"]) * 100.0 if first["price"] else np.nan
+                trend_overhead_change = float(last["overhead_ath"] - first["overhead_ath"])
+                trend_support_change = float(last["support_near"] - first["support_near"])
+                trend_resistance_change = float(last["resistance_near"] - first["resistance_near"])
+                trend_bottom_change = float(last["bottom_supply"] - first["bottom_supply"])
+                trend_total_change = float(last["total_urpd"] - first["total_urpd"])
+
+                trend_score = 50.0
+                e1 = float(np.clip((-trend_overhead_change / 150000.0) * 18.0, -18.0, 18.0))
+                e2 = float(np.clip((trend_support_change / 150000.0) * 10.0, -10.0, 10.0))
+                e3 = float(np.clip((-trend_resistance_change / 150000.0) * 8.0, -8.0, 8.0))
+                e4 = float(np.clip((trend_price_pct / 10.0) * 8.0, -8.0, 8.0)) if np.isfinite(trend_price_pct) else 0.0
+                trend_score = float(np.clip(trend_score + e1 + e2 + e3 + e4, 0.0, 100.0))
+
+                if trend_score >= 65:
+                    trend_bias = "🟢 Cấu trúc dài kỳ thuận lợi"
+                elif trend_score >= 55:
+                    trend_bias = "🟢 Nghiêng tích cực"
+                elif trend_score >= 45:
+                    trend_bias = "🟡 Cân bằng / chưa rõ"
+                elif trend_score >= 35:
+                    trend_bias = "🟠 Nghiêng tiêu cực"
+                else:
+                    trend_bias = "🔴 Cấu trúc dài kỳ bất lợi"
+
+                # Đếm số bước tăng/giảm để tránh kết luận chỉ từ đầu-cuối.
+                diffs = trend_df[["price", "overhead_ath"]].diff().dropna()
+                price_up_steps = int((diffs["price"] > 0).sum())
+                price_down_steps = int((diffs["price"] < 0).sum())
+                overhead_down_steps = int((diffs["overhead_ath"] < 0).sum())
+                overhead_up_steps = int((diffs["overhead_ath"] > 0).sum())
+
+                # Lưu ra biến dùng cho phần báo cáo hiển thị bên dưới.
+                trend_first = first
+                trend_last = last
+                trend_price_change = trend_price_change
+                trend_sr_start = float(first["sr_ratio"]) if pd.notna(first["sr_ratio"]) else np.nan
+                trend_sr_end = float(last["sr_ratio"]) if pd.notna(last["sr_ratio"]) else np.nan
+
+                st.markdown(
+                    f"### 📈 Báo cáo xu hướng {selected_days} ngày — {trend_period_start} → {trend_period_end}"
+                )
+                sampling_note = (
+                    "Đã lấy đủ từng snapshot trong khoảng này."
+                    if selected_days <= 30 else
+                    "Giai đoạn >30 ngày dùng mốc đầu/cuối và mỗi 7 ngày để giảm số lượt gọi API; "
+                    "đây là xu hướng theo snapshot đại diện, không phải trung bình của mọi ngày."
+                )
+                st.caption(
+                    f"Có {len(trend_df)} snapshot trong khoảng {selected_days} ngày. {sampling_note}"
+                )
+
+                t1, t2, t3, t4 = st.columns(4)
+                with t1:
+                    st.metric(
+                        "Giá đầu → cuối",
+                        f"${trend_first['price']:,.0f} → ${trend_last['price']:,.0f}",
+                        f"{trend_price_change:+,.0f} USD ({trend_price_pct:+.2f}%)",
+                    )
+                with t2:
+                    st.metric("Cung → ATH", f"{trend_last['overhead_ath']:,.0f} BTC", f"{trend_overhead_change:+,.0f} BTC")
+                with t3:
+                    st.metric("Hỗ trợ gần", f"{trend_last['support_near']:,.0f} BTC", f"{trend_support_change:+,.0f} BTC")
+                with t4:
+                    st.metric("Cản gần", f"{trend_last['resistance_near']:,.0f} BTC", f"{trend_resistance_change:+,.0f} BTC")
+
+                st.write(f"**🧠 Đánh giá xu hướng:** {trend_bias} — điểm cấu trúc {trend_score:.0f}/100.")
+                st.write(
+                    f"**🔎 Diễn biến:** giá tăng {price_up_steps} bước / giảm {price_down_steps} bước; "
+                    f"cung → ATH giảm {overhead_down_steps} bước / tăng {overhead_up_steps} bước."
+                )
+
+                trend_rows = [
+                    ["Giá BTC", f"${trend_first['price']:,.0f}", f"${trend_last['price']:,.0f}", f"{trend_price_change:+,.0f} USD ({trend_price_pct:+.2f}%)"],
+                    ["Cung dưới giá", f"{trend_first['below_price']:,.0f} BTC", f"{trend_last['below_price']:,.0f} BTC", f"{trend_last['below_price']-trend_first['below_price']:+,.0f} BTC"],
+                    ["Cung hiện tại → ATH", f"{trend_first['overhead_ath']:,.0f} BTC", f"{trend_last['overhead_ath']:,.0f} BTC", f"{trend_overhead_change:+,.0f} BTC"],
+                    ["Cung hỗ trợ gần −10%", f"{trend_first['support_near']:,.0f} BTC", f"{trend_last['support_near']:,.0f} BTC", f"{trend_support_change:+,.0f} BTC"],
+                    ["Cung cản gần +10%", f"{trend_first['resistance_near']:,.0f} BTC", f"{trend_last['resistance_near']:,.0f} BTC", f"{trend_resistance_change:+,.0f} BTC"],
+                    ["Tỷ lệ hỗ trợ / cản", f"{trend_sr_start:.2f}x" if np.isfinite(trend_sr_start) else "N/A", f"{trend_sr_end:.2f}x" if np.isfinite(trend_sr_end) else "N/A", f"{trend_sr_end-trend_sr_start:+.2f}x" if np.isfinite(trend_sr_start) and np.isfinite(trend_sr_end) else "N/A"],
+                    ["Vùng đáy", f"{trend_first['bottom_supply']:,.0f} BTC", f"{trend_last['bottom_supply']:,.0f} BTC", f"{trend_bottom_change:+,.0f} BTC"],
+                    ["Tổng URPD", f"{trend_first['total_urpd']:,.0f} BTC", f"{trend_last['total_urpd']:,.0f} BTC", f"{trend_total_change:+,.0f} BTC"],
+                ]
+                st.dataframe(
+                    pd.DataFrame(trend_rows, columns=["Chỉ số", "Đầu kỳ", "Cuối kỳ", "Thay đổi"]),
+                    hide_index=True,
+                    use_container_width=True,
+                )
+
+                peak_overhead = trend_df.loc[trend_df["overhead_ath"].idxmax()]
+                low_overhead = trend_df.loc[trend_df["overhead_ath"].idxmin()]
+                peak_support = trend_df.loc[trend_df["support_near"].idxmax()]
+                best_price = trend_df.loc[trend_df["price"].idxmax()]
+                worst_price = trend_df.loc[trend_df["price"].idxmin()]
+                st.info(
+                    f"**Mốc đáng chú ý:** cung → ATH cao nhất {peak_overhead['overhead_ath']:,.0f} BTC ({peak_overhead['date']}), "
+                    f"thấp nhất {low_overhead['overhead_ath']:,.0f} BTC ({low_overhead['date']}); "
+                    f"cung hỗ trợ gần cao nhất {peak_support['support_near']:,.0f} BTC ({peak_support['date']}); "
+                    f"giá cao nhất ${best_price['price']:,.0f} ({best_price['date']}), thấp nhất ${worst_price['price']:,.0f} ({worst_price['date']})."
+                )
+
+                with st.expander("🧠 Cách đọc báo cáo xu hướng", expanded=False):
+                    st.write(
+                        "Biểu đồ URPD vẫn là snapshot đúng ngày được chọn; báo cáo này mới là phần nhìn cả giai đoạn. "
+                        "Cung → ATH giảm và cung cản gần giảm thường thuận lợi hơn; cung hỗ trợ gần tăng có thể tạo nền dày hơn "
+                        "nhưng không phải bằng chứng chắc chắn của tích lũy. Giá được dùng để xác nhận phản ứng, không thay thế dữ liệu cung."
+                    )
+                    st.write(
+                        f"Điểm xu hướng = 50 cơ sở + tác động của cung → ATH ({e1:+.1f}) + hỗ trợ gần ({e2:+.1f}) "
+                        f"+ cản gần ({e3:+.1f}) + phản ứng giá ({e4:+.1f}); điểm này là chỉ số nội bộ, không phải xác suất."
+                    )
 
         def _snapshot_delta(key, days):
             # Riêng "above_price_btc" phải dùng cùng giá tham chiếu của
