@@ -182,6 +182,60 @@ def bgeometrics_urpd(day):
     return normalize_urpd(payload), r.url
 
 
+@st.cache_data(ttl=1800)
+def bitview_urpd(day, agg="lin1000"):
+    """
+    Lấy URPD từ Bitcoin Research Kit / Bitview.
+    Bitview phát hành một snapshot mỗi ngày UTC và không yêu cầu API key.
+    Dùng bucket tuyến tính $1,000 để chuyển dữ liệu về format price_low/
+    price_high/btc_amount mà dashboard đang sử dụng.
+    """
+    url = "https://bitview.space/api/urpd/all/{day}".format(day=day)
+    params = {"agg": agg, "weight": "raw"}
+    headers = {"Accept": "application/json"}
+
+    r = requests.get(url, params=params, headers=headers, timeout=30)
+    if r.status_code == 404:
+        raise ValueError(f"Bitview không có URPD cho ngày {day}.")
+    r.raise_for_status()
+
+    payload = r.json()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Bitview trả response không hợp lệ cho ngày {day}.")
+
+    buckets = payload.get("buckets")
+    if not isinstance(buckets, list) or not buckets:
+        raise ValueError(f"Bitview không trả bucket URPD cho ngày {day}.")
+
+    rows = []
+    for b in buckets:
+        if not isinstance(b, dict):
+            continue
+        low = pd.to_numeric(b.get("price_floor"), errors="coerce")
+        supply = pd.to_numeric(b.get("supply"), errors="coerce")
+        if pd.isna(low) or pd.isna(supply):
+            continue
+        if float(supply) < 0:
+            continue
+
+        # lin1000 = bucket rộng $1,000 theo tài liệu Bitview.
+        # Mỗi price_floor là đầu bucket.
+        width = 1000.0 if agg == "lin1000" else None
+        if width is None:
+            raise ValueError("Bitview chỉ được cấu hình với agg=lin1000.")
+
+        rows.append(
+            {
+                "price_low": float(low),
+                "price_high": float(low) + width,
+                "btc_amount": float(supply),
+            }
+        )
+
+    out = normalize_urpd(pd.DataFrame(rows))
+    return out, r.url, payload.get("close"), payload.get("total_supply")
+
+
 def extract_scalar(payload):
     if isinstance(payload, (int, float)):
         return float(payload)
@@ -242,7 +296,7 @@ def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
 
 
 st.title("Phân bố Nguồn cung Bitcoin theo Giá vốn (URPD)")
-st.caption("URPD thực tế từ BGeometrics • Supply in Loss trực tiếp • Không mô phỏng")
+st.caption("URPD thực tế từ Bitview • BGeometrics dự phòng • Supply in Loss trực tiếp • Không mô phỏng")
 
 with st.sidebar:
     st.header("Thiết lập")
@@ -362,7 +416,7 @@ history, history_sha = github_history_get()
 
 with st.sidebar:
     st.markdown("### Dữ liệu URPD")
-    refresh_api = st.button("🔄 Cập nhật dữ liệu từ BGeometrics", use_container_width=True)
+    refresh_api = st.button("🔄 Cập nhật URPD mới", use_container_width=True)
     if refresh_api:
         st.cache_data.clear()
         st.session_state["force_urpd_refresh"] = True
@@ -389,8 +443,10 @@ if uploaded:
 
 # Nếu không có file, ưu tiên dùng dữ liệu đã lưu. Chỉ gọi API khi:
 # 1) Chưa có dữ liệu lịch sử; hoặc 2) người dùng bấm nút cập nhật.
-# HISTORY: chỉ cho phép lưu GitHub khi API thật sự lấy được snapshot mới.
+# Khi cập nhật, Bitview sẽ được dùng để bù các ngày còn thiếu kể từ snapshot gần nhất
+# (tối đa 7 ngày/lần chạy) để không phải chạy app từng ngày.
 history_should_save = False
+pending_history_snapshots = {}
 
 if urpd is None:
     saved_dates = sorted(
@@ -406,27 +462,91 @@ if urpd is None:
         urpd_date = latest_saved_date
         st.info(f"Đang dùng dữ liệu URPD đã lưu ngày {urpd_date}. Rerun không gọi API lại.")
     else:
-        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
-        try:
-            urpd, urpd_url = bgeometrics_urpd(yesterday)
-            urpd_source = "BGeometrics /v1/urpd"
-            urpd_date = yesterday
+        yesterday_date = datetime.now(timezone.utc).date() - timedelta(days=1)
+
+        if latest_saved_date:
+            start_date = datetime.strptime(latest_saved_date, "%Y-%m-%d").date() + timedelta(days=1)
+        else:
+            start_date = yesterday_date
+
+        # Không gọi quá 7 ngày trong một lần cập nhật.
+        if start_date < yesterday_date - timedelta(days=6):
+            start_date = yesterday_date - timedelta(days=6)
+
+        dates_to_fetch = []
+        d = start_date
+        while d <= yesterday_date:
+            dates_to_fetch.append(d.strftime("%Y-%m-%d"))
+            d += timedelta(days=1)
+
+        fetched = []
+
+        for target_date in dates_to_fetch:
+            try:
+                fetched_urpd, fetched_url, fetched_close, fetched_total_supply = bitview_urpd(target_date)
+                snapshot_price = float(fetched_close) if fetched_close is not None else None
+                snapshot_top = (
+                    btc_in_range(fetched_urpd, snapshot_price, float(ath))
+                    if snapshot_price is not None else None
+                )
+                snapshot_bottom = (
+                    btc_in_range(fetched_urpd, float(bottom_start), float(bottom_end))
+                    if snapshot_price is not None else None
+                )
+
+                pending_history_snapshots[target_date] = {
+                    "date": target_date,
+                    "price": snapshot_price,
+                    "top_btc": float(snapshot_top) if snapshot_top is not None else None,
+                    "above_price_btc": float(snapshot_top) if snapshot_top is not None else None,
+                    "bottom_btc": float(snapshot_bottom) if snapshot_bottom is not None else None,
+                    "total_urpd": float(fetched_urpd.btc_amount.sum()),
+                    "urpd": urpd_to_records(fetched_urpd) if "urpd_to_records" in globals() else fetched_urpd[
+                        ["price_low", "price_high", "btc_amount"]
+                    ].to_dict("records"),
+                    "source": "Bitview /api/urpd/all (lin1000)",
+                }
+                fetched.append((target_date, fetched_urpd, fetched_url, fetched_close, fetched_total_supply))
+            except Exception as e:
+                st.warning(f"Bitview chưa có URPD ngày {target_date}: {e}")
+
+        if fetched:
+            # Dùng ngày mới nhất lấy được làm dữ liệu hiện tại.
+            latest_target, urpd, urpd_url, bitview_close, bitview_total_supply = fetched[-1]
+            urpd_source = "Bitview /api/urpd/all (lin1000)"
+            urpd_date = latest_target
             history_should_save = True
-            st.success(f"Đã gọi API BGeometrics và lấy dữ liệu ngày {urpd_date}.")
-        except Exception as e:
-            # Nếu ngày mới chưa có dữ liệu, chỉ dùng snapshot cũ để hiển thị.
-            # TUYỆT ĐỐI không lưu lại snapshot cũ như một ngày mới.
+            st.success(
+                f"Đã lấy {len(fetched)} snapshot URPD mới từ Bitview: "
+                f"{fetched[0][0]} → {fetched[-1][0]}."
+            )
+        else:
+            # Không có snapshot mới: giữ dữ liệu cũ, tuyệt đối không tạo ngày giả.
             if latest_saved_date:
                 saved_latest = history[latest_saved_date]
                 urpd = normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
                 urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
                 urpd_date = latest_saved_date
                 st.warning(
-                    f"Chưa lấy được URPD BGeometrics cho ngày {yesterday}: {e}. "
+                    f"Bitview chưa trả được snapshot mới. "
                     f"Đang giữ snapshot gần nhất {latest_saved_date}; không tạo snapshot mới."
                 )
             else:
-                st.warning(f"Chưa lấy được URPD BGeometrics: {e}")
+                # Chỉ khi chưa có history nào, thử BGeometrics làm nguồn dự phòng.
+                try:
+                    urpd, urpd_url = bgeometrics_urpd(yesterday_date.strftime("%Y-%m-%d"))
+                    urpd_source = "BGeometrics /v1/urpd (dự phòng)"
+                    urpd_date = yesterday_date.strftime("%Y-%m-%d")
+                    history_should_save = True
+                    st.success(
+                        f"Bitview chưa trả dữ liệu; đã lấy được URPD "
+                        f"{urpd_date} từ BGeometrics."
+                    )
+                except Exception as fallback_error:
+                    st.warning(
+                        f"Chưa lấy được URPD từ Bitview. "
+                        f"BGeometrics dự phòng cũng không lấy được: {fallback_error}"
+                    )
 
 price = btc_price()
 if price is None:
@@ -564,8 +684,8 @@ st.download_button(
 )
 
 st.info(
-    f"Đang sử dụng URPD mới nhất của ngày {data_date} "
-    "(BGeometrics có thể chưa cập nhật ngày hiện tại). "
+    f"Đang sử dụng URPD mới nhất của ngày {data_date}. "
+    "Nguồn URPD ưu tiên Bitview; BGeometrics chỉ dùng dự phòng. "
     "Supply in Loss vẫn lấy trực tiếp từ ResearchBitcoin."
 )
 
@@ -577,53 +697,57 @@ def urpd_to_records(df):
 def records_to_urpd(records):
     return normalize_urpd(pd.DataFrame(records))
 
-# Lưu URPD gốc của ngày hiện tại; không ghi đè các ngày cũ.
-# Nếu history đã có đúng snapshot này thì không commit GitHub lại.
+# Lưu URPD mới lên history; không ghi đè các ngày cũ.
+# Khi Bitview bù nhiều ngày, tất cả snapshot mới được lưu trong cùng một commit GitHub.
 if urpd is not None and data_date and history_should_save:
-    snapshot = {
-        "date": data_date,
-        "price": float(price) if price is not None else None,
-        "top_btc": float(top_btc) if top_btc is not None else None,
-        "above_price_btc": float(above_price_btc) if above_price_btc is not None else None,
-        "bottom_btc": float(bottom_btc) if bottom_btc is not None else None,
-        "total_urpd": float(total_urpd) if total_urpd is not None else None,
-        "urpd": urpd_to_records(urpd),
-        "source": urpd_source,
-    }
+    # Nếu pending_history_snapshots có dữ liệu thì dùng chúng.
+    # Nếu không (ví dụ nguồn dự phòng BGeometrics), tạo snapshot cho ngày hiện tại.
+    if not pending_history_snapshots:
+        pending_history_snapshots[data_date] = {
+            "date": data_date,
+            "price": float(price) if price is not None else None,
+            "top_btc": float(top_btc) if top_btc is not None else None,
+            "above_price_btc": float(above_price_btc) if above_price_btc is not None else None,
+            "bottom_btc": float(bottom_btc) if bottom_btc is not None else None,
+            "total_urpd": float(total_urpd) if total_urpd is not None else None,
+            "urpd": urpd_to_records(urpd),
+            "source": urpd_source,
+        }
+    else:
+        # Các snapshot Bitview đã có giá đóng cửa của chính ngày đó;
+        # không thay bằng giá BTC hiện tại.
+        pass
 
-    old_snapshot = history.get(data_date)
-    history_changed = old_snapshot != snapshot
+    changed_dates = []
+    for snap_date, snapshot in sorted(pending_history_snapshots.items()):
+        old_snapshot = history.get(snap_date)
+        if old_snapshot != snapshot:
+            history[snap_date] = snapshot
+            changed_dates.append(snap_date)
 
-    if history_changed:
-        history[data_date] = snapshot
-
+    if changed_dates:
         # Giữ tối đa 365 ngày gần nhất.
         history = dict(sorted(history.items())[-365:])
 
         if github_token and github_repo:
             if github_history_save(history, history_sha):
-                st.success(f"Đã lưu history URPD ngày {data_date} lên GitHub.")
-                # Lấy SHA mới để lần lưu tiếp theo cập nhật đúng file.
+                st.success(
+                    "Đã lưu history URPD lên GitHub: "
+                    + ", ".join(changed_dates)
+                )
                 _, history_sha = github_history_get()
         else:
             try:
                 github_history_save(history)
             except Exception as e:
                 st.warning(f"Không lưu được lịch sử URPD: {e}")
-    elif not github_token or not github_repo:
-        # Local: đảm bảo file tồn tại dù snapshot không đổi.
-        try:
-            github_history_save(history)
-        except Exception:
-            pass
 
 st.markdown("---")
 st.subheader("Lịch sử biến động nguồn cung")
 st.caption("Chọn mốc lịch sử để xem lại đúng biểu đồ URPD của ngày đó.")
 
-# Lấy ngày dữ liệu URPD mới nhất làm mốc. Ví dụ nếu hôm nay là 07/09
-# nhưng BGeometrics mới có dữ liệu 06/09 thì "Hiện tại" = 06/09,
-# còn "1 ngày trước" = 05/09, tránh hiển thị trùng ngày.
+# Lấy ngày dữ liệu URPD mới nhất làm mốc. Nếu nguồn chưa có ngày hôm qua,
+# dashboard giữ snapshot gần nhất đã lưu và không tạo ngày giả.
 base_date = datetime.strptime(data_date, "%Y-%m-%d").date() if data_date else None
 
 # Gắn ngày cụ thể ngay trên nút để tránh nhầm giữa ngày chạy app
