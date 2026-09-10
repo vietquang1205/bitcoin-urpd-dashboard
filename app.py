@@ -1073,15 +1073,14 @@ else:
     # =========================
     # BÁO CÁO TỰ ĐỘNG NGÀY
     # =========================
-    # Báo cáo này dùng dữ liệu URPD thực tế đang có trong history + các metric
-    # của dashboard. Không dùng tin tức bên ngoài và không tự bịa dữ liệu.
-    # Các câu "xu hướng/định hướng" là suy luận định lượng từ thay đổi nguồn cung,
-    # vì vậy luôn được diễn đạt là tín hiệu on-chain, không phải dự báo chắc chắn.
+    # Báo cáo dùng dữ liệu URPD thực tế đang có trong history + các metric của dashboard.
+    # Không dùng tin tức bên ngoài. Các kết luận xu hướng chỉ là tín hiệu on-chain,
+    # không phải dự báo chắc chắn về giá.
     if data_date and urpd is not None:
         st.subheader("📊 Báo cáo phân tích URPD ngày")
         st.caption(
             "Phân tích tự động từ URPD của ngày mới nhất, so sánh 1 ngày và 7 ngày; "
-            "ưu tiên các bucket có thay đổi lớn và các vùng cung quanh giá hiện tại."
+            "kết hợp sức mạnh nguồn cung, vùng giá và các bucket biến động lớn."
         )
 
         def _fmt_btc(x):
@@ -1124,7 +1123,7 @@ else:
                     continue
                 mid = (float(r.price_low) + float(r.price_high)) / 2.0
                 if mid <= 1:
-                    continue  # bỏ bucket 0 USD vì thường là phần placeholder rất lớn
+                    continue
                 rows.append({
                     "low": float(r.price_low),
                     "high": float(r.price_high),
@@ -1144,7 +1143,6 @@ else:
         d1_total, _ = _snapshot_delta("total_urpd", 1)
         d7_total, _ = _snapshot_delta("total_urpd", 7)
 
-        # Phần cung theo vị trí so với giá hiện tại của snapshot mới nhất.
         current_price = float(chart_price if data_date == chart_date else price)
         total_now = float(urpd.btc_amount.sum())
         below_now = float(urpd.loc[urpd.price_high <= current_price, "btc_amount"].sum())
@@ -1153,7 +1151,6 @@ else:
         below_pct = below_now / total_now * 100.0 if total_now else np.nan
         overhead_pct = overhead_now / total_now * 100.0 if total_now else np.nan
 
-        # Tìm các bucket tăng/giảm mạnh nhất trong 1D và 7D.
         df1 = _bucket_deltas(d1_date)
         df7 = _bucket_deltas(d7_date)
 
@@ -1169,62 +1166,137 @@ else:
         inc7 = _top_rows(df7, True)
         dec7 = _top_rows(df7, False)
 
-        # Chấm điểm tín hiệu rất đơn giản: chỉ dùng thay đổi cung, không coi là
-        # dự báo giá. Giảm cung phía trên giá -> thuận lợi hơn; tăng -> cản hơn.
-        score = 0
-        reasons = []
+        # ---------------------------------------------------------
+        # CHẤM ĐIỂM SỨC MẠNH BTC: 0–100
+        # Đây là scoring định lượng của dashboard, không phải mô hình dự báo giá.
+        # Điểm cơ sở = 50. Các tín hiệu 1D/7D được giới hạn để một biến động đơn lẻ
+        # không thể tự mình kéo điểm sang cực đoan.
+        # ---------------------------------------------------------
+        score = 50.0
+        score_parts = []
+
+        def _bounded_effect(delta, favorable_negative=True, scale=100000.0, weight=12.0):
+            if delta is None:
+                return 0.0
+            direction = -1.0 if favorable_negative else 1.0
+            raw = direction * float(delta) / scale * weight
+            return float(np.clip(raw, -weight, weight))
+
+        # Cung phía trên giá: giảm thường thuận lợi hơn cho việc đi lên,
+        # tăng thường tạo thêm nguồn cung cần hấp thụ.
+        e_top_1 = _bounded_effect(d1_top, favorable_negative=True, scale=100000.0, weight=15.0)
+        score += e_top_1
         if d1_top is not None:
-            if d1_top < -5000:
-                score += 2
-                reasons.append(f"cung từ giá hiện tại đến ATH giảm {_fmt_btc(d1_top)} trong 1 ngày")
-            elif d1_top > 5000:
-                score -= 2
-                reasons.append(f"cung từ giá hiện tại đến ATH tăng {_fmt_btc(d1_top)} trong 1 ngày")
+            score_parts.append(("Cung hiện tại → ATH (1D)", e_top_1))
+
+        e_top_7 = _bounded_effect(d7_top, favorable_negative=True, scale=200000.0, weight=10.0)
+        score += e_top_7
         if d7_top is not None:
-            if d7_top < -10000:
-                score += 1
-            elif d7_top > 10000:
-                score -= 1
+            score_parts.append(("Cung hiện tại → ATH (7D)", e_top_7))
+
+        # Vùng đáy: tăng nguồn cung trong vùng giá thấp hơn có thể tạo nền cung,
+        # nhưng không coi đó là bằng chứng chắc chắn của tích lũy.
+        e_bottom_1 = _bounded_effect(d1_bottom, favorable_negative=False, scale=100000.0, weight=8.0)
+        score += e_bottom_1
         if d1_bottom is not None:
-            if d1_bottom > 5000:
-                score += 1
-                reasons.append(f"vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f} tăng {_fmt_btc(d1_bottom)}")
-            elif d1_bottom < -5000:
-                score -= 1
-                reasons.append(f"vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f} giảm {_fmt_btc(d1_bottom)}")
+            score_parts.append(("Vùng đáy (1D)", e_bottom_1))
 
-        if score >= 2:
-            bias = "🟢 Tích cực"
-            bias_text = "Nguồn cung đang có tín hiệu thuận lợi hơn cho phía tăng, nhưng đây chỉ là tín hiệu on-chain."
-        elif score <= -2:
-            bias = "🔴 Tiêu cực"
-            bias_text = "Nguồn cung đang tạo thêm áp lực phía trên/giảm ở vùng hỗ trợ, nhưng đây chỉ là tín hiệu on-chain."
-        else:
+        # Bucket lớn nhất quanh giá hiện tại: ưu tiên tín hiệu khi biến động đủ lớn.
+        near_low = current_price * 0.90
+        near_high = current_price * 1.10
+        near_df = df1[(df1.mid >= near_low) & (df1.mid <= near_high)] if df1 is not None else None
+        near_net = float(near_df.delta.sum()) if near_df is not None and not near_df.empty else None
+        e_near = _bounded_effect(near_net, favorable_negative=False, scale=80000.0, weight=7.0)
+        score += e_near
+        if near_net is not None:
+            score_parts.append(("Dịch chuyển quanh giá (1D)", e_near))
+
+        # Nếu đã có đủ 7 ngày, thêm một tín hiệu xu hướng dài hơn.
+        if d7_top is not None and d7_bottom is not None:
+            # Ưu tiên khi cung phía trên giảm và vùng đáy giữ/tăng.
+            e_structure_7 = float(np.clip((-d7_top / 250000.0) * 5.0 + (d7_bottom / 250000.0) * 5.0, -5.0, 5.0))
+            score += e_structure_7
+            score_parts.append(("Cấu trúc 7D", e_structure_7))
+
+        score = float(np.clip(score, 0.0, 100.0))
+
+        # Xác định thiên hướng.
+        if score >= 65:
+            bias = "🟢 Mạnh / nghiêng tăng"
+            bias_text = "Cấu trúc nguồn cung đang nghiêng thuận lợi cho phía tăng. Ưu tiên chờ giá xác nhận và tránh đuổi giá khi biến động đã quá nhanh."
+        elif score >= 55:
+            bias = "🟢 Hơi mạnh"
+            bias_text = "Tín hiệu on-chain nghiêng tích cực nhưng chưa đủ mạnh để gọi là xu hướng tăng rõ ràng."
+        elif score >= 45:
             bias = "🟡 Trung tính"
-            bias_text = "Dữ liệu URPD chưa tạo chênh lệch đủ lớn để kết luận một hướng rõ ràng."
+            bias_text = "Nguồn cung chưa tạo ưu thế rõ cho bên tăng hay giảm. Ưu tiên chờ xác nhận tại các vùng giá quan trọng."
+        elif score >= 35:
+            bias = "🟠 Hơi yếu"
+            bias_text = "Cấu trúc nguồn cung đang kém thuận lợi hơn. Nên thận trọng với vị thế mới và theo dõi phản ứng ở vùng hỗ trợ."
+        else:
+            bias = "🔴 Yếu / nghiêng giảm"
+            bias_text = "Cấu trúc nguồn cung đang nghiêng bất lợi cho phía tăng. Ưu tiên phòng thủ và chờ cấu trúc cải thiện trước khi tăng rủi ro."
 
-        c1, c2, c3 = st.columns(3)
+        # Xác định xu hướng sắp tới: dựa trên điểm + các điều kiện xác nhận,
+        # không dùng ngôn ngữ chắc chắn.
+        if score >= 65 and (d1_top is None or d1_top < 0):
+            outlook = "📈 Nghiêng tăng"
+            outlook_detail = "Kịch bản ưu tiên: giá giữ được vùng hiện tại và hấp thụ dần nguồn cung phía trên."
+        elif score <= 35 and (d1_top is None or d1_top > 0):
+            outlook = "📉 Nghiêng giảm"
+            outlook_detail = "Kịch bản rủi ro: giá không hấp thụ được cung phía trên và quay lại kiểm tra các vùng hỗ trợ."
+        else:
+            outlook = "➡️ Chưa xác nhận"
+            outlook_detail = "Cả hai kịch bản vẫn còn mở; cần thêm snapshot và phản ứng giá tại vùng cung gần nhất."
+
+        # Hành động theo kiểu quản trị rủi ro, không phải lệnh mua/bán bắt buộc.
+        if score >= 65:
+            action = "Ưu tiên giữ vị thế đang có; nếu có kế hoạch giải ngân thì chia nhỏ và chờ giá xác nhận vùng cung phía trên. Không FOMO."
+        elif score >= 55:
+            action = "Có thể thiên về giữ/giải ngân thận trọng theo kế hoạch, nhưng chờ xác nhận breakout và theo dõi cung phía trên."
+        elif score >= 45:
+            action = "Ưu tiên đứng ngoài hoặc giữ tỷ trọng vừa phải; chờ thêm 1–3 snapshot để xác định hướng thay vì đuổi theo biến động một ngày."
+        elif score >= 35:
+            action = "Giảm đòn bẩy/rủi ro nếu đang dùng mức cao; chờ vùng hỗ trợ phản ứng tốt trước khi tăng vị thế."
+        else:
+            action = "Ưu tiên phòng thủ, hạn chế đòn bẩy và chờ cấu trúc nguồn cung cải thiện; không bắt đáy chỉ dựa trên URPD."
+
+        c1, c2, c3, c4 = st.columns(4)
         with c1:
-            st.metric("Thiên hướng on-chain", bias)
+            st.metric("Sức mạnh BTC", f"{score:.0f}/100", bias)
         with c2:
             st.metric("Cung dưới giá hiện tại", f"{below_now:,.0f} BTC", f"{below_pct:.2f}% tổng URPD")
         with c3:
             st.metric("Cung từ giá hiện tại → ATH", f"{overhead_now:,.0f} BTC", f"{overhead_pct:.2f}% tổng URPD")
+        with c4:
+            st.metric("Triển vọng", outlook)
 
-        if reasons:
-            st.write("**🧠 Nhận định chính:** " + "; ".join(reasons) + ".")
-        else:
-            st.write("**🧠 Nhận định chính:** chưa có biến động vùng đủ lớn để tạo tín hiệu mạnh.")
-        st.write("**Định hướng:** " + bias_text)
+        st.write("**🧠 Đánh giá sức mạnh:** " + bias_text)
+        st.write("**📈 Xu hướng sắp tới:** " + outlook_detail)
+        st.write("**🎯 Nên làm lúc này:** " + action)
 
-        # Bảng 1D / 7D giúp người dùng thấy báo cáo đang dựa trên số liệu nào.
+        # Lý do chính giúp ông truy ngược điểm số về dữ liệu.
+        reason_text = []
+        if d1_top is not None:
+            reason_text.append(f"cung hiện tại → ATH {_fmt_btc(d1_top)} trong 1 ngày")
+        if d1_bottom is not None:
+            reason_text.append(f"vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f} {_fmt_btc(d1_bottom)}")
+        if near_net is not None:
+            reason_text.append(f"dịch chuyển quanh giá {_fmt_btc(near_net)}")
+        if d7_top is not None:
+            reason_text.append(f"7 ngày {_fmt_btc(d7_top)} cung phía trên")
+        if reason_text:
+            st.write("**📌 Cơ sở chính:** " + "; ".join(reason_text) + ".")
+
         report_rows = [
+            ["Sức mạnh BTC", f"{score:.0f}/100", bias, "Điểm định lượng của dashboard"],
+            ["Triển vọng", outlook, "", outlook_detail],
             ["Cung từ giá hiện tại → ATH", f"{overhead_now:,.2f} BTC", _fmt_btc(d1_top) if d1_top is not None else "N/A", _fmt_btc(d7_top) if d7_top is not None else "N/A"],
             [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", f"{chart_bottom_btc:,.2f} BTC" if chart_bottom_btc is not None else "N/A", _fmt_btc(d1_bottom) if d1_bottom is not None else "N/A", _fmt_btc(d7_bottom) if d7_bottom is not None else "N/A"],
             ["Tổng URPD", f"{total_now:,.2f} BTC", _fmt_btc(d1_total) if d1_total is not None else "N/A", _fmt_btc(d7_total) if d7_total is not None else "N/A"],
         ]
         st.dataframe(
-            pd.DataFrame(report_rows, columns=["Chỉ số", "Hôm nay", "Δ 1 ngày", "Δ 7 ngày"]),
+            pd.DataFrame(report_rows, columns=["Chỉ số", "Hôm nay", "Δ 1 ngày / trạng thái", "Δ 7 ngày / diễn giải"]),
             hide_index=True,
             use_container_width=True,
         )
@@ -1250,19 +1322,30 @@ else:
 
         with st.expander("🔎 Phân tích xu hướng 7 ngày"):
             if inc7 or dec7:
-                st.write("**Tăng mạnh:**")
-                for r in inc7:
-                    st.write("• " + _bucket_text(r))
-                st.write("**Giảm mạnh:**")
-                for r in dec7:
-                    st.write("• " + _bucket_text(r))
+                if inc7:
+                    st.write("**Tăng mạnh:**")
+                    for r in inc7:
+                        st.write("• " + _bucket_text(r))
+                if dec7:
+                    st.write("**Giảm mạnh:**")
+                    for r in dec7:
+                        st.write("• " + _bucket_text(r))
             else:
                 st.write("Chưa đủ snapshot để phân tích 7 ngày.")
 
+        with st.expander("🧮 Vì sao dashboard cho điểm này?"):
+            st.write(f"Điểm cơ sở: **50/100**. Điểm được điều chỉnh bởi các thay đổi URPD 1D/7D; mỗi thành phần có giới hạn ảnh hưởng để tránh một bucket đơn lẻ chi phối toàn bộ kết luận.")
+            if score_parts:
+                for name, effect in score_parts:
+                    st.write(f"• {name}: **{effect:+.1f} điểm**")
+            else:
+                st.write("Chưa có snapshot đối chiếu phù hợp để điều chỉnh điểm.")
+            st.write("Điểm này chỉ phản ánh **sức mạnh cấu trúc nguồn cung theo URPD**, không phải xác suất BTC tăng/giảm và không thay thế quản trị rủi ro.")
+
         st.caption(
             "Lưu ý: URPD cho biết phân bố giá vốn của nguồn cung UTXO tại từng snapshot. "
-            "Biến động bucket không tự chứng minh mua, bán, tích lũy hay phân phối; báo cáo chỉ dùng "
-            "các biến động đó để tạo tín hiệu định lượng và định hướng theo dõi."
+            "Biến động bucket không tự chứng minh mua, bán, tích lũy hay phân phối; báo cáo dùng "
+            "các biến động đó để tạo tín hiệu định lượng, đánh giá sức mạnh tương đối và các kịch bản cần theo dõi."
         )
 
     # Bảng tổng hợp ngay dưới biểu đồ.
