@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V21", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V23", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -1554,6 +1554,113 @@ else:
         overhead_pct = overhead_now / total_now * 100.0 if total_now else np.nan
         report_bottom_btc = btc_in_range(report_urpd, float(bottom_start), float(bottom_end))
 
+        # =========================================================
+        # CUNG - CẦU SUY LUẬN TỪ URPD
+        # ---------------------------------------------------------
+        # URPD không đo trực tiếp lệnh mua/bán. Vì vậy dashboard không gọi
+        # các vùng BTC dưới/ trên giá là "demand" tuyệt đối. Chúng được
+        # dùng như proxy (chỉ báo đại diện): cung dưới giá = vùng đỡ tiềm
+        # năng; cung trên giá = nguồn cung cần được hấp thụ. Kết luận cuối
+        # phải kết hợp thêm phản ứng của giá và hướng dịch chuyển cung.
+        # =========================================================
+        near_pct = 0.10
+        near_low = max(0.0, current_price * (1.0 - near_pct))
+        near_high = current_price * (1.0 + near_pct)
+        far_low = max(0.0, current_price * 0.80)
+
+        support_near = btc_in_range(report_urpd, near_low, current_price)
+        resistance_near = btc_in_range(report_urpd, current_price, near_high)
+        support_broad = btc_in_range(report_urpd, far_low, current_price)
+        resistance_broad = btc_in_range(report_urpd, current_price, float(ath))
+
+        near_total = support_near + resistance_near
+        near_balance_pct = ((support_near - resistance_near) / near_total * 100.0) if near_total else None
+        sr_ratio = (support_near / resistance_near) if resistance_near > 0 else None
+
+        def _price_from_history(target_date):
+            rec = history.get(target_date, {}) if target_date else {}
+            try:
+                return float(rec.get("price")) if rec.get("price") is not None else None
+            except Exception:
+                return None
+
+        def _price_change(days):
+            try:
+                d0 = datetime.strptime(report_date, "%Y-%m-%d").date()
+                old_date = (d0 - timedelta(days=days)).strftime("%Y-%m-%d")
+                old_price = _price_from_history(old_date)
+                if old_price is None or old_price <= 0:
+                    return None, old_date
+                return current_price - old_price, old_date
+            except Exception:
+                return None, None
+
+        p1, p1_date = _price_change(1)
+        p3, p3_date = _price_change(3)
+        p7, p7_date = _price_change(7)
+        p3_pct = (p3 / _price_from_history(p3_date) * 100.0) if p3 is not None and _price_from_history(p3_date) else None
+        p7_pct = (p7 / _price_from_history(p7_date) * 100.0) if p7 is not None and _price_from_history(p7_date) else None
+
+        # Điểm cân bằng cung-cầu suy luận 0-100. Đây là điểm nội bộ của
+        # dashboard, không phải xác suất giá tăng/giảm.
+        flow_score = 50.0
+        flow_parts = []
+
+        if near_balance_pct is not None:
+            e_balance = float(np.clip(near_balance_pct / 100.0 * 20.0, -20.0, 20.0))
+            flow_score += e_balance
+            flow_parts.append(("Cán cân cung gần giá", e_balance))
+
+        if d3_top is not None:
+            e_overhead = float(np.clip((-d3_top / 150000.0) * 15.0, -15.0, 15.0))
+            flow_score += e_overhead
+            flow_parts.append(("Thay đổi cung phía trên 3D", e_overhead))
+
+        if d3_bottom is not None:
+            e_support = float(np.clip((d3_bottom / 150000.0) * 10.0, -10.0, 10.0))
+            flow_score += e_support
+            flow_parts.append(("Thay đổi cung hỗ trợ 3D", e_support))
+
+        if p3_pct is not None:
+            # Giá tăng cùng cấu trúc cung tốt hơn là tín hiệu xác nhận; giá
+            # giảm mạnh làm giảm điểm nhưng chỉ ở trọng số vừa phải.
+            e_price = float(np.clip(p3_pct / 5.0 * 8.0, -8.0, 8.0))
+            flow_score += e_price
+            flow_parts.append(("Phản ứng giá 3D", e_price))
+
+        flow_score = float(np.clip(flow_score, 0.0, 100.0))
+
+        if flow_score >= 65:
+            flow_state = "🟢 Cầu tương đối khỏe"
+        elif flow_score >= 55:
+            flow_state = "🟢 Cầu nhỉnh hơn"
+        elif flow_score >= 45:
+            flow_state = "🟡 Cân bằng / chưa rõ"
+        elif flow_score >= 35:
+            flow_state = "🟠 Cung nhỉnh hơn"
+        else:
+            flow_state = "🔴 Cung tương đối mạnh"
+
+        # Logic kết luận cung-cầu: ưu tiên sự đồng thuận giữa cấu trúc cung
+        # và phản ứng giá; không kết luận chỉ từ một bucket.
+        if (near_balance_pct is not None and near_balance_pct > 10 and
+                (d3_top is None or d3_top <= 0) and (p3 is None or p3 >= 0)):
+            flow_conclusion = "Cấu trúc nghiêng thuận lợi cho bên mua: cung hỗ trợ gần giá lớn hơn cung cản gần giá, trong khi cung phía trên không tăng rõ."
+            flow_outlook = "📈 Nghiêng tích cực"
+        elif (near_balance_pct is not None and near_balance_pct < -10 and
+              (d3_top is None or d3_top >= 0) and (p3 is None or p3 <= 0)):
+            flow_conclusion = "Cấu trúc nghiêng về phía cung: vùng cản gần giá dày hơn vùng hỗ trợ và/hoặc cung phía trên đang tăng trong khi giá yếu."
+            flow_outlook = "📉 Nghiêng tiêu cực"
+        elif (p3 is not None and p3 > 0 and d3_top is not None and d3_top > 0):
+            flow_conclusion = "Giá vẫn tăng nhưng cung phía trên cũng tăng: đây là trạng thái có thể đang hấp thụ cung, chưa nên xem là breakout đã được xác nhận."
+            flow_outlook = "🟡 Tăng nhưng đang hấp thụ cung"
+        elif (p3 is not None and p3 < 0 and d3_top is not None and d3_top < 0):
+            flow_conclusion = "Giá giảm nhưng cung phía trên cũng giảm: áp lực cản đang nhẹ đi, cần xem cung có chuyển xuống vùng hỗ trợ hay không trước khi kết luận xấu."
+            flow_outlook = "🟡 Giảm nhưng cung cản đang nhẹ"
+        else:
+            flow_conclusion = "Cung và phản ứng giá chưa đồng thuận đủ mạnh để xác định bên mua hay bên bán đang chiếm ưu thế."
+            flow_outlook = "➡️ Chưa xác nhận"
+
         df1 = _bucket_deltas(d1_date)
         df3 = _bucket_deltas(d3_date)
         df7 = _bucket_deltas(d7_date)
@@ -1729,6 +1836,60 @@ else:
             hide_index=True,
             use_container_width=True,
         )
+
+        # =========================================================
+        # PHÂN TÍCH CUNG - CẦU: lớp suy luận chính của báo cáo.
+        # =========================================================
+        st.markdown("### ⚖️ Phân tích cung – cầu theo URPD")
+        st.caption(
+            "Đây là cán cân cung–cầu suy luận từ vị trí nguồn cung URPD và phản ứng giá, "
+            "không phải dữ liệu lệnh mua/bán trực tiếp trên sổ lệnh. Cung dưới giá được xem "
+            "là vùng hỗ trợ tiềm năng; cung trên giá là lượng cần được hấp thụ."
+        )
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("Cung hỗ trợ gần (−10%)", f"{support_near:,.0f} BTC")
+        with c2:
+            st.metric("Cung cản gần (+10%)", f"{resistance_near:,.0f} BTC")
+        with c3:
+            if sr_ratio is not None:
+                st.metric("Tỷ lệ hỗ trợ / cản", f"{sr_ratio:.2f}x")
+            else:
+                st.metric("Tỷ lệ hỗ trợ / cản", "N/A")
+        with c4:
+            st.metric("Cán cân cung gần giá", f"{near_balance_pct:+.1f}%" if near_balance_pct is not None else "N/A")
+
+        st.info(f"**{flow_outlook} — {flow_state}.** {flow_conclusion}")
+
+        price_rows = [
+            ["Giá 1D", f"{p1:+,.0f} USD" if p1 is not None else "N/A", p1_date or "N/A"],
+            ["Giá 3D", f"{p3:+,.0f} USD ({p3_pct:+.2f}%)" if p3 is not None and p3_pct is not None else "N/A", p3_date or "N/A"],
+            ["Giá 7D", f"{p7:+,.0f} USD ({p7_pct:+.2f}%)" if p7 is not None and p7_pct is not None else "N/A", p7_date or "N/A"],
+            ["Cung phía trên → ATH", _fmt_btc(d3_top) if d3_top is not None else "N/A", "Giảm = cung cản nhẹ đi"],
+            ["Cung vùng đáy", _fmt_btc(d3_bottom) if d3_bottom is not None else "N/A", "Tăng = nền cung dày hơn"],
+        ]
+        st.dataframe(
+            pd.DataFrame(price_rows, columns=["Tín hiệu", "Thay đổi", "Mốc / cách đọc"]),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        with st.expander("🧠 Vì sao báo cáo kết luận như vậy?", expanded=False):
+            if flow_parts:
+                st.write("**Các thành phần của điểm cân bằng cung–cầu:**")
+                for name, effect in flow_parts:
+                    st.write(f"• {name}: **{effect:+.1f} điểm**")
+            st.write(
+                "**Cách suy luận:** (1) so sánh cung hỗ trợ và cung cản gần giá; "
+                "(2) xem cung phía trên đang tăng hay giảm trong 3 ngày; "
+                "(3) xem vùng hỗ trợ thay đổi thế nào; (4) đối chiếu với phản ứng giá. "
+                "Chỉ khi nhiều tín hiệu cùng hướng mới nâng mức kết luận."
+            )
+            st.write(
+                "**Không được hiểu là:** cung dưới giá = chắc chắn có người mua, hoặc cung trên giá = chắc chắn có người bán. "
+                "URPD chỉ cho biết phân bố giá vốn; hành vi mua/bán cần dữ liệu dòng tiền hoặc sổ lệnh bổ sung."
+            )
 
         def _bucket_text(row):
             return f"${row['low']:,.0f}–${row['high']:,.0f}: {_fmt_btc(row['delta'])} ({_pct(row['pct'])})"
