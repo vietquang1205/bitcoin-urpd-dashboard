@@ -921,6 +921,46 @@ else:
             )
         )
 
+    # Khi có snapshot so sánh, ghép BTC của cùng bucket giá để hover hiện
+    # đồng thời ngày cũ, ngày mới và phần tăng/giảm. Không cần đổi sang
+    # radio lịch sử để kiểm tra từng cột.
+    if comparison_urpd is not None:
+        hist_lookup = {
+            (round(float(r.price_low), 6), round(float(r.price_high), 6)): float(r.btc_amount)
+            for r in comparison_urpd.itertuples(index=False)
+        }
+        compare_btc = np.array([
+            hist_lookup.get(
+                (round(float(lo), 6), round(float(hi), 6)),
+                np.nan,
+            )
+            for lo, hi in zip(urpd.price_low, urpd.price_high)
+        ], dtype=float)
+        delta_btc = urpd.btc_amount.to_numpy(float) - compare_btc
+        current_customdata = np.column_stack([
+            urpd.price_low.to_numpy(float),
+            urpd.price_high.to_numpy(float),
+            compare_btc,
+            delta_btc,
+        ])
+        current_hover = (
+            f"Snapshot {chart_date}<br>"
+            "Khoảng giá: $%{customdata[0]:,.0f} - $%{customdata[1]:,.0f}<br>"
+            "BTC ngày mới: %{y:,.2f}<br>"
+            f"BTC ngày {comparison_date}: %{{customdata[2]:,.2f}}<br>"
+            "Thay đổi: %{customdata[3]:+,.2f} BTC"
+            "<extra></extra>"
+        )
+    else:
+        current_customdata = np.stack(
+            [urpd.price_low.to_numpy(float), urpd.price_high.to_numpy(float)], axis=-1
+        )
+        current_hover = (
+            f"Snapshot {chart_date}<br>"
+            "Khoảng giá: $%{customdata[0]:,.0f} - $%{customdata[1]:,.0f}<br>"
+            "BTC: %{y:,.2f}<extra></extra>"
+        )
+
     fig.add_trace(
         go.Bar(
             x=urpd.mid_price,
@@ -928,15 +968,8 @@ else:
             width=(urpd.price_high - urpd.price_low) * (0.72 if comparison_urpd is not None else 0.92),
             name=f"Hiện tại {chart_date}",
             marker_color=colors,
-            customdata=np.stack(
-                [urpd.price_low, urpd.price_high], axis=-1
-            ),
-            hovertemplate=(
-                f"Snapshot {chart_date}<br>"
-                "Khoảng giá: $%{customdata[0]:,.0f} - "
-                "$%{customdata[1]:,.0f}<br>"
-                "BTC: %{y:,.2f}<extra></extra>"
-            ),
+            customdata=current_customdata,
+            hovertemplate=current_hover,
         )
     )
     # Tô nền vùng đáy theo khoảng giá người dùng thiết lập.
