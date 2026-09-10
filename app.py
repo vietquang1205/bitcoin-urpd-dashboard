@@ -329,16 +329,15 @@ if price is None:
 else:
     price_source = "Giá thị trường trực tiếp"
 
-# Vùng đáy đến luôn bám theo giá BTC hiện tại, không cho nhập thủ công.
-bottom_end = float(price)
+# Vùng đáy đến do người dùng tự thiết lập.
 with st.sidebar:
-    st.number_input(
-        "Vùng đáy đến (USD) — tự động theo giá BTC",
-        value=bottom_end,
+    bottom_end = st.number_input(
+        "Vùng đáy đến (USD)",
+        value=st.session_state.get("bottom_end_manual", BOTTOM_END),
+        min_value=float(bottom_start),
         step=100.0,
-        disabled=True,
         format="%.2f",
-        key="auto_bottom_end_display",
+        key="bottom_end_manual",
     )
 
 loss_btc = None
