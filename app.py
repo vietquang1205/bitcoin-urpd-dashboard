@@ -398,7 +398,7 @@ if urpd is None:
 
     if latest_saved_date and not force_refresh:
         saved_latest = history[latest_saved_date]
-        urpd = records_to_urpd(saved_latest["urpd"]) if "records_to_urpd" in globals() else normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
+        urpd = normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
         urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
         urpd_date = latest_saved_date
         st.info(f"Đang dùng dữ liệu URPD đã lưu ngày {urpd_date}. Rerun không gọi API lại.")
@@ -414,7 +414,7 @@ if urpd is None:
             # mới nhất đã lưu thay vì làm dashboard thành N/A.
             if latest_saved_date:
                 saved_latest = history[latest_saved_date]
-                urpd = records_to_urpd(saved_latest["urpd"])
+                urpd = normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
                 urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
                 urpd_date = latest_saved_date
                 st.warning(
