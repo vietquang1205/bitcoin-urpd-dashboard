@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -261,14 +262,103 @@ with st.sidebar:
     )
     ath = st.number_input("ATH (USD)", value=DEFAULT_ATH, step=100.0)
 
-# Đọc lịch sử cục bộ trước khi gọi API.
-# Mục tiêu: Rerun/F5 không gọi BGeometrics lại nếu đã có dữ liệu lưu.
+# =========================
+# HISTORY: lưu bền vững trên GitHub
+# =========================
+# Streamlit Cloud có filesystem tạm thời, vì vậy chỉ ghi urpd_history.json
+# tại máy chạy app là chưa đủ. Phần history dùng GitHub làm nơi lưu chính.
 history_file = "urpd_history.json"
-try:
-    with open(history_file, "r", encoding="utf-8") as f:
-        history = json.load(f)
-except Exception:
-    history = {}
+github_token = st.secrets.get("GITHUB_TOKEN", "")
+github_repo = st.secrets.get("GITHUB_REPO", "")
+github_branch = st.secrets.get("GITHUB_BRANCH", "main")
+
+def github_history_get():
+    """Đọc urpd_history.json từ GitHub. Nếu chưa cấu hình GitHub thì đọc file local."""
+    if not github_token or not github_repo:
+        try:
+            with open(history_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}, None
+        except Exception:
+            return {}, None
+
+    url = f"https://api.github.com/repos/{github_repo}/contents/{history_file}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token.strip()}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        r = requests.get(
+            url,
+            headers=headers,
+            params={"ref": github_branch},
+            timeout=20,
+        )
+        if r.status_code == 404:
+            return {}, None
+        r.raise_for_status()
+        payload = r.json()
+        content = base64.b64decode(payload.get("content", "")).decode("utf-8")
+        data = json.loads(content)
+        return (data if isinstance(data, dict) else {}), payload.get("sha")
+    except Exception as e:
+        st.warning(f"Không đọc được history từ GitHub: {e}")
+        # Fallback sang file local nếu có.
+        try:
+            with open(history_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return (data if isinstance(data, dict) else {}), None
+        except Exception:
+            return {}, None
+
+def github_history_save(data, sha=None):
+    """Lưu toàn bộ history lên GitHub, giữ nguyên các ngày cũ."""
+    if not github_token or not github_repo:
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+
+    url = f"https://api.github.com/repos/{github_repo}/contents/{history_file}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token.strip()}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+    payload = {
+        "message": "Update URPD history",
+        "content": base64.b64encode(body).decode("ascii"),
+        "branch": github_branch,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    try:
+        r = requests.put(url, headers=headers, json=payload, timeout=30)
+        if r.status_code == 409:
+            # File đã đổi trên GitHub: đọc lại SHA rồi thử đúng 1 lần.
+            fresh_data, fresh_sha = github_history_get()
+            if fresh_sha:
+                payload["sha"] = fresh_sha
+                r = requests.put(url, headers=headers, json=payload, timeout=30)
+        r.raise_for_status()
+
+        # Ghi local luôn để local chạy cũng giữ được bản mới.
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        st.warning(f"Không lưu được history lên GitHub: {e}")
+        # Vẫn lưu local để không mất snapshot trong phiên chạy.
+        try:
+            with open(history_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return False
+
+history, history_sha = github_history_get()
 
 with st.sidebar:
     st.markdown("### Dữ liệu URPD")
@@ -329,16 +419,15 @@ if price is None:
 else:
     price_source = "Giá thị trường trực tiếp"
 
-# Vùng đáy đến luôn bám theo giá BTC hiện tại, không cho nhập thủ công.
-bottom_end = float(price)
+# Vùng đáy đến do người dùng tự thiết lập.
 with st.sidebar:
-    st.number_input(
-        "Vùng đáy đến (USD) — tự động theo giá BTC",
-        value=bottom_end,
+    bottom_end = st.number_input(
+        "Vùng đáy đến (USD)",
+        value=st.session_state.get("bottom_end_manual", BOTTOM_END),
+        min_value=float(bottom_start),
         step=100.0,
-        disabled=True,
         format="%.2f",
-        key="auto_bottom_end_display",
+        key="bottom_end_manual",
     )
 
 loss_btc = None
@@ -467,8 +556,9 @@ def records_to_urpd(records):
     return normalize_urpd(pd.DataFrame(records))
 
 # Lưu URPD gốc của ngày hiện tại; không ghi đè các ngày cũ.
+# Nếu history đã có đúng snapshot này thì không commit GitHub lại.
 if urpd is not None:
-    history[data_date] = {
+    snapshot = {
         "date": data_date,
         "price": float(price) if price is not None else None,
         "top_btc": float(top_btc) if top_btc is not None else None,
@@ -478,13 +568,32 @@ if urpd is not None:
         "urpd": urpd_to_records(urpd),
         "source": urpd_source,
     }
-    # Giữ tối đa 365 ngày gần nhất.
-    history = dict(sorted(history.items())[-365:])
-    try:
-        with open(history_file, "w", encoding="utf-8") as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        st.warning(f"Không lưu được lịch sử URPD: {e}")
+
+    old_snapshot = history.get(data_date)
+    history_changed = old_snapshot != snapshot
+
+    if history_changed:
+        history[data_date] = snapshot
+
+        # Giữ tối đa 365 ngày gần nhất.
+        history = dict(sorted(history.items())[-365:])
+
+        if github_token and github_repo:
+            if github_history_save(history, history_sha):
+                st.success(f"Đã lưu history URPD ngày {data_date} lên GitHub.")
+                # Lấy SHA mới để lần lưu tiếp theo cập nhật đúng file.
+                _, history_sha = github_history_get()
+        else:
+            try:
+                github_history_save(history)
+            except Exception as e:
+                st.warning(f"Không lưu được lịch sử URPD: {e}")
+    elif not github_token or not github_repo:
+        # Local: đảm bảo file tồn tại dù snapshot không đổi.
+        try:
+            github_history_save(history)
+        except Exception:
+            pass
 
 st.markdown("---")
 st.subheader("Lịch sử biến động nguồn cung")
