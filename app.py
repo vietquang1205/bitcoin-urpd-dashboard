@@ -830,10 +830,9 @@ else:
             "Hãy chạy app vào ngày đó hoặc thêm dữ liệu bằng file URPD."
         )
 
-# Chỉ ẩn bucket giá 0 trên biểu đồ.
-# Dữ liệu gốc, tổng URPD và mọi phép tính metric vẫn giữ nguyên đầy đủ.
-if chart_urpd is not None:
-    chart_urpd = chart_urpd[chart_urpd.price_low > 0].copy().reset_index(drop=True)
+# Giữ chart_urpd là snapshot GỐC đầy đủ.
+# Bucket giá 0 chỉ được lọc ở biến chart_plot_urpd ngay trước khi vẽ.
+# Nhờ vậy report lịch sử, tổng URPD và mọi phép tính metric không mất bucket 0.
 
 # So sánh nhanh với dữ liệu đã lưu.
 if selected_days > 0 and chart_urpd is not None and selected_date:
@@ -909,7 +908,8 @@ if comparison_days and comparison_base_date:
 if chart_urpd is None:
     st.warning("Chưa có dữ liệu URPD để vẽ biểu đồ.")
 else:
-    chart_plot_urpd = chart_urpd.copy()
+    # Chỉ ẩn bucket giá 0 trên biểu đồ; tuyệt đối không sửa snapshot gốc.
+    chart_plot_urpd = chart_urpd[chart_urpd.price_low > 0].copy().reset_index(drop=True)
     chart_plot_urpd["mid_price"] = (chart_plot_urpd.price_low + chart_plot_urpd.price_high) / 2
     urpd_plot = chart_plot_urpd
     price_for_chart = chart_price if chart_price is not None else price
@@ -1110,7 +1110,7 @@ else:
                 d0 = datetime.strptime(report_date, "%Y-%m-%d").date()
                 old_date = (d0 - timedelta(days=days)).strftime("%Y-%m-%d")
                 old = history.get(old_date, {})
-                new = history.get(data_date, {})
+                new = history.get(report_date, {})
                 a, b = new.get(key), old.get(key)
                 if a is None or b is None:
                     return None, old_date
@@ -1119,36 +1119,56 @@ else:
                 return None, None
 
         def _bucket_deltas(old_date):
+            """
+            So sánh bucket của report_date với snapshot cũ.
+            Không yêu cầu biên bucket hai ngày giống hệt nhau: lượng BTC của
+            bucket cũ được phân bổ theo phần giao nhau về giá (giả định phân bố
+            đều trong bucket). Điều này làm so sánh an toàn hơn khi một ngày
+            đến từ BGeometrics và ngày kia từ Bitview hoặc khi biên bucket khác nhau.
+            """
+            cur_df = report_urpd.copy() if report_urpd is not None else None
             old = history.get(old_date, {}) if old_date else {}
-            if not old.get("urpd"):
+            if cur_df is None or cur_df.empty or not old.get("urpd"):
                 return None
+
             old_df = records_to_urpd(old["urpd"])
-            old_lookup = {
-                (round(float(r.price_low), 6), round(float(r.price_high), 6)): float(r.btc_amount)
-                for r in old_df.itertuples(index=False)
-            }
+            old_df = old_df[old_df.price_high > old_df.price_low].copy()
+            if old_df.empty:
+                return None
+
+            old_lo = old_df.price_low.to_numpy(float)
+            old_hi = old_df.price_high.to_numpy(float)
+            old_amt = old_df.btc_amount.to_numpy(float)
+            old_width = old_hi - old_lo
+
             rows = []
-            for r in urpd.itertuples(index=False):
-                key = (round(float(r.price_low), 6), round(float(r.price_high), 6))
-                old_btc = old_lookup.get(key)
-                if old_btc is None:
+            for r in cur_df.itertuples(index=False):
+                lo = float(r.price_low)
+                hi = float(r.price_high)
+                if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
                     continue
+                # Bucket 0 được giữ trong dữ liệu nhưng không đưa vào phân tích
+                # thay đổi trực quan vì đây là phần supply đặc biệt/static.
+                if hi <= 1:
+                    continue
+
+                overlap = np.maximum(0.0, np.minimum(old_hi, hi) - np.maximum(old_lo, lo))
+                old_btc = float(np.sum(old_amt * overlap / old_width))
                 cur = float(r.btc_amount)
+                if not np.isfinite(cur) or not np.isfinite(old_btc):
+                    continue
                 delta = cur - old_btc
-                if not np.isfinite(delta):
-                    continue
-                mid = (float(r.price_low) + float(r.price_high)) / 2.0
-                if mid <= 1:
-                    continue
+                mid = (lo + hi) / 2.0
                 rows.append({
-                    "low": float(r.price_low),
-                    "high": float(r.price_high),
+                    "low": lo,
+                    "high": hi,
                     "mid": mid,
                     "current": cur,
                     "old": old_btc,
                     "delta": delta,
                     "pct": (delta / old_btc * 100.0) if old_btc else np.nan,
                 })
+
             return pd.DataFrame(rows) if rows else None
 
         # Các thay đổi cấp vùng.
@@ -1447,7 +1467,7 @@ else:
 
                 st.markdown("**📊 Thống kê 3 ngày**")
                 stat_rows_3d = [
-                    ["Cung hiện tại → ATH", _fmt_btc(d3_top) if d3_top is not None else "N/A",
+                    ["Cung từ giá snapshot → ATH", _fmt_btc(d3_top) if d3_top is not None else "N/A",
                      "Giảm là thuận lợi; tăng là áp lực cung phía trên tăng"],
                     [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", _fmt_btc(d3_bottom) if d3_bottom is not None else "N/A",
                      "Tăng có thể hỗ trợ nền giá, nhưng không đồng nghĩa chắc chắn tích lũy"],
@@ -1509,13 +1529,13 @@ else:
             "Giá hiện tại",
         ],
         "BTC": [
-            f"{report_bottom_btc:,.2f}" if report_bottom_btc is not None else "N/A",
+            f"{chart_bottom_btc:,.2f}" if chart_bottom_btc is not None else "N/A",
             f"{chart_top_btc:,.2f}" if chart_top_btc is not None else "N/A",
             f"{price_for_chart:,.2f}",
         ],
         "Tỷ trọng URPD": [
-            f"{report_bottom_btc / chart_total_urpd * 100:.4f}%"
-            if chart_total_urpd and report_bottom_btc is not None else "N/A",
+            f"{chart_bottom_btc / chart_total_urpd * 100:.4f}%"
+            if chart_total_urpd and chart_bottom_btc is not None else "N/A",
             f"{chart_top_btc / chart_total_urpd * 100:.4f}%"
             if chart_total_urpd and chart_top_btc is not None else "N/A",
             "—",
