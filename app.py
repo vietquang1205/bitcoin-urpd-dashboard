@@ -186,53 +186,79 @@ def bgeometrics_urpd(day):
 def bitview_urpd(day, agg="lin1000"):
     """
     Lấy URPD từ Bitcoin Research Kit / Bitview.
-    Bitview phát hành một snapshot mỗi ngày UTC và không yêu cầu API key.
-    Dùng bucket tuyến tính $1,000 để chuyển dữ liệu về format price_low/
-    price_high/btc_amount mà dashboard đang sử dụng.
+    Ưu tiên bucket lin1000; nếu request có tham số aggregate bị từ chối,
+    tự động thử endpoint mặc định raw rồi dựng bucket từ các price_floor.
     """
-    url = "https://bitview.space/api/urpd/all/{day}".format(day=day)
-    params = {"agg": agg, "weight": "raw"}
+    base_url = f"https://bitview.space/api/urpd/all/{day}"
     headers = {"Accept": "application/json"}
 
-    r = requests.get(url, params=params, headers=headers, timeout=30)
-    if r.status_code == 404:
-        raise ValueError(f"Bitview không có URPD cho ngày {day}.")
-    r.raise_for_status()
+    attempts = [
+        (base_url, {"agg": agg, "weight": "raw"}),
+        (base_url, {}),
+    ]
+    errors = []
+    response = None
 
-    payload = r.json()
-    if not isinstance(payload, dict):
-        raise ValueError(f"Bitview trả response không hợp lệ cho ngày {day}.")
+    for url, params in attempts:
+        try:
+            r = requests.get(url, params=params, headers=headers, timeout=30)
+            if r.status_code == 404:
+                errors.append("404: không có snapshot")
+                continue
+            r.raise_for_status()
+            payload = r.json()
+            if not isinstance(payload, dict):
+                raise ValueError("response không phải object JSON")
+            buckets = payload.get("buckets")
+            if not isinstance(buckets, list) or not buckets:
+                raise ValueError("response không có buckets")
+            response = (r, payload)
+            break
+        except Exception as e:
+            errors.append(f"{type(e).__name__}: {e}")
 
-    buckets = payload.get("buckets")
-    if not isinstance(buckets, list) or not buckets:
-        raise ValueError(f"Bitview không trả bucket URPD cho ngày {day}.")
+    if response is None:
+        raise RuntimeError(f"Bitview không lấy được {day}. " + " | ".join(errors))
+
+    r, payload = response
+    buckets = payload["buckets"]
 
     rows = []
+    # Nếu server trả đúng lin1000 thì mỗi bucket rộng $1,000.
+    # Nếu fallback về raw, dùng khoảng giữa các price_floor để dựng biên.
+    use_fixed_width = bool(r.url.find("agg=lin1000") >= 0)
+
     for b in buckets:
         if not isinstance(b, dict):
             continue
         low = pd.to_numeric(b.get("price_floor"), errors="coerce")
         supply = pd.to_numeric(b.get("supply"), errors="coerce")
-        if pd.isna(low) or pd.isna(supply):
+        if pd.isna(low) or pd.isna(supply) or float(supply) < 0:
             continue
-        if float(supply) < 0:
-            continue
+        rows.append({
+            "price_low": float(low),
+            "btc_amount": float(supply),
+            "price_high": float(low) + 1000.0 if use_fixed_width else float(low),
+        })
 
-        # lin1000 = bucket rộng $1,000 theo tài liệu Bitview.
-        # Mỗi price_floor là đầu bucket.
-        width = 1000.0 if agg == "lin1000" else None
-        if width is None:
-            raise ValueError("Bitview chỉ được cấu hình với agg=lin1000.")
+    if not rows:
+        raise ValueError(f"Bitview trả buckets nhưng không có dòng URPD hợp lệ cho {day}.")
 
-        rows.append(
-            {
-                "price_low": float(low),
-                "price_high": float(low) + width,
-                "btc_amount": float(supply),
-            }
-        )
+    out = pd.DataFrame(rows)
+    if not use_fixed_width:
+        out = out.sort_values("price_low").reset_index(drop=True)
+        p = out["price_low"].to_numpy(float)
+        if len(p) == 1:
+            out["price_high"] = p + 1.0
+        else:
+            edges = np.empty(len(p) + 1)
+            edges[1:-1] = (p[:-1] + p[1:]) / 2
+            edges[0] = max(0.0, p[0] - (edges[1] - p[0]))
+            edges[-1] = p[-1] + (p[-1] - edges[-2])
+            out["price_low"] = edges[:-1]
+            out["price_high"] = edges[1:]
 
-    out = normalize_urpd(pd.DataFrame(rows))
+    out = normalize_urpd(out)
     return out, r.url, payload.get("close"), payload.get("total_supply")
 
 
