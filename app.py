@@ -1619,12 +1619,19 @@ else:
 
                 if inc3 or dec3:
                     st.markdown("**Các bucket biến động mạnh trong 3 ngày**")
+                    st.info(
+                        "**Cách đọc:** 'Tăng mạnh' là các bucket có **mức tăng BTC lớn nhất** so với snapshot cách đây 3 ngày; "
+                        "'Giảm mạnh' là các bucket có **mức giảm BTC lớn nhất**. Đây là xếp hạng theo độ lớn thay đổi, "
+                        "không có nghĩa chắc chắn là cá voi mua/bán hay tích lũy/phân phối. Một bucket có % thay đổi cao "
+                        "nhưng lượng BTC nhỏ vẫn có thể không nằm trong nhóm này nếu mức tăng/giảm BTC tuyệt đối nhỏ hơn. "
+                        "Các thay đổi này được tính theo cùng vùng giá và không nên đọc riêng lẻ như tín hiệu giá."
+                    )
                     if inc3:
-                        st.write("**Tăng mạnh:**")
+                        st.write("**🟢 Tăng mạnh = BTC trong bucket tăng nhiều nhất:**")
                         for r in inc3:
                             st.write("• " + _bucket_text(r))
                     if dec3:
-                        st.write("**Giảm mạnh:**")
+                        st.write("**🔴 Giảm mạnh = BTC trong bucket giảm nhiều nhất:**")
                         for r in dec3:
                             st.write("• " + _bucket_text(r))
 
