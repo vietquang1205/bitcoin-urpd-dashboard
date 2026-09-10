@@ -873,6 +873,7 @@ st.caption("Cột xanh: giá vốn thấp hơn giá BTC hiện tại • Cột �
 comparison_options = {
     "Không so sánh": 0,
     "So với 1 ngày trước": 1,
+    "So với 3 ngày trước": 3,
     "So với 7 ngày trước": 7,
 }
 comparison_label = st.selectbox(
