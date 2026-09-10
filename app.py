@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V17", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V18", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -638,26 +638,101 @@ elif history:
 else:
     data_date = None
 
-# So sánh với snapshot URPD gần nhất trước đó.
-previous_dates = sorted(k for k in history if isinstance(k, str) and k < data_date)
+# -----------------------------------------------------------------------------
+# THAY ĐỔI CẤU TRÚC ĐÃ LỌC GIÁ (FIXED-PRICE STRUCTURAL DELTA)
+# -----------------------------------------------------------------------------
+# Không so sánh "giá hôm nay -> ATH" với "giá hôm qua -> ATH", vì cách đó
+# trộn thay đổi URPD với thay đổi của chính giá BTC. Thay vào đó, dùng CÙNG
+# một mức giá tham chiếu của snapshot đang xem cho cả hai ngày.
+def _top_at_reference_price(snapshot_df, reference_price, ath_value):
+    if snapshot_df is None or snapshot_df.empty:
+        return None
+    try:
+        return btc_in_range(snapshot_df, float(reference_price), float(ath_value))
+    except Exception:
+        return None
+
+
+def _structural_top_delta_for_date(target_date, reference_price, days=1):
+    """
+    Thay đổi cung hiện tại -> ATH sau khi loại ảnh hưởng do giá di chuyển.
+    Cả snapshot mới và snapshot cũ đều được cắt tại cùng reference_price.
+    """
+    if not target_date or not history:
+        return None, None
+    try:
+        d0 = datetime.strptime(target_date, "%Y-%m-%d").date()
+        old_date = (d0 - timedelta(days=days)).strftime("%Y-%m-%d")
+        new_saved = history.get(target_date, {})
+        old_saved = history.get(old_date, {})
+        if not new_saved.get("urpd") or not old_saved.get("urpd"):
+            return None, old_date
+        new_df = normalize_urpd(pd.DataFrame(new_saved["urpd"]))
+        old_df = normalize_urpd(pd.DataFrame(old_saved["urpd"]))
+        new_value = _top_at_reference_price(new_df, reference_price, ath)
+        old_value = _top_at_reference_price(old_df, reference_price, ath)
+        if new_value is None or old_value is None:
+            return None, old_date
+        return float(new_value - old_value), old_date
+    except Exception:
+        return None, None
+
+
+def _structural_daily_median3(target_date, reference_price):
+    """
+    Median của 3 thay đổi cấu trúc theo ngày, tất cả đều dùng cùng một
+    reference_price. Median giúp giảm ảnh hưởng của một ngày bất thường.
+    """
+    try:
+        d0 = datetime.strptime(target_date, "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+    daily = []
+    for offset in range(1, 4):
+        new_date = (d0 - timedelta(days=offset - 1)).strftime("%Y-%m-%d")
+        old_date = (d0 - timedelta(days=offset)).strftime("%Y-%m-%d")
+        new_saved = history.get(new_date, {})
+        old_saved = history.get(old_date, {})
+        if not new_saved.get("urpd") or not old_saved.get("urpd"):
+            continue
+        try:
+            new_df = normalize_urpd(pd.DataFrame(new_saved["urpd"]))
+            old_df = normalize_urpd(pd.DataFrame(old_saved["urpd"]))
+            new_value = _top_at_reference_price(new_df, reference_price, ath)
+            old_value = _top_at_reference_price(old_df, reference_price, ath)
+            if new_value is not None and old_value is not None:
+                daily.append(float(new_value - old_value))
+        except Exception:
+            continue
+
+    return float(np.median(daily)) if daily else None
+
+
+previous_dates = sorted(k for k in history if isinstance(k, str) and k < data_date) if data_date else []
 previous_above_price_btc = None
 if previous_dates:
+    # Chỉ dùng để hiển thị tham khảo; Δ chính bên dưới đã được lọc theo giá cố định.
     prev_saved = history.get(previous_dates[-1], {})
     if isinstance(prev_saved, dict) and prev_saved.get("urpd"):
         try:
             prev_df = normalize_urpd(pd.DataFrame(prev_saved["urpd"]))
-            prev_price = prev_saved.get("price")
-            if prev_price is not None:
-                previous_above_price_btc = btc_in_range(
-                    prev_df, float(prev_price), float(ath)
-                )
+            previous_above_price_btc = _top_at_reference_price(prev_df, float(price), float(ath))
         except Exception:
             previous_above_price_btc = None
-if above_price_btc is not None and previous_above_price_btc is not None:
-    above_delta = above_price_btc - float(previous_above_price_btc)
+
+# Δ trên thẻ chính = thay đổi cấu trúc, không còn bị pha bởi việc giá BTC
+# thay đổi làm dịch chuyển ranh giới dưới.
+above_delta, above_delta_date = _structural_top_delta_for_date(
+    data_date, float(price), days=1
+)
+if above_delta is not None and previous_above_price_btc is not None:
+    # previous_above_price_btc đã được tính ở cùng reference price.
     above_delta_pct = (above_delta / float(previous_above_price_btc) * 100) if previous_above_price_btc else 0
 else:
-    above_delta = above_delta_pct = None
+    above_delta_pct = None
+
+above_median3 = _structural_daily_median3(data_date, float(price)) if data_date else None
 
 ath_discount = (price - ath) / ath * 100 if ath else 0
 
@@ -670,9 +745,14 @@ c3.metric(
     (f"{above_delta:+,.0f} BTC | {above_delta_pct:+.2f}%" if above_delta is not None else "Chưa có lần trước")
 )
 if total_urpd and above_price_btc is not None:
+    median_text = (
+        f"Median 3D đã lọc: {above_median3:+,.0f} BTC/ngày • "
+        if above_median3 is not None else
+        "Median 3D: chưa đủ snapshot • "
+    )
     c3.caption(
         f"{above_price_btc / total_urpd * 100:.2f}% tổng URPD • "
-        f"${price:,.0f} → ${ath:,.0f}"
+        f"${price:,.0f} → ${ath:,.0f} • " + median_text
     )
 c4.metric(
     "Tổng BTC theo URPD",
@@ -693,7 +773,8 @@ summary = pd.DataFrame(
     {
         "Chỉ số": [
             "Cung BTC trong vùng giá hiện tại → ATH",
-            "Thay đổi so với snapshot trước",
+            "Thay đổi cấu trúc (cùng giá tham chiếu)",
+            "Median thay đổi cấu trúc 3D",
             "Tổng BTC theo URPD",
             "% cung từ giá hiện tại đến ATH",
             "Cung đang lỗ trực tiếp",
@@ -707,6 +788,7 @@ summary = pd.DataFrame(
         "Giá trị": [
             f"{above_price_btc:,.2f}" if above_price_btc is not None else "N/A",
             (f"{above_delta:+,.2f} BTC ({above_delta_pct:+.2f}%)" if above_delta is not None else "N/A"),
+            (f"{above_median3:+,.2f} BTC/ngày" if above_median3 is not None else "N/A"),
             f"{total_urpd:,.2f}" if total_urpd is not None else "N/A",
             f"{above_price_btc / total_urpd * 100:.4f}%"
             if total_urpd and above_price_btc is not None
@@ -719,7 +801,7 @@ summary = pd.DataFrame(
             urpd_source,
             loss_source or "Chưa có dữ liệu",
         ],
-        "Đơn vị": ["BTC", "BTC", "BTC", "%", "BTC", "%", "", "USD", "USD", "", ""],
+        "Đơn vị": ["BTC", "BTC", "BTC/ngày", "BTC", "%", "BTC", "%", "", "USD", "USD", "", ""],
     }
 )
 st.dataframe(summary, hide_index=True, use_container_width=True)
@@ -734,7 +816,9 @@ st.caption(
     "Định nghĩa: 'Cung BTC trong vùng giá hiện tại → ATH' là lượng BTC ước tính "
     "có giá vốn thực hiện (realized price) nằm trong khoảng giá này theo URPD. "
     "Phần bucket bị cắt ở biên giá được nội suy theo tỷ lệ chiều rộng bucket; "
-    "đây không đồng nghĩa toàn bộ lượng BTC đó chắc chắn đang 'mắc kẹt'."
+    "Δ trên thẻ dùng cùng giá tham chiếu giữa hai snapshot để loại ảnh hưởng "
+    "do giá BTC dịch chuyển; median 3D dùng để giảm nhiễu ngày bất thường. "
+    "Đây không đồng nghĩa toàn bộ lượng BTC đó chắc chắn đang 'mắc kẹt'."
 )
 
 st.info(
@@ -1145,7 +1229,18 @@ else:
         def _pct(x):
             return f"{x:+.2f}%"
 
+        saved_report = history.get(report_date, {}) if history else {}
+        report_price_saved = saved_report.get("price") if isinstance(saved_report, dict) else None
+        current_price = float(
+            chart_price if chart_date == report_date and chart_price is not None
+            else (report_price_saved if report_price_saved is not None else price)
+        )
+
         def _snapshot_delta(key, days):
+            # Riêng "above_price_btc" phải dùng cùng giá tham chiếu của
+            # snapshot đang xem để loại nhiễu do giá BTC dịch chuyển.
+            if key == "above_price_btc":
+                return _structural_top_delta_for_date(report_date, current_price, days=days)
             try:
                 d0 = datetime.strptime(report_date, "%Y-%m-%d").date()
                 old_date = (d0 - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -1215,6 +1310,7 @@ else:
         d1_top, d1_date = _snapshot_delta("above_price_btc", 1)
         d3_top, d3_date = _snapshot_delta("above_price_btc", 3)
         d7_top, d7_date = _snapshot_delta("above_price_btc", 7)
+        top_median3 = _structural_daily_median3(report_date, current_price)
         d1_bottom, _ = _snapshot_delta("bottom_btc", 1)
         d3_bottom, _ = _snapshot_delta("bottom_btc", 3)
         d7_bottom, _ = _snapshot_delta("bottom_btc", 7)
@@ -1222,12 +1318,6 @@ else:
         d3_total, _ = _snapshot_delta("total_urpd", 3)
         d7_total, _ = _snapshot_delta("total_urpd", 7)
 
-        saved_report = history.get(report_date, {}) if history else {}
-        report_price_saved = saved_report.get("price") if isinstance(saved_report, dict) else None
-        current_price = float(
-            chart_price if chart_date == report_date and chart_price is not None
-            else (report_price_saved if report_price_saved is not None else price)
-        )
         total_now = float(report_urpd.btc_amount.sum())
         below_now = float(report_urpd.loc[report_urpd.price_high <= current_price, "btc_amount"].sum())
         overhead_now = btc_in_range(report_urpd, current_price, float(ath))
@@ -1393,6 +1483,8 @@ else:
             reason_text.append(f"dịch chuyển quanh giá {_fmt_btc(near_net)}")
         if d7_top is not None:
             reason_text.append(f"7 ngày {_fmt_btc(d7_top)} cung phía trên")
+        if top_median3 is not None:
+            reason_text.append(f"median 3D đã lọc {_fmt_btc(top_median3)}/ngày")
         if reason_text:
             st.write("**📌 Cơ sở chính:** " + "; ".join(reason_text) + ".")
 
@@ -1400,6 +1492,7 @@ else:
             ["Sức mạnh BTC", f"{score:.0f}/100", bias, "Điểm định lượng của dashboard", ""],
             ["Triển vọng", outlook, "", outlook_detail, ""],
             ["Cung từ giá hiện tại → ATH", f"{overhead_now:,.2f} BTC", _fmt_btc(d1_top) if d1_top is not None else "N/A", _fmt_btc(d3_top) if d3_top is not None else "N/A", _fmt_btc(d7_top) if d7_top is not None else "N/A"],
+            ["Median thay đổi cấu trúc 3D", f"{top_median3:+,.2f} BTC/ngày" if top_median3 is not None else "N/A", "Đã cố định giá tham chiếu", "Loại ảnh hưởng do giá dịch chuyển", "Giảm nhiễu ngày bất thường"],
             [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", f"{report_bottom_btc:,.2f} BTC" if report_bottom_btc is not None else "N/A", _fmt_btc(d1_bottom) if d1_bottom is not None else "N/A", _fmt_btc(d3_bottom) if d3_bottom is not None else "N/A", _fmt_btc(d7_bottom) if d7_bottom is not None else "N/A"],
             ["Tổng URPD", f"{total_now:,.2f} BTC", _fmt_btc(d1_total) if d1_total is not None else "N/A", _fmt_btc(d3_total) if d3_total is not None else "N/A", _fmt_btc(d7_total) if d7_total is not None else "N/A"],
         ]
@@ -1506,6 +1599,8 @@ else:
                 st.caption(trend_detail_3d)
 
                 st.markdown("**📊 Thống kê 3 ngày**")
+                if top_median3 is not None:
+                    st.caption(f"Median 3D đã lọc: {top_median3:+,.0f} BTC/ngày — dùng để giảm ảnh hưởng của một snapshot bất thường.")
                 stat_rows_3d = [
                     ["Cung từ giá snapshot → ATH", _fmt_btc(d3_top) if d3_top is not None else "N/A",
                      "Giảm là thuận lợi; tăng là áp lực cung phía trên tăng"],
