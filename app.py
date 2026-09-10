@@ -410,7 +410,19 @@ if urpd is None:
             urpd_date = yesterday
             st.success(f"Đã gọi API BGeometrics và lấy dữ liệu ngày {urpd_date}.")
         except Exception as e:
-            st.warning(f"Chưa lấy được URPD BGeometrics: {e}")
+            # History fallback: nếu ngày mới chưa có dữ liệu, dùng snapshot
+            # mới nhất đã lưu thay vì làm dashboard thành N/A.
+            if latest_saved_date:
+                saved_latest = history[latest_saved_date]
+                urpd = records_to_urpd(saved_latest["urpd"])
+                urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
+                urpd_date = latest_saved_date
+                st.warning(
+                    f"Chưa lấy được URPD BGeometrics cho ngày {yesterday}: {e}. "
+                    f"Đang giữ snapshot gần nhất {latest_saved_date}."
+                )
+            else:
+                st.warning(f"Chưa lấy được URPD BGeometrics: {e}")
 
 price = btc_price()
 if price is None:
@@ -461,8 +473,14 @@ else:
 today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 if isinstance(urpd_date, str) and len(urpd_date) == 10 and urpd_date[4] == "-":
     data_date = urpd_date
+elif history:
+    saved_dates = sorted(
+        k for k, v in history.items()
+        if isinstance(k, str) and len(k) == 10 and isinstance(v, dict) and v.get("urpd")
+    )
+    data_date = saved_dates[-1] if saved_dates else None
 else:
-    data_date = today_key
+    data_date = None
 
 # So sánh với snapshot URPD gần nhất trước đó.
 previous_dates = sorted(k for k in history if isinstance(k, str) and k < data_date)
@@ -557,7 +575,7 @@ def records_to_urpd(records):
 
 # Lưu URPD gốc của ngày hiện tại; không ghi đè các ngày cũ.
 # Nếu history đã có đúng snapshot này thì không commit GitHub lại.
-if urpd is not None:
+if urpd is not None and data_date:
     snapshot = {
         "date": data_date,
         "price": float(price) if price is not None else None,
@@ -602,22 +620,28 @@ st.caption("Chọn mốc lịch sử để xem lại đúng biểu đồ URPD c�
 # Lấy ngày dữ liệu URPD mới nhất làm mốc. Ví dụ nếu hôm nay là 07/09
 # nhưng BGeometrics mới có dữ liệu 06/09 thì "Hiện tại" = 06/09,
 # còn "1 ngày trước" = 05/09, tránh hiển thị trùng ngày.
-base_date = datetime.strptime(data_date, "%Y-%m-%d").date()
+base_date = datetime.strptime(data_date, "%Y-%m-%d").date() if data_date else None
 
 # Gắn ngày cụ thể ngay trên nút để tránh nhầm giữa ngày chạy app
 # và ngày dữ liệu URPD thực tế.
-choices = {
-    f"Hiện tại [{base_date.strftime('%d/%m/%Y')}]": 0,
-    f"1 ngày trước [{(base_date - timedelta(days=1)).strftime('%d/%m/%Y')}]": 1,
-    f"7 ngày trước [{(base_date - timedelta(days=7)).strftime('%d/%m/%Y')}]": 7,
-    f"30 ngày trước [{(base_date - timedelta(days=30)).strftime('%d/%m/%Y')}]": 30,
-    f"120 ngày trước [{(base_date - timedelta(days=120)).strftime('%d/%m/%Y')}]": 120,
-    f"180 ngày trước [{(base_date - timedelta(days=180)).strftime('%d/%m/%Y')}]": 180,
-}
+if base_date:
+    choices = {
+        f"Hiện tại [{base_date.strftime('%d/%m/%Y')}]": 0,
+        f"1 ngày trước [{(base_date - timedelta(days=1)).strftime('%d/%m/%Y')}]": 1,
+        f"7 ngày trước [{(base_date - timedelta(days=7)).strftime('%d/%m/%Y')}]": 7,
+        f"30 ngày trước [{(base_date - timedelta(days=30)).strftime('%d/%m/%Y')}]": 30,
+        f"120 ngày trước [{(base_date - timedelta(days=120)).strftime('%d/%m/%Y')}]": 120,
+        f"180 ngày trước [{(base_date - timedelta(days=180)).strftime('%d/%m/%Y')}]": 180,
+    }
+else:
+    choices = {"Chưa có dữ liệu lịch sử": 0}
 selected = st.radio("Xem biểu đồ:", list(choices), horizontal=True)
 
 selected_days = choices[selected]
-selected_date = (base_date - timedelta(days=selected_days)).strftime("%Y-%m-%d")
+selected_date = (
+    (base_date - timedelta(days=selected_days)).strftime("%Y-%m-%d")
+    if base_date else None
+)
 
 if selected_days == 0:
     chart_urpd = urpd
@@ -647,8 +671,8 @@ else:
         )
 
 # So sánh nhanh với dữ liệu đã lưu.
-if selected_days > 0 and chart_urpd is not None:
-    current_saved = history.get(data_date, {})
+if selected_days > 0 and chart_urpd is not None and selected_date:
+    current_saved = history.get(data_date, {}) if data_date else {}
     old_saved = history.get(selected_date, {})
     if old_saved:
         def hist_diff(key):
