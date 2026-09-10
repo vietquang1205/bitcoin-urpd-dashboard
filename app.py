@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V24", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V26", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -154,7 +154,7 @@ def market_overview():
     """
     global_url = "https://api.coingecko.com/api/v3/global"
     simple_url = "https://api.coingecko.com/api/v3/simple/price"
-    headers = {"Accept": "application/json", "User-Agent": "BTC-URPD-Dashboard/20"}
+    headers = {"Accept": "application/json", "User-Agent": "BTC-URPD-Dashboard/26"}
 
     r_global = requests.get(global_url, headers=headers, timeout=20)
     r_global.raise_for_status()
@@ -376,7 +376,7 @@ def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
 
 
 st.title("Phân bố Nguồn cung Bitcoin theo Giá vốn (URPD)")
-st.caption("URPD thực tế từ Bitview • BGeometrics dự phòng • Supply in Loss trực tiếp • Không mô phỏng")
+st.caption("URPD thực tế từ Bitview • BGeometrics dự phòng • Supply in Loss trực tiếp • News Radar • Không mô phỏng")
 
 with st.sidebar:
     st.header("Thiết lập")
@@ -519,7 +519,7 @@ def fetch_news_radar(days=7, max_items=30):
     cutoff = now - timedelta(days=days)
     rows = []
     seen = set()
-    headers = {"User-Agent": "Mozilla/5.0 BTC-URPD-News-Radar/25"}
+    headers = {"User-Agent": "Mozilla/5.0 BTC-URPD-News-Radar/26"}
 
     for category, query in NEWS_QUERIES:
         rss_url = (
@@ -1620,6 +1620,40 @@ else:
     st.session_state["urpd_previous_animation_key"] = animation_key
 
     # =========================
+    # NEWS / MACRO CONTEXT — dùng làm lớp 40% cho triển vọng cuối cùng.
+    # News Radar vẫn độc lập về mặt dữ liệu, nhưng V26 dùng tín hiệu định hướng
+    # của tin mới để hợp nhất với điểm URPD theo tỷ trọng 60/40.
+    # =========================
+    news_rows = fetch_news_radar(days=7, max_items=30)
+    upcoming = upcoming_btc_events(days=7)
+
+    macro_score = 50.0
+    macro_parts = []
+    now_utc = datetime.now(timezone.utc)
+    for item in news_rows[:30]:
+        impact, direction = news_impact(item["title"], item["category"])
+        if direction == "🟡 Chưa rõ":
+            continue
+        age_h = max(0.0, (now_utc - item["published"]).total_seconds() / 3600.0)
+        # Tin mới có trọng số cao hơn; sau 7 ngày trọng số vẫn còn nhưng nhỏ.
+        recency_weight = max(0.20, 1.0 - age_h / (7.0 * 24.0))
+        impact_weight = 1.35 if impact == "Trực tiếp" else 0.85
+        # Giới hạn mỗi headline để một cụm tin lặp lại không chi phối toàn bộ điểm.
+        effect = 5.0 * recency_weight * impact_weight
+        if direction.startswith("🔴"):
+            effect = -effect
+        macro_score += effect
+        macro_parts.append((item, impact, direction, effect))
+
+    macro_score = float(np.clip(macro_score, 0.0, 100.0))
+    if macro_score >= 55:
+        macro_bias = "🟢 Macro nghiêng thuận lợi"
+    elif macro_score <= 45:
+        macro_bias = "🔴 Macro nghiêng bất lợi"
+    else:
+        macro_bias = "🟡 Macro trung tính / trái chiều"
+
+    # =========================
     # BÁO CÁO TỰ ĐỘNG NGÀY
     # =========================
     # Báo cáo luôn bám đúng NGÀY ĐANG XEM trên radio lịch sử.
@@ -1951,34 +1985,48 @@ else:
             bias = "🔴 Yếu / nghiêng giảm"
             bias_text = "Cấu trúc nguồn cung đang nghiêng bất lợi cho phía tăng. Ưu tiên phòng thủ và chờ cấu trúc cải thiện trước khi tăng rủi ro."
 
-        # Xác định xu hướng sắp tới: dựa trên điểm + các điều kiện xác nhận,
-        # không dùng ngôn ngữ chắc chắn.
+        # V26: hợp nhất 60% URPD + 40% macro/news.
+        # Quan trọng: chỉ cho phép kết luận nghiêng tăng/giảm khi HAI lớp cùng hướng.
+        combined_score = float(np.clip(score * 0.60 + macro_score * 0.40, 0.0, 100.0))
+        urpd_direction = "up" if score >= 55 else ("down" if score <= 45 else "neutral")
+        macro_direction = "up" if macro_score >= 55 else ("down" if macro_score <= 45 else "neutral")
         confirm_top = d3_top if d3_top is not None else d1_top
-        if score >= 65 and (confirm_top is None or confirm_top < 0):
+
+        if urpd_direction == "up" and macro_direction == "up" and combined_score >= 55:
             outlook = "📈 Nghiêng tăng"
-            outlook_detail = "Kịch bản ưu tiên: giá giữ được vùng hiện tại và hấp thụ dần nguồn cung phía trên; tín hiệu 3D được dùng làm lớp xác nhận."
-        elif score <= 35 and (confirm_top is None or confirm_top > 0):
+            outlook_detail = (
+                "URPD và bối cảnh vĩ mô/tin tức đang cùng nghiêng tích cực. "
+                "Ưu tiên kịch bản giá giữ vùng hiện tại và hấp thụ dần cung phía trên; "
+                "vẫn cần phản ứng giá để xác nhận."
+            )
+        elif urpd_direction == "down" and macro_direction == "down" and combined_score <= 45:
             outlook = "📉 Nghiêng giảm"
-            outlook_detail = "Kịch bản rủi ro: giá không hấp thụ được cung phía trên và quay lại kiểm tra các vùng hỗ trợ; tín hiệu 3D được dùng làm lớp xác nhận."
+            outlook_detail = (
+                "URPD và bối cảnh vĩ mô/tin tức đang cùng nghiêng bất lợi. "
+                "Rủi ro chính là giá không hấp thụ được cung phía trên và quay lại kiểm tra hỗ trợ; "
+                "vẫn cần phản ứng giá để xác nhận."
+            )
+        elif urpd_direction == "up" and macro_direction == "down":
+            outlook = "➡️ Chưa xác nhận"
+            outlook_detail = "URPD nghiêng tích cực nhưng macro/tin tức nghiêng bất lợi; hai lớp tín hiệu đang triệt tiêu nhau."
+        elif urpd_direction == "down" and macro_direction == "up":
+            outlook = "➡️ Chưa xác nhận"
+            outlook_detail = "URPD nghiêng bất lợi nhưng macro/tin tức nghiêng tích cực; hai lớp tín hiệu đang triệt tiêu nhau."
         else:
             outlook = "➡️ Chưa xác nhận"
-            outlook_detail = "Cả hai kịch bản vẫn còn mở; cần thêm snapshot và phản ứng giá tại vùng cung gần nhất."
+            outlook_detail = "Một trong hai lớp chưa đủ rõ hoặc hai lớp chưa đồng thuận; không ép kết luận tăng/giảm."
 
         # Hành động theo kiểu quản trị rủi ro, không phải lệnh mua/bán bắt buộc.
-        if score >= 65:
-            action = "Ưu tiên giữ vị thế đang có; nếu có kế hoạch giải ngân thì chia nhỏ và chờ giá xác nhận vùng cung phía trên. Không FOMO."
-        elif score >= 55:
-            action = "Có thể thiên về giữ/giải ngân thận trọng theo kế hoạch, nhưng chờ xác nhận breakout và theo dõi cung phía trên."
-        elif score >= 45:
-            action = "Ưu tiên đứng ngoài hoặc giữ tỷ trọng vừa phải; chờ thêm 1–3 snapshot để xác định hướng thay vì đuổi theo biến động một ngày."
-        elif score >= 35:
-            action = "Giảm đòn bẩy/rủi ro nếu đang dùng mức cao; chờ vùng hỗ trợ phản ứng tốt trước khi tăng vị thế."
+        if outlook == "📈 Nghiêng tăng":
+            action = "Có thể ưu tiên giữ/giải ngân từng phần theo kế hoạch, nhưng chờ giá xác nhận vùng cung phía trên và không FOMO."
+        elif outlook == "📉 Nghiêng giảm":
+            action = "Ưu tiên phòng thủ, giảm đòn bẩy/rủi ro và chờ cấu trúc cung + bối cảnh macro cải thiện; không bắt đáy chỉ dựa trên URPD."
         else:
-            action = "Ưu tiên phòng thủ, hạn chế đòn bẩy và chờ cấu trúc nguồn cung cải thiện; không bắt đáy chỉ dựa trên URPD."
+            action = "Ưu tiên đứng ngoài hoặc giữ tỷ trọng vừa phải; chờ URPD và macro cùng xác nhận thay vì đuổi theo một tín hiệu đơn lẻ."
 
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            st.metric("Sức mạnh BTC", f"{score:.0f}/100", bias)
+            st.metric("Sức mạnh BTC", f"{combined_score:.0f}/100", f"URPD 60% · Macro 40%")
         with c2:
             st.metric("Cung dưới giá hiện tại", f"{below_now:,.0f} BTC", f"{below_pct:.2f}% tổng URPD")
         with c3:
@@ -1987,6 +2035,8 @@ else:
             st.metric("Triển vọng", outlook)
 
         st.write("**🧠 Đánh giá sức mạnh:** " + bias_text)
+        st.write(f"**🌐 Macro / tin tức:** {macro_score:.0f}/100 — {macro_bias}.")
+        st.write(f"**⚖️ Điểm tổng hợp:** {combined_score:.0f}/100 = URPD 60% + Macro/tin tức 40%.")
         st.write("**📈 Xu hướng sắp tới:** " + outlook_detail)
         st.write("**🎯 Nên làm lúc này:** " + action)
 
@@ -2004,11 +2054,16 @@ else:
             reason_text.append(f"7 ngày {_fmt_btc(d7_top)} cung phía trên")
         if top_median3 is not None:
             reason_text.append(f"median 3D đã lọc {_fmt_btc(top_median3)}/ngày")
+        if macro_parts:
+            macro_pos = sum(1 for x in macro_parts if x[2].startswith("🟢"))
+            macro_neg = sum(1 for x in macro_parts if x[2].startswith("🔴"))
+            reason_text.append(f"macro/tin tức có hướng rõ: {macro_pos} thuận lợi, {macro_neg} bất lợi")
         if reason_text:
             st.write("**📌 Cơ sở chính:** " + "; ".join(reason_text) + ".")
 
         report_rows = [
-            ["Sức mạnh BTC", f"{score:.0f}/100", bias, "Điểm định lượng của dashboard", ""],
+            ["Sức mạnh BTC", f"{combined_score:.0f}/100", outlook, "URPD 60% + Macro/tin tức 40%", ""],
+            ["Macro / tin tức", f"{macro_score:.0f}/100", macro_bias, f"{len(macro_parts)} headline có hướng rõ", ""],
             ["Triển vọng", outlook, "", outlook_detail, ""],
             ["Cung từ giá hiện tại → ATH", f"{overhead_now:,.2f} BTC", _fmt_btc(d1_top) if d1_top is not None else "N/A", _fmt_btc(d3_top) if d3_top is not None else "N/A", _fmt_btc(d7_top) if d7_top is not None else "N/A"],
             ["Median thay đổi cấu trúc 3D", f"{top_median3:+,.2f} BTC/ngày" if top_median3 is not None else "N/A", "Đã cố định giá tham chiếu", "Loại ảnh hưởng do giá dịch chuyển", "Giảm nhiễu ngày bất thường"],
@@ -2208,6 +2263,30 @@ else:
                         for r in dec3:
                             st.write("• " + _bucket_text(r))
 
+        with st.expander("🌐 Vì sao Macro/Tin tức ảnh hưởng tới Triển vọng?", expanded=True):
+            st.write(
+                f"**Macro/tin tức: {macro_score:.0f}/100 — {macro_bias}.** "
+                "Lớp này chiếm 40% điểm tổng hợp. URPD chiếm 60%. "
+                "Dashboard chỉ đổi sang 'Nghiêng tăng/giảm' khi hai lớp cùng hướng; "
+                "nếu trái chiều hoặc một lớp chưa rõ thì giữ 'Chưa xác nhận'."
+            )
+            if macro_parts:
+                for item, impact, direction, effect in macro_parts[:5]:
+                    st.write(
+                        f"• {direction} · {impact} · **{item['title']}** "
+                        f"→ {effect:+.1f} điểm macro"
+                    )
+            else:
+                st.write("Chưa có headline đủ rõ hướng để điều chỉnh điểm macro.")
+            if upcoming:
+                upcoming_high = [e for e in upcoming if "Rất cao" in e["impact"]]
+                if upcoming_high:
+                    st.info(
+                        "Catalyst sắp tới: " + "; ".join(
+                            f"{e['date']} {e['event']}" for e in upcoming_high[:3]
+                        ) + ". Đây là sự kiện cần theo dõi, không tự cộng điểm tăng/giảm."
+                    )
+
         with st.expander("🔎 Phân tích xu hướng 7 ngày"):
             if inc7 or dec7:
                 if inc7:
@@ -2222,7 +2301,7 @@ else:
                 st.write("Chưa đủ snapshot để phân tích 7 ngày.")
 
         with st.expander("🧮 Vì sao dashboard cho điểm này?"):
-            st.write(f"Điểm cơ sở: **50/100**. Điểm được điều chỉnh bởi các thay đổi URPD 1D/7D; mỗi thành phần có giới hạn ảnh hưởng để tránh một bucket đơn lẻ chi phối toàn bộ kết luận.")
+            st.write(f"Điểm URPD cơ sở: **50/100**. Các thay đổi URPD 1D/7D được giới hạn ảnh hưởng để tránh một bucket đơn lẻ chi phối toàn bộ lớp on-chain. Điểm cuối cùng dùng **60% URPD + 40% Macro/tin tức**.")
             if score_parts:
                 for name, effect in score_parts:
                     st.write(f"• {name}: **{effect:+.1f} điểm**")
@@ -2266,10 +2345,10 @@ else:
 # =========================
 st.markdown("---")
 st.header("📰 BTC News Radar — Vĩ mô, dòng vốn và sự kiện có thể tác động BTC")
-st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. Đây là lớp thông tin bổ trợ cho URPD, không phải tín hiệu mua/bán tự động.")
+st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. V26 dùng lớp này cho 40% điểm tổng hợp cùng URPD 60%; không phải tín hiệu mua/bán tự động.")
 
-news_rows = fetch_news_radar(days=7, max_items=30)
-upcoming = upcoming_btc_events(days=7)
+# V26 đã lấy News Radar trước phần báo cáo để dùng được cho điểm tổng hợp.
+# Hai biến này được cache 15 phút nên không tạo thêm lượt gọi ngoài ý muốn.
 
 n1, n2 = st.columns([1.35, 1])
 with n1:
@@ -2305,6 +2384,8 @@ with n2:
 
 # Bảng tóm tắt để báo cáo URPD có thêm bối cảnh vĩ mô.
 st.subheader("🧭 Tác động lên BTC — đọc cùng báo cáo URPD")
+if 'combined_score' in locals():
+    st.info(f"**V26:** Điểm tổng hợp hiện tại **{combined_score:.0f}/100** = URPD 60% + Macro/tin tức 40%. Triển vọng: **{outlook}**.")
 macro_flags = []
 for item in news_rows[:20]:
     impact, direction = news_impact(item["title"], item["category"])
