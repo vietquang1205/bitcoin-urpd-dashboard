@@ -492,6 +492,130 @@ def github_history_save(data, sha=None):
             pass
         return False
 
+
+# =========================
+# NEWS RADAR: tin tức BTC / vĩ mô / chính sách
+# =========================
+# Dùng Google News RSS để lấy tiêu đề mới; không cần API key.
+# Bộ lọc ưu tiên các chủ đề có khả năng tác động trực tiếp hoặc gián tiếp tới BTC.
+from urllib.parse import quote_plus
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
+
+NEWS_QUERIES = [
+    ("Bitcoin", 'Bitcoin BTC'),
+    ("Fed / lãi suất", 'Bitcoin Fed OR FOMC OR "interest rate"'),
+    ("Lạm phát Mỹ", 'Bitcoin CPI OR PPI OR inflation'),
+    ("ETF / dòng vốn", 'Bitcoin ETF OR "spot bitcoin ETF"'),
+    ("Thanh khoản / trái phiếu", 'Bitcoin Treasury yields OR dollar OR liquidity'),
+    ("Quy định crypto", 'Bitcoin SEC OR CFTC OR crypto regulation OR Clarity Act'),
+    ("Địa chính trị / dầu", 'Bitcoin oil OR Iran OR Middle East OR geopolitics'),
+]
+
+@st.cache_data(ttl=900, show_spinner=False)
+def fetch_news_radar(days=7, max_items=30):
+    """Lấy tin 7 ngày gần nhất từ Google News RSS; thất bại nguồn nào thì bỏ qua."""
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=days)
+    rows = []
+    seen = set()
+    headers = {"User-Agent": "Mozilla/5.0 BTC-URPD-News-Radar/25"}
+
+    for category, query in NEWS_QUERIES:
+        rss_url = (
+            "https://news.google.com/rss/search?q="
+            + quote_plus(query)
+            + "&hl=en-US&gl=US&ceid=US:en"
+        )
+        try:
+            r = requests.get(rss_url, headers=headers, timeout=15)
+            r.raise_for_status()
+            root = ET.fromstring(r.content)
+        except Exception:
+            continue
+
+        for item in root.findall("./channel/item"):
+            title = (item.findtext("title") or "").strip()
+            link = (item.findtext("link") or "").strip()
+            pub_raw = (item.findtext("pubDate") or "").strip()
+            source_node = item.find("source")
+            source = (source_node.text or "").strip() if source_node is not None else ""
+            desc = (item.findtext("description") or "").strip()
+            if not title or not link:
+                continue
+            try:
+                published = parsedate_to_datetime(pub_raw).astimezone(timezone.utc)
+            except Exception:
+                published = now
+            if published < cutoff:
+                continue
+            key = title.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append({
+                "title": title,
+                "link": link,
+                "source": source or "Google News",
+                "category": category,
+                "published": published,
+                "description": desc,
+            })
+
+    rows.sort(key=lambda x: x["published"], reverse=True)
+    return rows[:max_items]
+
+
+def news_impact(title, category):
+    """Gắn nhãn định hướng đơn giản, minh bạch; không coi đây là dự báo giá."""
+    t = title.lower()
+    negative_terms = (
+        "rate hike", "hike rates", "higher rates", "hawkish", "hot inflation",
+        "inflation rises", "cpi rises", "ppi rises", "yield rises", "yields rise",
+        "strong jobs", "oil surges", "oil rises", "risk-off", "selloff", "sell-off",
+        "war", "iran", "outflows", "outflow", "crackdown", "ban", "lawsuit",
+    )
+    positive_terms = (
+        "rate cut", "cut rates", "lower rates", "dovish", "cooling inflation",
+        "inflation cools", "cpi falls", "ppi falls", "yield falls", "yields fall",
+        "etf inflow", "inflows", "institutional demand", "approval", "clarity",
+        "regulatory clarity", "bullish", "buying",
+    )
+    if any(x in t for x in negative_terms):
+        direction = "🔴 Bất lợi ngắn hạn"
+    elif any(x in t for x in positive_terms):
+        direction = "🟢 Có lợi ngắn hạn"
+    else:
+        direction = "🟡 Chưa rõ"
+
+    direct_categories = {"Fed / lãi suất", "Lạm phát Mỹ", "ETF / dòng vốn"}
+    impact = "Trực tiếp" if category in direct_categories else "Gián tiếp"
+    return impact, direction
+
+
+def upcoming_btc_events(days=7):
+    """Lịch sự kiện trọng yếu có sẵn từ lịch chính thức năm 2026, lọc 7 ngày tới."""
+    today = datetime.now(timezone.utc).date()
+    end = today + timedelta(days=days)
+    events = [
+        {"date": "2026-09-11", "time": "08:30 ET", "event": "CPI Mỹ tháng 8", "impact": "🔴🔴 Rất cao", "why": "Quyết định kỳ vọng Fed; CPI nóng thường gây áp lực lên BTC qua lợi suất/USD."},
+        {"date": "2026-09-16", "time": "08:30 ET", "event": "Retail Sales Mỹ tháng 8", "impact": "🟠 Cao", "why": "Đo sức khỏe tiêu dùng; quá mạnh có thể giữ chính sách tiền tệ chặt hơn."},
+        {"date": "2026-09-16", "time": "08:30 ET", "event": "US Import / Export Price Indexes", "impact": "🟠 Cao", "why": "Thêm tín hiệu lạm phát trước/đồng thời với quyết định Fed."},
+        {"date": "2026-09-16", "time": "14:00 ET", "event": "FOMC — quyết định lãi suất", "impact": "🔴🔴 Rất cao", "why": "Catalyst vĩ mô lớn nhất tuần; thay đổi lãi suất và thông điệp Fed có thể làm BTC biến động mạnh."},
+        {"date": "2026-09-16", "time": "14:30 ET", "event": "Họp báo Chủ tịch Fed", "impact": "🔴🔴 Rất cao", "why": "Giọng điệu về lạm phát và đường đi lãi suất thường quan trọng không kém quyết định lãi suất."},
+        {"date": "2026-09-17", "time": "08:30 ET", "event": "Initial Jobless Claims", "impact": "🟠 Cao", "why": "Tín hiệu nhanh về thị trường lao động; ảnh hưởng kỳ vọng chính sách Fed."},
+        {"date": "2026-09-17", "time": "08:30 ET", "event": "Housing Starts / Building Permits", "impact": "🟡 Vừa", "why": "Tín hiệu chu kỳ kinh tế và tăng trưởng Mỹ."},
+        {"date": "2026-09-17", "time": "08:30 ET", "event": "Philadelphia Fed Manufacturing", "impact": "🟡 Vừa", "why": "Tín hiệu sớm về hoạt động sản xuất và tăng trưởng."},
+    ]
+    out = []
+    for e in events:
+        d = datetime.strptime(e["date"], "%Y-%m-%d").date()
+        if today <= d <= end:
+            e = dict(e)
+            e["date_obj"] = d
+            out.append(e)
+    return out
+
 history, history_sha = github_history_get()
 
 # Vùng đáy đến do người dùng tự thiết lập.
@@ -2136,3 +2260,72 @@ else:
 
     with st.expander("Xem URPD gốc"):
         st.dataframe(urpd, hide_index=True, use_container_width=True)
+
+# =========================
+# NEWS RADAR — cập nhật độc lập với snapshot URPD
+# =========================
+st.markdown("---")
+st.header("📰 BTC News Radar — Vĩ mô, dòng vốn và sự kiện có thể tác động BTC")
+st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. Đây là lớp thông tin bổ trợ cho URPD, không phải tín hiệu mua/bán tự động.")
+
+news_rows = fetch_news_radar(days=7, max_items=30)
+upcoming = upcoming_btc_events(days=7)
+
+n1, n2 = st.columns([1.35, 1])
+with n1:
+    st.subheader("🔥 Tin mới nhất / 7 ngày qua")
+    if news_rows:
+        for item in news_rows[:15]:
+            impact, direction = news_impact(item["title"], item["category"])
+            age_h = max(0.0, (datetime.now(timezone.utc) - item["published"]).total_seconds() / 3600.0)
+            if age_h < 24:
+                age = f"{age_h:.0f} giờ trước"
+            else:
+                age = f"{age_h/24:.1f} ngày trước"
+            st.markdown(
+                f"**{item['title']}**  \n"
+                f"`{item['source']}` · `{item['category']}` · `{impact}` · {direction} · `{age}`  "
+                f"[Đọc tin]({item['link']})"
+            )
+            st.markdown("---")
+    else:
+        st.warning("Chưa lấy được nguồn tin trực tuyến. Dashboard vẫn hoạt động bình thường; thử refresh sau vài phút.")
+
+with n2:
+    st.subheader("⏰ 7 ngày sắp tới")
+    if upcoming:
+        for e in upcoming:
+            st.markdown(
+                f"**{e['date']} · {e['time']} — {e['event']}**  \n"
+                f"{e['impact']} · {e['why']}"
+            )
+            st.markdown("---")
+    else:
+        st.info("Không có sự kiện trọng yếu đã cấu hình trong 7 ngày tới.")
+
+# Bảng tóm tắt để báo cáo URPD có thêm bối cảnh vĩ mô.
+st.subheader("🧭 Tác động lên BTC — đọc cùng báo cáo URPD")
+macro_flags = []
+for item in news_rows[:20]:
+    impact, direction = news_impact(item["title"], item["category"])
+    if direction != "🟡 Chưa rõ":
+        macro_flags.append((item, impact, direction))
+
+if macro_flags:
+    cols = st.columns(3)
+    for i, (item, impact, direction) in enumerate(macro_flags[:3]):
+        with cols[i % 3]:
+            st.metric("Tín hiệu tin tức", direction)
+            st.caption(f"{impact} · {item['category']}")
+            st.write(item["title"])
+else:
+    st.info("Chưa có đủ tiêu đề rõ hướng để tạo tín hiệu tin tức.")
+
+st.markdown("**Cách dashboard sẽ kết hợp:**")
+st.markdown(
+    "- 🟢 **URPD hỗ trợ + tin vĩ mô thuận lợi** → mức xác nhận xu hướng tăng cao hơn.  "
+    "\n- 🔴 **URPD cản tăng + tin vĩ mô bất lợi** → mức xác nhận xu hướng giảm cao hơn.  "
+    "\n- 🟡 **Hai bên trái chiều** → giữ trạng thái *chưa xác nhận*, không ép kết luận.  "
+    "\n- ⚠️ Tin tức không được dùng để biến thành 'xác suất BTC tăng/giảm'; nó chỉ là lớp bối cảnh và catalyst cần theo dõi."
+)
+
