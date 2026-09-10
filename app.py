@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import re
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -187,13 +188,10 @@ def bgeometrics_urpd(day):
             if isinstance(d, str) and re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", d):
                 actual_dates.append(d)
 
-    if not actual_dates:
-        raise ValueError(
-            f"BGeometrics không trả trường theDate hợp lệ cho request {day}; "
-            "không lưu snapshot để tránh ghi sai ngày."
-        )
-
-    actual_date = max(set(actual_dates))
+    # Nếu API không có trường ngày trong từng bucket thì endpoint /v1/urpd
+    # vẫn được gọi với tham số `day`; khi đó dùng chính ngày yêu cầu.
+    # Chỉ dùng ngày khác khi API thực sự trả về trường ngày hợp lệ.
+    actual_date = max(set(actual_dates)) if actual_dates else day
     return normalize_urpd(payload), r.url, actual_date
 
 
@@ -305,7 +303,26 @@ if urpd is None:
         urpd, urpd_url, urpd_date = bgeometrics_urpd(yesterday)
         urpd_source = "BGeometrics /v1/urpd"
     except Exception as e:
-        st.warning(f"Chưa lấy được URPD BGeometrics: {e}")
+        st.warning(f"Chưa lấy được URPD BGeometrics cho ngày {yesterday}: {e}")
+
+        # Không để một ngày mới chưa có dữ liệu làm dashboard mất toàn bộ URPD.
+        # Fallback về snapshot gần nhất đã lưu trong urpd_history.json.
+        try:
+            with open("urpd_history.json", "r", encoding="utf-8") as f:
+                _saved_history = json.load(f)
+            if isinstance(_saved_history, dict) and _saved_history:
+                _latest_key = max(_saved_history)
+                _latest = _saved_history[_latest_key]
+                if isinstance(_latest, dict) and _latest.get("urpd"):
+                    urpd = normalize_urpd(pd.DataFrame(_latest["urpd"]))
+                    urpd_source = f"History URPD ({_latest_key})"
+                    urpd_date = _latest_key
+                    st.info(
+                        f"BGeometrics chưa có dữ liệu ngày {yesterday}. "
+                        f"Dashboard đang dùng snapshot URPD gần nhất: {_latest_key}."
+                    )
+        except Exception:
+            pass
 
 price = btc_price()
 if price is None:
