@@ -440,6 +440,17 @@ def github_history_save(data, sha=None):
 
 history, history_sha = github_history_get()
 
+# Vùng đáy đến do người dùng tự thiết lập.
+with st.sidebar:
+    bottom_end = st.number_input(
+        "Vùng đáy đến (USD)",
+        value=st.session_state.get("bottom_end_manual", BOTTOM_END),
+        min_value=float(bottom_start),
+        step=100.0,
+        format="%.2f",
+        key="bottom_end_manual",
+    )
+
 with st.sidebar:
     st.markdown("### Dữ liệu URPD")
     refresh_api = st.button("🔄 Cập nhật URPD mới", use_container_width=True)
@@ -580,17 +591,6 @@ if price is None:
     price_source = "Giá nhập thủ công"
 else:
     price_source = "Giá thị trường trực tiếp"
-
-# Vùng đáy đến do người dùng tự thiết lập.
-with st.sidebar:
-    bottom_end = st.number_input(
-        "Vùng đáy đến (USD)",
-        value=st.session_state.get("bottom_end_manual", BOTTOM_END),
-        min_value=float(bottom_start),
-        step=100.0,
-        format="%.2f",
-        key="bottom_end_manual",
-    )
 
 loss_btc = None
 loss_percent = None
