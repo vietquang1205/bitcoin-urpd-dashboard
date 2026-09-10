@@ -1150,10 +1150,13 @@ else:
 
         # Các thay đổi cấp vùng.
         d1_top, d1_date = _snapshot_delta("above_price_btc", 1)
+        d3_top, d3_date = _snapshot_delta("above_price_btc", 3)
         d7_top, d7_date = _snapshot_delta("above_price_btc", 7)
         d1_bottom, _ = _snapshot_delta("bottom_btc", 1)
+        d3_bottom, _ = _snapshot_delta("bottom_btc", 3)
         d7_bottom, _ = _snapshot_delta("bottom_btc", 7)
         d1_total, _ = _snapshot_delta("total_urpd", 1)
+        d3_total, _ = _snapshot_delta("total_urpd", 3)
         d7_total, _ = _snapshot_delta("total_urpd", 7)
 
         current_price = float(chart_price if data_date == chart_date else price)
@@ -1165,6 +1168,7 @@ else:
         overhead_pct = overhead_now / total_now * 100.0 if total_now else np.nan
 
         df1 = _bucket_deltas(d1_date)
+        df3 = _bucket_deltas(d3_date)
         df7 = _bucket_deltas(d7_date)
 
         def _top_rows(df, positive=True, n=3):
@@ -1176,6 +1180,8 @@ else:
 
         inc1 = _top_rows(df1, True)
         dec1 = _top_rows(df1, False)
+        inc3 = _top_rows(df3, True)
+        dec3 = _top_rows(df3, False)
         inc7 = _top_rows(df7, True)
         dec7 = _top_rows(df7, False)
 
@@ -1202,6 +1208,11 @@ else:
         if d1_top is not None:
             score_parts.append(("Cung hiện tại → ATH (1D)", e_top_1))
 
+        e_top_3 = _bounded_effect(d3_top, favorable_negative=True, scale=150000.0, weight=9.0)
+        score += e_top_3
+        if d3_top is not None:
+            score_parts.append(("Cung hiện tại → ATH (3D)", e_top_3))
+
         e_top_7 = _bounded_effect(d7_top, favorable_negative=True, scale=200000.0, weight=10.0)
         score += e_top_7
         if d7_top is not None:
@@ -1214,6 +1225,11 @@ else:
         if d1_bottom is not None:
             score_parts.append(("Vùng đáy (1D)", e_bottom_1))
 
+        e_bottom_3 = _bounded_effect(d3_bottom, favorable_negative=False, scale=150000.0, weight=5.0)
+        score += e_bottom_3
+        if d3_bottom is not None:
+            score_parts.append(("Vùng đáy (3D)", e_bottom_3))
+
         # Bucket lớn nhất quanh giá hiện tại: ưu tiên tín hiệu khi biến động đủ lớn.
         near_low = current_price * 0.90
         near_high = current_price * 1.10
@@ -1223,6 +1239,13 @@ else:
         score += e_near
         if near_net is not None:
             score_parts.append(("Dịch chuyển quanh giá (1D)", e_near))
+
+        near_df3 = df3[(df3.mid >= near_low) & (df3.mid <= near_high)] if df3 is not None else None
+        near_net3 = float(near_df3.delta.sum()) if near_df3 is not None and not near_df3.empty else None
+        e_near3 = _bounded_effect(near_net3, favorable_negative=False, scale=120000.0, weight=4.0)
+        score += e_near3
+        if near_net3 is not None:
+            score_parts.append(("Dịch chuyển quanh giá (3D)", e_near3))
 
         # Nếu đã có đủ 7 ngày, thêm một tín hiệu xu hướng dài hơn.
         if d7_top is not None and d7_bottom is not None:
@@ -1252,12 +1275,13 @@ else:
 
         # Xác định xu hướng sắp tới: dựa trên điểm + các điều kiện xác nhận,
         # không dùng ngôn ngữ chắc chắn.
-        if score >= 65 and (d1_top is None or d1_top < 0):
+        confirm_top = d3_top if d3_top is not None else d1_top
+        if score >= 65 and (confirm_top is None or confirm_top < 0):
             outlook = "📈 Nghiêng tăng"
-            outlook_detail = "Kịch bản ưu tiên: giá giữ được vùng hiện tại và hấp thụ dần nguồn cung phía trên."
-        elif score <= 35 and (d1_top is None or d1_top > 0):
+            outlook_detail = "Kịch bản ưu tiên: giá giữ được vùng hiện tại và hấp thụ dần nguồn cung phía trên; tín hiệu 3D được dùng làm lớp xác nhận."
+        elif score <= 35 and (confirm_top is None or confirm_top > 0):
             outlook = "📉 Nghiêng giảm"
-            outlook_detail = "Kịch bản rủi ro: giá không hấp thụ được cung phía trên và quay lại kiểm tra các vùng hỗ trợ."
+            outlook_detail = "Kịch bản rủi ro: giá không hấp thụ được cung phía trên và quay lại kiểm tra các vùng hỗ trợ; tín hiệu 3D được dùng làm lớp xác nhận."
         else:
             outlook = "➡️ Chưa xác nhận"
             outlook_detail = "Cả hai kịch bản vẫn còn mở; cần thêm snapshot và phản ứng giá tại vùng cung gần nhất."
@@ -1294,6 +1318,8 @@ else:
             reason_text.append(f"cung hiện tại → ATH {_fmt_btc(d1_top)} trong 1 ngày")
         if d1_bottom is not None:
             reason_text.append(f"vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f} {_fmt_btc(d1_bottom)}")
+        if d3_top is not None:
+            reason_text.append(f"3 ngày {_fmt_btc(d3_top)} cung phía trên")
         if near_net is not None:
             reason_text.append(f"dịch chuyển quanh giá {_fmt_btc(near_net)}")
         if d7_top is not None:
@@ -1302,14 +1328,14 @@ else:
             st.write("**📌 Cơ sở chính:** " + "; ".join(reason_text) + ".")
 
         report_rows = [
-            ["Sức mạnh BTC", f"{score:.0f}/100", bias, "Điểm định lượng của dashboard"],
-            ["Triển vọng", outlook, "", outlook_detail],
-            ["Cung từ giá hiện tại → ATH", f"{overhead_now:,.2f} BTC", _fmt_btc(d1_top) if d1_top is not None else "N/A", _fmt_btc(d7_top) if d7_top is not None else "N/A"],
-            [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", f"{chart_bottom_btc:,.2f} BTC" if chart_bottom_btc is not None else "N/A", _fmt_btc(d1_bottom) if d1_bottom is not None else "N/A", _fmt_btc(d7_bottom) if d7_bottom is not None else "N/A"],
-            ["Tổng URPD", f"{total_now:,.2f} BTC", _fmt_btc(d1_total) if d1_total is not None else "N/A", _fmt_btc(d7_total) if d7_total is not None else "N/A"],
+            ["Sức mạnh BTC", f"{score:.0f}/100", bias, "Điểm định lượng của dashboard", ""],
+            ["Triển vọng", outlook, "", outlook_detail, ""],
+            ["Cung từ giá hiện tại → ATH", f"{overhead_now:,.2f} BTC", _fmt_btc(d1_top) if d1_top is not None else "N/A", _fmt_btc(d3_top) if d3_top is not None else "N/A", _fmt_btc(d7_top) if d7_top is not None else "N/A"],
+            [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", f"{chart_bottom_btc:,.2f} BTC" if chart_bottom_btc is not None else "N/A", _fmt_btc(d1_bottom) if d1_bottom is not None else "N/A", _fmt_btc(d3_bottom) if d3_bottom is not None else "N/A", _fmt_btc(d7_bottom) if d7_bottom is not None else "N/A"],
+            ["Tổng URPD", f"{total_now:,.2f} BTC", _fmt_btc(d1_total) if d1_total is not None else "N/A", _fmt_btc(d3_total) if d3_total is not None else "N/A", _fmt_btc(d7_total) if d7_total is not None else "N/A"],
         ]
         st.dataframe(
-            pd.DataFrame(report_rows, columns=["Chỉ số", "Hôm nay", "Δ 1 ngày / trạng thái", "Δ 7 ngày / diễn giải"]),
+            pd.DataFrame(report_rows, columns=["Chỉ số", "Hôm nay", "Δ 1 ngày", "Δ 3 ngày", "Δ 7 ngày"]),
             hide_index=True,
             use_container_width=True,
         )
@@ -1332,6 +1358,19 @@ else:
                     st.write("• " + _bucket_text(r))
             else:
                 st.write("Không có bucket giảm đáng kể / chưa đủ dữ liệu 1 ngày.")
+
+        with st.expander("🔎 Phân tích xu hướng 3 ngày"):
+            if inc3 or dec3:
+                if inc3:
+                    st.write("**Tăng mạnh:**")
+                    for r in inc3:
+                        st.write("• " + _bucket_text(r))
+                if dec3:
+                    st.write("**Giảm mạnh:**")
+                    for r in dec3:
+                        st.write("• " + _bucket_text(r))
+            else:
+                st.write("Chưa đủ snapshot để phân tích 3 ngày.")
 
         with st.expander("🔎 Phân tích xu hướng 7 ngày"):
             if inc7 or dec7:
