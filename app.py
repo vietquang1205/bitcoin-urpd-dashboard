@@ -389,6 +389,9 @@ if uploaded:
 
 # Nếu không có file, ưu tiên dùng dữ liệu đã lưu. Chỉ gọi API khi:
 # 1) Chưa có dữ liệu lịch sử; hoặc 2) người dùng bấm nút cập nhật.
+# HISTORY: chỉ cho phép lưu GitHub khi API thật sự lấy được snapshot mới.
+history_should_save = False
+
 if urpd is None:
     saved_dates = sorted(
         k for k, v in history.items()
@@ -408,10 +411,11 @@ if urpd is None:
             urpd, urpd_url = bgeometrics_urpd(yesterday)
             urpd_source = "BGeometrics /v1/urpd"
             urpd_date = yesterday
+            history_should_save = True
             st.success(f"Đã gọi API BGeometrics và lấy dữ liệu ngày {urpd_date}.")
         except Exception as e:
-            # History fallback: nếu ngày mới chưa có dữ liệu, dùng snapshot
-            # mới nhất đã lưu thay vì làm dashboard thành N/A.
+            # Nếu ngày mới chưa có dữ liệu, chỉ dùng snapshot cũ để hiển thị.
+            # TUYỆT ĐỐI không lưu lại snapshot cũ như một ngày mới.
             if latest_saved_date:
                 saved_latest = history[latest_saved_date]
                 urpd = normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
@@ -419,7 +423,7 @@ if urpd is None:
                 urpd_date = latest_saved_date
                 st.warning(
                     f"Chưa lấy được URPD BGeometrics cho ngày {yesterday}: {e}. "
-                    f"Đang giữ snapshot gần nhất {latest_saved_date}."
+                    f"Đang giữ snapshot gần nhất {latest_saved_date}; không tạo snapshot mới."
                 )
             else:
                 st.warning(f"Chưa lấy được URPD BGeometrics: {e}")
@@ -575,7 +579,7 @@ def records_to_urpd(records):
 
 # Lưu URPD gốc của ngày hiện tại; không ghi đè các ngày cũ.
 # Nếu history đã có đúng snapshot này thì không commit GitHub lại.
-if urpd is not None and data_date:
+if urpd is not None and data_date and history_should_save:
     snapshot = {
         "date": data_date,
         "price": float(price) if price is not None else None,
