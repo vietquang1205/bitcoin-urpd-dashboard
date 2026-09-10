@@ -856,7 +856,11 @@ if selected_days > 0 and chart_urpd is not None and selected_date:
 st.subheader("Phân bố nguồn cung theo bucket URPD")
 st.caption("Cột xanh: giá vốn thấp hơn giá BTC hiện tại • Cột đỏ: giá vốn cao hơn giá BTC hiện tại")
 
-# So sánh trực tiếp ngay trên biểu đồ hiện tại, không cần chuyển radio lịch sử.
+# So sánh trực tiếp ngay trên biểu đồ.
+# Quan trọng: khi người dùng chọn một mốc lịch sử ở radio phía trên,
+# "1 ngày trước" phải được tính từ NGÀY ĐANG XEM (chart_date), không phải
+# luôn tính từ ngày mới nhất của app (data_date). Ví dụ đang xem 09/09
+# thì 1 ngày trước phải là 08/09.
 comparison_options = {
     "Không so sánh": 0,
     "So với 1 ngày trước": 1,
@@ -872,9 +876,10 @@ comparison_urpd = None
 comparison_date = None
 comparison_price = None
 
-if comparison_days and data_date:
+comparison_base_date = chart_date or data_date
+if comparison_days and comparison_base_date:
     comparison_date = (
-        datetime.strptime(data_date, "%Y-%m-%d").date()
+        datetime.strptime(comparison_base_date, "%Y-%m-%d").date()
         - timedelta(days=comparison_days)
     ).strftime("%Y-%m-%d")
     comparison_saved = history.get(comparison_date)
@@ -882,11 +887,14 @@ if comparison_days and data_date:
         comparison_urpd = records_to_urpd(comparison_saved["urpd"])
         comparison_price = comparison_saved.get("price")
         st.caption(
-            f"Đang chồng dữ liệu {data_date} với snapshot {comparison_date}. "
-            "Cột hiện tại giữ màu xanh/đỏ; cột lịch sử màu xám để nhìn chênh lệch ngay từng bucket."
+            f"Đang chồng dữ liệu {comparison_base_date} với snapshot {comparison_date}. "
+            "Cột đang xem giữ màu xanh/đỏ; cột lịch sử màu xám để nhìn chênh lệch ngay từng bucket."
         )
     else:
-        st.warning(f"Chưa có snapshot URPD cho ngày {comparison_date} để so sánh.")
+        st.warning(
+            f"Chưa có snapshot URPD cho ngày {comparison_date} để so sánh "
+            f"với ngày {comparison_base_date}."
+        )
 
 if chart_urpd is None:
     st.warning("Chưa có dữ liệu URPD để vẽ biểu đồ.")
