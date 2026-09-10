@@ -1,7 +1,6 @@
 import os
 import json
 import base64
-import re
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -157,9 +156,9 @@ def btc_price():
 @st.cache_data(ttl=1800)
 def bgeometrics_urpd(day):
     """
-    Lấy URPD từ BGeometrics và trả về NGÀY THỰC TẾ mà API trả trong
-    trường `theDate`. Không tự gán `day` làm ngày dữ liệu, vì BGeometrics
-    có thể trả snapshot cũ khi dữ liệu ngày yêu cầu chưa được cập nhật.
+    Lấy URPD miễn phí từ BGeometrics.
+    BGeometrics chưa có dữ liệu ngày hiện tại thì dùng ngày hôm qua.
+    Endpoint trả các trường: priceLower, priceUpper, btcSupply, pctSupply.
     """
     url = "https://bitcoin-data.com/v1/urpd"
     params = {"day": day}
@@ -180,19 +179,7 @@ def bgeometrics_urpd(day):
     if not isinstance(payload, list) or not payload:
         raise ValueError(f"BGeometrics không trả URPD cho ngày {day}.")
 
-    # Lấy ngày thật từ response. Không được giả định response có đúng ngày yêu cầu.
-    actual_dates = []
-    for item in payload:
-        if isinstance(item, dict):
-            d = item.get("theDate") or item.get("the_date") or item.get("date")
-            if isinstance(d, str) and re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", d):
-                actual_dates.append(d)
-
-    # Nếu API không có trường ngày trong từng bucket thì endpoint /v1/urpd
-    # vẫn được gọi với tham số `day`; khi đó dùng chính ngày yêu cầu.
-    # Chỉ dùng ngày khác khi API thực sự trả về trường ngày hợp lệ.
-    actual_date = max(set(actual_dates)) if actual_dates else day
-    return normalize_urpd(payload), r.url, actual_date
+    return normalize_urpd(payload), r.url
 
 
 def extract_scalar(payload):
@@ -268,15 +255,119 @@ with st.sidebar:
         "Hoặc tải URPD CSV/Excel thực tế", type=["csv", "xlsx"]
     )
     top_start = st.number_input(
-        "Ngưỡng vùng đỉnh (USD)", value=TOP_START, step=100.0
+        "Ngưỡng tham khảo vùng giá cao (USD)", value=TOP_START, step=100.0
     )
     bottom_start = st.number_input(
         "Vùng đáy từ (USD)", value=BOTTOM_START, step=100.0
     )
-    bottom_end = st.number_input(
-        "Vùng đáy đến (USD)", value=BOTTOM_END, step=100.0
-    )
     ath = st.number_input("ATH (USD)", value=DEFAULT_ATH, step=100.0)
+
+# =========================
+# HISTORY: lưu bền vững trên GitHub
+# =========================
+# Streamlit Cloud có filesystem tạm thời, vì vậy chỉ ghi urpd_history.json
+# tại máy chạy app là chưa đủ. Phần history dùng GitHub làm nơi lưu chính.
+history_file = "urpd_history.json"
+github_token = st.secrets.get("GITHUB_TOKEN", "")
+github_repo = st.secrets.get("GITHUB_REPO", "")
+github_branch = st.secrets.get("GITHUB_BRANCH", "main")
+
+def github_history_get():
+    """Đọc urpd_history.json từ GitHub. Nếu chưa cấu hình GitHub thì đọc file local."""
+    if not github_token or not github_repo:
+        try:
+            with open(history_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}, None
+        except Exception:
+            return {}, None
+
+    url = f"https://api.github.com/repos/{github_repo}/contents/{history_file}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token.strip()}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        r = requests.get(
+            url,
+            headers=headers,
+            params={"ref": github_branch},
+            timeout=20,
+        )
+        if r.status_code == 404:
+            return {}, None
+        r.raise_for_status()
+        payload = r.json()
+        content = base64.b64decode(payload.get("content", "")).decode("utf-8")
+        data = json.loads(content)
+        return (data if isinstance(data, dict) else {}), payload.get("sha")
+    except Exception as e:
+        st.warning(f"Không đọc được history từ GitHub: {e}")
+        # Fallback sang file local nếu có.
+        try:
+            with open(history_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return (data if isinstance(data, dict) else {}), None
+        except Exception:
+            return {}, None
+
+def github_history_save(data, sha=None):
+    """Lưu toàn bộ history lên GitHub, giữ nguyên các ngày cũ."""
+    if not github_token or not github_repo:
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+
+    url = f"https://api.github.com/repos/{github_repo}/contents/{history_file}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token.strip()}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+    payload = {
+        "message": "Update URPD history",
+        "content": base64.b64encode(body).decode("ascii"),
+        "branch": github_branch,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    try:
+        r = requests.put(url, headers=headers, json=payload, timeout=30)
+        if r.status_code == 409:
+            # File đã đổi trên GitHub: đọc lại SHA rồi thử đúng 1 lần.
+            fresh_data, fresh_sha = github_history_get()
+            if fresh_sha:
+                payload["sha"] = fresh_sha
+                r = requests.put(url, headers=headers, json=payload, timeout=30)
+        r.raise_for_status()
+
+        # Ghi local luôn để local chạy cũng giữ được bản mới.
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        st.warning(f"Không lưu được history lên GitHub: {e}")
+        # Vẫn lưu local để không mất snapshot trong phiên chạy.
+        try:
+            with open(history_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return False
+
+history, history_sha = github_history_get()
+
+with st.sidebar:
+    st.markdown("### Dữ liệu URPD")
+    refresh_api = st.button("🔄 Cập nhật dữ liệu từ BGeometrics", use_container_width=True)
+    if refresh_api:
+        st.cache_data.clear()
+        st.session_state["force_urpd_refresh"] = True
+
+force_refresh = st.session_state.pop("force_urpd_refresh", False)
 
 urpd = None
 urpd_source = "Chưa có dữ liệu URPD"
@@ -296,33 +387,30 @@ if uploaded:
     except Exception as e:
         st.error(f"Lỗi URPD từ file: {e}")
 
-# Nếu không có file, tự lấy ngày hôm qua từ BGeometrics.
+# Nếu không có file, ưu tiên dùng dữ liệu đã lưu. Chỉ gọi API khi:
+# 1) Chưa có dữ liệu lịch sử; hoặc 2) người dùng bấm nút cập nhật.
 if urpd is None:
-    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
-    try:
-        urpd, urpd_url, urpd_date = bgeometrics_urpd(yesterday)
-        urpd_source = "BGeometrics /v1/urpd"
-    except Exception as e:
-        st.warning(f"Chưa lấy được URPD BGeometrics cho ngày {yesterday}: {e}")
+    saved_dates = sorted(
+        k for k, v in history.items()
+        if isinstance(k, str) and len(k) == 10 and isinstance(v, dict) and v.get("urpd")
+    )
+    latest_saved_date = saved_dates[-1] if saved_dates else None
 
-        # Không để một ngày mới chưa có dữ liệu làm dashboard mất toàn bộ URPD.
-        # Fallback về snapshot gần nhất đã lưu trong urpd_history.json.
+    if latest_saved_date and not force_refresh:
+        saved_latest = history[latest_saved_date]
+        urpd = records_to_urpd(saved_latest["urpd"]) if "records_to_urpd" in globals() else normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
+        urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
+        urpd_date = latest_saved_date
+        st.info(f"Đang dùng dữ liệu URPD đã lưu ngày {urpd_date}. Rerun không gọi API lại.")
+    else:
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
         try:
-            with open("urpd_history.json", "r", encoding="utf-8") as f:
-                _saved_history = json.load(f)
-            if isinstance(_saved_history, dict) and _saved_history:
-                _latest_key = max(_saved_history)
-                _latest = _saved_history[_latest_key]
-                if isinstance(_latest, dict) and _latest.get("urpd"):
-                    urpd = normalize_urpd(pd.DataFrame(_latest["urpd"]))
-                    urpd_source = f"History URPD ({_latest_key})"
-                    urpd_date = _latest_key
-                    st.info(
-                        f"BGeometrics chưa có dữ liệu ngày {yesterday}. "
-                        f"Dashboard đang dùng snapshot URPD gần nhất: {_latest_key}."
-                    )
-        except Exception:
-            pass
+            urpd, urpd_url = bgeometrics_urpd(yesterday)
+            urpd_source = "BGeometrics /v1/urpd"
+            urpd_date = yesterday
+            st.success(f"Đã gọi API BGeometrics và lấy dữ liệu ngày {urpd_date}.")
+        except Exception as e:
+            st.warning(f"Chưa lấy được URPD BGeometrics: {e}")
 
 price = btc_price()
 if price is None:
@@ -330,6 +418,17 @@ if price is None:
     price_source = "Giá nhập thủ công"
 else:
     price_source = "Giá thị trường trực tiếp"
+
+# Vùng đáy đến do người dùng tự thiết lập.
+with st.sidebar:
+    bottom_end = st.number_input(
+        "Vùng đáy đến (USD)",
+        value=st.session_state.get("bottom_end_manual", BOTTOM_END),
+        min_value=float(bottom_start),
+        step=100.0,
+        format="%.2f",
+        key="bottom_end_manual",
+    )
 
 loss_btc = None
 loss_percent = None
@@ -351,10 +450,30 @@ if urpd is not None:
     urpd = urpd.copy()
     urpd["mid_price"] = (urpd.price_low + urpd.price_high) / 2
     total_urpd = float(urpd.btc_amount.sum())
-    top_btc = btc_in_range(urpd, top_start, float("inf"))
+    # Chỉ số chính: nguồn cung có giá vốn nằm từ giá BTC hiện tại đến ATH.
+    # Có xử lý phần bucket cắt ngang giá hiện tại bằng nội suy theo tỷ lệ.
+    above_price_btc = btc_in_range(urpd, float(price), float(ath))
+    top_btc = above_price_btc  # tương thích với phần lịch sử cũ
     bottom_btc = btc_in_range(urpd, bottom_start, bottom_end)
 else:
-    total_urpd = top_btc = bottom_btc = None
+    total_urpd = above_price_btc = top_btc = bottom_btc = None
+
+today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+if isinstance(urpd_date, str) and len(urpd_date) == 10 and urpd_date[4] == "-":
+    data_date = urpd_date
+else:
+    data_date = today_key
+
+# So sánh với snapshot URPD gần nhất trước đó.
+previous_dates = sorted(k for k in history if isinstance(k, str) and k < data_date)
+previous_above_price_btc = None
+if previous_dates:
+    previous_above_price_btc = history[previous_dates[-1]].get("above_price_btc")
+if above_price_btc is not None and previous_above_price_btc is not None:
+    above_delta = above_price_btc - float(previous_above_price_btc)
+    above_delta_pct = (above_delta / float(previous_above_price_btc) * 100) if previous_above_price_btc else 0
+else:
+    above_delta = above_delta_pct = None
 
 ath_discount = (price - ath) / ath * 100 if ath else 0
 
@@ -362,11 +481,9 @@ c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Giá BTC hiện tại", f"${price:,.0f}")
 c2.metric("Chiết khấu từ ATH", f"{ath_discount:.2f}%")
 c3.metric(
-    "BTC vùng đỉnh",
-    f"{top_btc:,.0f} BTC" if top_btc is not None else "N/A",
-    f"{top_btc / total_urpd * 100:.2f}% URPD"
-    if total_urpd and top_btc is not None
-    else "Chưa có URPD",
+    "BTC mắc kẹt từ giá hiện tại đến ATH",
+    f"{above_price_btc:,.0f} BTC" if above_price_btc is not None else "N/A",
+    ((f"{above_delta:+,.0f} BTC | {above_delta_pct:+.2f}%" if above_delta is not None else "Chưa có lần trước"))
 )
 c4.metric(
     "Tổng BTC theo URPD",
@@ -381,14 +498,15 @@ c5.metric(
 )
 
 st.markdown("---")
-st.subheader("Bảng cung vùng đỉnh và cung đang lỗ")
+st.subheader("Bảng nguồn cung từ giá hiện tại đến ATH và cung đang lỗ")
 
 summary = pd.DataFrame(
     {
         "Chỉ số": [
-            "BTC vùng đỉnh",
+            "BTC mắc kẹt từ giá hiện tại đến ATH",
+            "Thay đổi so với snapshot trước",
             "Tổng BTC theo URPD",
-            "% cung vùng đỉnh",
+            "% cung từ giá hiện tại đến ATH",
             "Cung đang lỗ trực tiếp",
             "% cung đang lỗ trực tiếp",
             "Ngày dữ liệu URPD",
@@ -398,20 +516,21 @@ summary = pd.DataFrame(
             "Nguồn Supply in Loss",
         ],
         "Giá trị": [
-            f"{top_btc:,.2f}" if top_btc is not None else "N/A",
+            f"{above_price_btc:,.2f}" if above_price_btc is not None else "N/A",
+            (f"{above_delta:+,.2f} BTC ({above_delta_pct:+.2f}%)" if above_delta is not None else "N/A"),
             f"{total_urpd:,.2f}" if total_urpd is not None else "N/A",
-            f"{top_btc / total_urpd * 100:.4f}%"
-            if total_urpd and top_btc is not None
+            f"{above_price_btc / total_urpd * 100:.4f}%"
+            if total_urpd and above_price_btc is not None
             else "N/A",
             f"{loss_btc:,.2f}" if loss_btc is not None else "N/A",
             f"{loss_percent:.4f}%" if loss_percent is not None else "N/A",
             urpd_date or "N/A",
             f"${price:,.2f}",
-            f">= ${top_start:,.0f}",
+            f"${price:,.0f}–${ath:,.0f}",
             urpd_source,
             loss_source or "Chưa có dữ liệu",
         ],
-        "Đơn vị": ["BTC", "BTC", "%", "BTC", "%", "", "USD", "USD", "", ""],
+        "Đơn vị": ["BTC", "BTC", "BTC", "%", "BTC", "%", "", "USD", "USD", "", ""],
     }
 )
 st.dataframe(summary, hide_index=True, use_container_width=True)
@@ -423,213 +542,90 @@ st.download_button(
 )
 
 st.info(
-    "BTC vùng đỉnh được tính trực tiếp từ URPD BGeometrics của ngày hôm qua "
-    "(hoặc file URPD tải lên). Supply in Loss vẫn lấy trực tiếp từ ResearchBitcoin."
+    f"Đang sử dụng URPD mới nhất của ngày {data_date} "
+    "(BGeometrics có thể chưa cập nhật ngày hiện tại). "
+    "Supply in Loss vẫn lấy trực tiếp từ ResearchBitcoin."
 )
 
 # Lịch sử URPD: lưu toàn bộ bucket gốc theo từng ngày.
-# Local: lưu cạnh app.py. Cloud: có thể đồng bộ lên GitHub nếu khai báo secrets.
-history_file = "urpd_history.json"
-
-
-def load_history_local():
-    try:
-        with open(history_file, "r", encoding="utf-8") as f:
-            value = json.load(f)
-        return value if isinstance(value, dict) else {}
-    except Exception:
-        return {}
-
-
-def github_config():
-    token = st.secrets.get("GITHUB_TOKEN", os.getenv("GITHUB_TOKEN", ""))
-    repo = st.secrets.get("GITHUB_REPO", os.getenv("GITHUB_REPO", ""))
-    branch = st.secrets.get("GITHUB_BRANCH", os.getenv("GITHUB_BRANCH", "main"))
-    return str(token).strip(), str(repo).strip(), str(branch).strip() or "main"
-
-
-def github_get_history():
-    token, repo, branch = github_config()
-    if not token or not repo or "/" not in repo:
-        return None
-    url = f"https://api.github.com/repos/{repo}/contents/{history_file}"
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
-    try:
-        r = requests.get(url, headers=headers, params={"ref": branch}, timeout=20)
-        if r.status_code == 404:
-            return {}, None
-        r.raise_for_status()
-        payload = r.json()
-        content = base64.b64decode(payload["content"]).decode("utf-8")
-        value = json.loads(content)
-        return (value if isinstance(value, dict) else {}), payload.get("sha")
-    except Exception as e:
-        st.warning(f"Không đọc được lịch sử GitHub: {e}")
-        return None
-
-
-def github_save_history(history, sha=None):
-    token, repo, branch = github_config()
-    if not token or not repo or "/" not in repo:
-        return False
-    url = f"https://api.github.com/repos/{repo}/contents/{history_file}"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-    content = json.dumps(history, ensure_ascii=False, indent=2).encode("utf-8")
-    payload = {
-        "message": "Update URPD history",
-        "content": base64.b64encode(content).decode("ascii"),
-        "branch": branch,
-    }
-    if sha:
-        payload["sha"] = sha
-    try:
-        r = requests.put(url, headers=headers, json=payload, timeout=30)
-        r.raise_for_status()
-        return True
-    except Exception as e:
-        st.warning(f"Không đồng bộ được urpd_history.json lên GitHub: {e}")
-        return False
-
-
+# File này nằm cùng thư mục với app.py khi chạy local.
 def urpd_to_records(df):
     return df[["price_low", "price_high", "btc_amount"]].to_dict("records")
-
 
 def records_to_urpd(records):
     return normalize_urpd(pd.DataFrame(records))
 
-# HISTORY: ngày luôn lấy từ response thực tế của BGeometrics.
-# Không dùng ngày chạy app để "đoán" ngày dữ liệu.
-today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-data_date = (
-    urpd_date
-    if isinstance(urpd_date, str) and re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", urpd_date)
-    else None
-)
+# Lưu URPD gốc của ngày hiện tại; không ghi đè các ngày cũ.
+# Nếu history đã có đúng snapshot này thì không commit GitHub lại.
+if urpd is not None:
+    snapshot = {
+        "date": data_date,
+        "price": float(price) if price is not None else None,
+        "top_btc": float(top_btc) if top_btc is not None else None,
+        "above_price_btc": float(above_price_btc) if above_price_btc is not None else None,
+        "bottom_btc": float(bottom_btc) if bottom_btc is not None else None,
+        "total_urpd": float(total_urpd) if total_urpd is not None else None,
+        "urpd": urpd_to_records(urpd),
+        "source": urpd_source,
+    }
 
-history = load_history_local()
-github_sha = None
-remote = github_get_history()
+    old_snapshot = history.get(data_date)
+    history_changed = old_snapshot != snapshot
 
-if remote is not None:
-    remote_history, github_sha = remote
-    if isinstance(remote_history, dict):
-        merged_history = dict(history)
-        merged_history.update(remote_history)
-        history = merged_history
+    if history_changed:
+        history[data_date] = snapshot
 
-if urpd is not None and data_date:
-    urpd_records = urpd_to_records(urpd)
-
-    # Snapshot được khóa theo ngày URPD.
-    # Nếu ngày đã tồn tại và bucket URPD không đổi, KHÔNG ghi lại/commit lại
-    # chỉ vì giá BTC hiện tại thay đổi khi người dùng rerun.
-    existing = history.get(data_date)
-    same_urpd = (
-        isinstance(existing, dict)
-        and existing.get("urpd") == urpd_records
-    )
-
-    if not same_urpd:
-        new_snapshot = {
-            "date": data_date,
-            "price": float(price) if price is not None else None,
-            "top_btc": float(top_btc) if top_btc is not None else None,
-            "bottom_btc": float(bottom_btc) if bottom_btc is not None else None,
-            "total_urpd": float(total_urpd) if total_urpd is not None else None,
-            "urpd": urpd_records,
-            "source": urpd_source,
-        }
-
-        history[data_date] = new_snapshot
+        # Giữ tối đa 365 ngày gần nhất.
         history = dict(sorted(history.items())[-365:])
 
-        try:
-            with open(history_file, "w", encoding="utf-8") as f:
-                json.dump(history, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            st.warning(f"Không lưu được lịch sử URPD local: {e}")
-
-        token_g, repo_g, branch_g = github_config()
-        if token_g and repo_g:
-            synced = github_save_history(history, github_sha)
-            if synced:
-                st.success(
-                    f"Đã lưu snapshot URPD ngày {data_date} lên GitHub."
-                )
-            else:
-                st.error(
-                    "Không lưu được lịch sử lên GitHub. "
-                    "Kiểm tra GITHUB_TOKEN/GITHUB_REPO và quyền Contents: Read and write."
-                )
+        if github_token and github_repo:
+            if github_history_save(history, history_sha):
+                st.success(f"Đã lưu history URPD ngày {data_date} lên GitHub.")
+                # Lấy SHA mới để lần lưu tiếp theo cập nhật đúng file.
+                _, history_sha = github_history_get()
         else:
-            st.info(
-                "Chưa cấu hình GitHub Secrets; history hiện chỉ lưu tạm "
-                "trong phiên chạy này."
-            )
-    else:
-        st.caption(
-            f"Snapshot URPD ngày {data_date} đã có sẵn; "
-            "không tạo commit mới."
-        )
-elif urpd is not None:
-    st.warning(
-        "Bỏ qua lưu history vì không xác định được ngày thực tế từ BGeometrics."
-    )
-
-# Mốc lịch sử tính từ ngày dữ liệu URPD mới nhất, tránh nhầm khi BGeometrics chậm cập nhật.
-latest_data_date = data_date or (max(history) if history else None)
-if history:
-    st.caption(f"Đã nạp {len(history)} ngày lịch sử URPD. Ngày mới nhất: {max(history)}")
-else:
-    st.warning("Chưa có snapshot lịch sử nào. Hãy bấm Cập nhật dữ liệu từ BGeometrics.")
+            try:
+                github_history_save(history)
+            except Exception as e:
+                st.warning(f"Không lưu được lịch sử URPD: {e}")
+    elif not github_token or not github_repo:
+        # Local: đảm bảo file tồn tại dù snapshot không đổi.
+        try:
+            github_history_save(history)
+        except Exception:
+            pass
 
 st.markdown("---")
 st.subheader("Lịch sử biến động nguồn cung")
 st.caption("Chọn mốc lịch sử để xem lại đúng biểu đồ URPD của ngày đó.")
 
+# Lấy ngày dữ liệu URPD mới nhất làm mốc. Ví dụ nếu hôm nay là 07/09
+# nhưng BGeometrics mới có dữ liệu 06/09 thì "Hiện tại" = 06/09,
+# còn "1 ngày trước" = 05/09, tránh hiển thị trùng ngày.
+base_date = datetime.strptime(data_date, "%Y-%m-%d").date()
+
+# Gắn ngày cụ thể ngay trên nút để tránh nhầm giữa ngày chạy app
+# và ngày dữ liệu URPD thực tế.
 choices = {
-    "Hiện tại": 0,
-    "1 ngày trước": 1,
-    "7 ngày trước": 7,
-    "30 ngày trước": 30,
-    "120 ngày trước": 120,
-    "180 ngày trước": 180,
+    f"Hiện tại [{base_date.strftime('%d/%m/%Y')}]": 0,
+    f"1 ngày trước [{(base_date - timedelta(days=1)).strftime('%d/%m/%Y')}]": 1,
+    f"7 ngày trước [{(base_date - timedelta(days=7)).strftime('%d/%m/%Y')}]": 7,
+    f"30 ngày trước [{(base_date - timedelta(days=30)).strftime('%d/%m/%Y')}]": 30,
+    f"120 ngày trước [{(base_date - timedelta(days=120)).strftime('%d/%m/%Y')}]": 120,
+    f"180 ngày trước [{(base_date - timedelta(days=180)).strftime('%d/%m/%Y')}]": 180,
 }
 selected = st.radio("Xem biểu đồ:", list(choices), horizontal=True)
 
 selected_days = choices[selected]
-
-if latest_data_date:
-    base_date = datetime.strptime(latest_data_date, "%Y-%m-%d").date()
-    selected_date = (base_date - timedelta(days=selected_days)).strftime("%Y-%m-%d")
-else:
-    base_date = None
-    selected_date = None
+selected_date = (base_date - timedelta(days=selected_days)).strftime("%Y-%m-%d")
 
 if selected_days == 0:
-    current_saved = history.get(latest_data_date, {}) if latest_data_date else {}
-    if urpd is not None:
-        chart_urpd = urpd
-        chart_price = price
-        chart_top_btc = top_btc
-        chart_bottom_btc = bottom_btc
-        chart_total_urpd = total_urpd
-    elif current_saved.get("urpd"):
-        chart_urpd = records_to_urpd(current_saved["urpd"])
-        chart_price = current_saved.get("price")
-        chart_top_btc = current_saved.get("top_btc")
-        chart_bottom_btc = current_saved.get("bottom_btc")
-        chart_total_urpd = current_saved.get("total_urpd")
-    else:
-        chart_urpd = None
-        chart_price = price
-        chart_top_btc = chart_bottom_btc = chart_total_urpd = None
-    chart_date = latest_data_date
+    chart_urpd = urpd
+    chart_date = data_date
+    chart_price = price
+    chart_top_btc = top_btc
+    chart_bottom_btc = bottom_btc
+    chart_total_urpd = total_urpd
 else:
     saved = history.get(selected_date)
     if saved and saved.get("urpd"):
@@ -652,7 +648,7 @@ else:
 
 # So sánh nhanh với dữ liệu đã lưu.
 if selected_days > 0 and chart_urpd is not None:
-    current_saved = history.get(latest_data_date, {}) if latest_data_date else {}
+    current_saved = history.get(data_date, {})
     old_saved = history.get(selected_date, {})
     if old_saved:
         def hist_diff(key):
@@ -663,7 +659,7 @@ if selected_days > 0 and chart_urpd is not None:
         delta_top = hist_diff("top_btc")
         delta_total = hist_diff("total_urpd")
         st.write(
-            f"Trong kỳ **{selected_date} → {latest_data_date}**, "
+            f"Trong kỳ **{selected_date} → {data_date}**, "
             f"tổng URPD thay đổi **{delta_total:+,.2f} BTC**."
             if delta_total is not None else
             "Chưa đủ dữ liệu để tính thay đổi."
