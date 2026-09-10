@@ -108,10 +108,9 @@ def normalize_urpd(raw):
     out = out.replace([np.inf, -np.inf], np.nan).dropna()
     out = out[out.btc_amount >= 0].copy()
 
-    # Loại bỏ bucket nguyên thủy tại giá 0.
-    # Bucket này (thường khoảng 3,656,306 BTC) không được đưa vào biểu đồ
-    # hoặc bất kỳ phép tính URPD nào của dashboard.
-    out = out[out.price_low > 0].copy()
+    # Giữ nguyên bucket giá 0 trong dữ liệu gốc.
+    # Bucket này chỉ được ẩn khi vẽ biểu đồ để tránh kéo lệch khung nhìn.
+    # Tổng URPD và các phép tính nguồn cung vẫn dùng đủ dữ liệu gốc.
 
     # Một số API trả satoshi thay vì BTC.
     if not out.empty and out.btc_amount.max() > 2.1e15:
@@ -831,6 +830,11 @@ else:
             "Hãy chạy app vào ngày đó hoặc thêm dữ liệu bằng file URPD."
         )
 
+# Chỉ ẩn bucket giá 0 trên biểu đồ.
+# Dữ liệu gốc, tổng URPD và mọi phép tính metric vẫn giữ nguyên đầy đủ.
+if chart_urpd is not None:
+    chart_urpd = chart_urpd[chart_urpd.price_low > 0].copy().reset_index(drop=True)
+
 # So sánh nhanh với dữ liệu đã lưu.
 if selected_days > 0 and chart_urpd is not None and selected_date:
     current_saved = history.get(data_date, {}) if data_date else {}
@@ -904,16 +908,17 @@ if comparison_days and comparison_base_date:
 if chart_urpd is None:
     st.warning("Chưa có dữ liệu URPD để vẽ biểu đồ.")
 else:
-    urpd = chart_urpd.copy()
-    urpd["mid_price"] = (urpd.price_low + urpd.price_high) / 2
+    chart_plot_urpd = chart_urpd.copy()
+    chart_plot_urpd["mid_price"] = (chart_plot_urpd.price_low + chart_plot_urpd.price_high) / 2
+    urpd_plot = chart_plot_urpd
     price_for_chart = chart_price if chart_price is not None else price
-    colors = np.where(urpd.mid_price < price_for_chart, "#10b981", "#ef4444")
+    colors = np.where(urpd_plot.mid_price < price_for_chart, "#10b981", "#ef4444")
 
     fig = go.Figure()
 
     # Vẽ snapshot lịch sử trước để snapshot hiện tại nằm nổi lên trên.
     if comparison_urpd is not None:
-        hist = comparison_urpd.copy()
+        hist = comparison_urpd[comparison_urpd.price_low > 0].copy()
         hist["mid_price"] = (hist.price_low + hist.price_high) / 2
         hist_width = (hist.price_high - hist.price_low) * 0.92
         fig.add_trace(
@@ -942,25 +947,25 @@ else:
     if comparison_urpd is not None:
         hist_lookup = {
             (round(float(r.price_low), 6), round(float(r.price_high), 6)): float(r.btc_amount)
-            for r in comparison_urpd.itertuples(index=False)
+            for r in comparison_urpd_plot.itertuples(index=False)
         }
         compare_btc = np.array([
             hist_lookup.get(
                 (round(float(lo), 6), round(float(hi), 6)),
                 np.nan,
             )
-            for lo, hi in zip(urpd.price_low, urpd.price_high)
+            for lo, hi in zip(urpd_plot.price_low, urpd_plot.price_high)
         ], dtype=float)
-        delta_btc = urpd.btc_amount.to_numpy(float) - compare_btc
-        current_values = urpd.btc_amount.to_numpy(float)
+        delta_btc = urpd_plot.btc_amount.to_numpy(float) - compare_btc
+        current_values = urpd_plot.btc_amount.to_numpy(float)
         delta_pct = np.where(
             np.isfinite(compare_btc) & (compare_btc != 0),
             delta_btc / compare_btc * 100.0,
             np.nan,
         )
         current_customdata = np.column_stack([
-            urpd.price_low.to_numpy(float),
-            urpd.price_high.to_numpy(float),
+            urpd_plot.price_low.to_numpy(float),
+            urpd_plot.price_high.to_numpy(float),
             compare_btc,
             delta_btc,
             delta_pct,
@@ -976,7 +981,7 @@ else:
         )
     else:
         current_customdata = np.stack(
-            [urpd.price_low.to_numpy(float), urpd.price_high.to_numpy(float)], axis=-1
+            [urpd_plot.price_low.to_numpy(float), urpd_plot.price_high.to_numpy(float)], axis=-1
         )
         current_hover = (
             f"Snapshot {chart_date}<br>"
@@ -986,9 +991,9 @@ else:
 
     fig.add_trace(
         go.Bar(
-            x=urpd.mid_price,
-            y=urpd.btc_amount,
-            width=(urpd.price_high - urpd.price_low) * (0.72 if comparison_urpd is not None else 0.92),
+            x=urpd_plot.mid_price,
+            y=urpd_plot.btc_amount,
+            width=(urpd_plot.price_high - urpd_plot.price_low) * (0.72 if comparison_urpd is not None else 0.92),
             name=f"Hiện tại {chart_date}",
             marker_color=colors,
             customdata=current_customdata,
@@ -1007,10 +1012,10 @@ else:
             [f"{d:+,.0f} BTC" if np.isfinite(d) else "" for d in delta_btc],
             "",
         )
-        delta_y = urpd.btc_amount.to_numpy(float) + np.maximum(urpd.btc_amount.to_numpy(float) * 0.012, 150.0)
+        delta_y = urpd_plot.btc_amount.to_numpy(float) + np.maximum(urpd_plot.btc_amount.to_numpy(float) * 0.012, 150.0)
         fig.add_trace(
             go.Scatter(
-                x=urpd.mid_price,
+                x=urpd_plot.mid_price,
                 y=delta_y,
                 mode="text",
                 text=delta_text,
