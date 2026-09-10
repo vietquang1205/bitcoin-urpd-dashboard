@@ -1070,6 +1070,201 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
+    # =========================
+    # BÁO CÁO TỰ ĐỘNG NGÀY
+    # =========================
+    # Báo cáo này dùng dữ liệu URPD thực tế đang có trong history + các metric
+    # của dashboard. Không dùng tin tức bên ngoài và không tự bịa dữ liệu.
+    # Các câu "xu hướng/định hướng" là suy luận định lượng từ thay đổi nguồn cung,
+    # vì vậy luôn được diễn đạt là tín hiệu on-chain, không phải dự báo chắc chắn.
+    if data_date and urpd is not None:
+        st.subheader("📊 Báo cáo phân tích URPD ngày")
+        st.caption(
+            "Phân tích tự động từ URPD của ngày mới nhất, so sánh 1 ngày và 7 ngày; "
+            "ưu tiên các bucket có thay đổi lớn và các vùng cung quanh giá hiện tại."
+        )
+
+        def _fmt_btc(x):
+            return f"{x:+,.0f} BTC"
+
+        def _pct(x):
+            return f"{x:+.2f}%"
+
+        def _snapshot_delta(key, days):
+            try:
+                d0 = datetime.strptime(data_date, "%Y-%m-%d").date()
+                old_date = (d0 - timedelta(days=days)).strftime("%Y-%m-%d")
+                old = history.get(old_date, {})
+                new = history.get(data_date, {})
+                a, b = new.get(key), old.get(key)
+                if a is None or b is None:
+                    return None, old_date
+                return float(a) - float(b), old_date
+            except Exception:
+                return None, None
+
+        def _bucket_deltas(old_date):
+            old = history.get(old_date, {}) if old_date else {}
+            if not old.get("urpd"):
+                return None
+            old_df = records_to_urpd(old["urpd"])
+            old_lookup = {
+                (round(float(r.price_low), 6), round(float(r.price_high), 6)): float(r.btc_amount)
+                for r in old_df.itertuples(index=False)
+            }
+            rows = []
+            for r in urpd.itertuples(index=False):
+                key = (round(float(r.price_low), 6), round(float(r.price_high), 6))
+                old_btc = old_lookup.get(key)
+                if old_btc is None:
+                    continue
+                cur = float(r.btc_amount)
+                delta = cur - old_btc
+                if not np.isfinite(delta):
+                    continue
+                mid = (float(r.price_low) + float(r.price_high)) / 2.0
+                if mid <= 1:
+                    continue  # bỏ bucket 0 USD vì thường là phần placeholder rất lớn
+                rows.append({
+                    "low": float(r.price_low),
+                    "high": float(r.price_high),
+                    "mid": mid,
+                    "current": cur,
+                    "old": old_btc,
+                    "delta": delta,
+                    "pct": (delta / old_btc * 100.0) if old_btc else np.nan,
+                })
+            return pd.DataFrame(rows) if rows else None
+
+        # Các thay đổi cấp vùng.
+        d1_top, d1_date = _snapshot_delta("above_price_btc", 1)
+        d7_top, d7_date = _snapshot_delta("above_price_btc", 7)
+        d1_bottom, _ = _snapshot_delta("bottom_btc", 1)
+        d7_bottom, _ = _snapshot_delta("bottom_btc", 7)
+        d1_total, _ = _snapshot_delta("total_urpd", 1)
+        d7_total, _ = _snapshot_delta("total_urpd", 7)
+
+        # Phần cung theo vị trí so với giá hiện tại của snapshot mới nhất.
+        current_price = float(chart_price if data_date == chart_date else price)
+        total_now = float(urpd.btc_amount.sum())
+        below_now = float(urpd.loc[urpd.price_high <= current_price, "btc_amount"].sum())
+        overhead_now = btc_in_range(urpd, current_price, float(ath))
+        above_ath_now = float(urpd.loc[urpd.price_low >= float(ath), "btc_amount"].sum())
+        below_pct = below_now / total_now * 100.0 if total_now else np.nan
+        overhead_pct = overhead_now / total_now * 100.0 if total_now else np.nan
+
+        # Tìm các bucket tăng/giảm mạnh nhất trong 1D và 7D.
+        df1 = _bucket_deltas(d1_date)
+        df7 = _bucket_deltas(d7_date)
+
+        def _top_rows(df, positive=True, n=3):
+            if df is None or df.empty:
+                return []
+            x = df[df.delta > 0] if positive else df[df.delta < 0]
+            x = x.sort_values("delta", ascending=not positive).head(n)
+            return x.to_dict("records")
+
+        inc1 = _top_rows(df1, True)
+        dec1 = _top_rows(df1, False)
+        inc7 = _top_rows(df7, True)
+        dec7 = _top_rows(df7, False)
+
+        # Chấm điểm tín hiệu rất đơn giản: chỉ dùng thay đổi cung, không coi là
+        # dự báo giá. Giảm cung phía trên giá -> thuận lợi hơn; tăng -> cản hơn.
+        score = 0
+        reasons = []
+        if d1_top is not None:
+            if d1_top < -5000:
+                score += 2
+                reasons.append(f"cung từ giá hiện tại đến ATH giảm {_fmt_btc(d1_top)} trong 1 ngày")
+            elif d1_top > 5000:
+                score -= 2
+                reasons.append(f"cung từ giá hiện tại đến ATH tăng {_fmt_btc(d1_top)} trong 1 ngày")
+        if d7_top is not None:
+            if d7_top < -10000:
+                score += 1
+            elif d7_top > 10000:
+                score -= 1
+        if d1_bottom is not None:
+            if d1_bottom > 5000:
+                score += 1
+                reasons.append(f"vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f} tăng {_fmt_btc(d1_bottom)}")
+            elif d1_bottom < -5000:
+                score -= 1
+                reasons.append(f"vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f} giảm {_fmt_btc(d1_bottom)}")
+
+        if score >= 2:
+            bias = "🟢 Tích cực"
+            bias_text = "Nguồn cung đang có tín hiệu thuận lợi hơn cho phía tăng, nhưng đây chỉ là tín hiệu on-chain."
+        elif score <= -2:
+            bias = "🔴 Tiêu cực"
+            bias_text = "Nguồn cung đang tạo thêm áp lực phía trên/giảm ở vùng hỗ trợ, nhưng đây chỉ là tín hiệu on-chain."
+        else:
+            bias = "🟡 Trung tính"
+            bias_text = "Dữ liệu URPD chưa tạo chênh lệch đủ lớn để kết luận một hướng rõ ràng."
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("Thiên hướng on-chain", bias)
+        with c2:
+            st.metric("Cung dưới giá hiện tại", f"{below_now:,.0f} BTC", f"{below_pct:.2f}% tổng URPD")
+        with c3:
+            st.metric("Cung từ giá hiện tại → ATH", f"{overhead_now:,.0f} BTC", f"{overhead_pct:.2f}% tổng URPD")
+
+        if reasons:
+            st.write("**🧠 Nhận định chính:** " + "; ".join(reasons) + ".")
+        else:
+            st.write("**🧠 Nhận định chính:** chưa có biến động vùng đủ lớn để tạo tín hiệu mạnh.")
+        st.write("**Định hướng:** " + bias_text)
+
+        # Bảng 1D / 7D giúp người dùng thấy báo cáo đang dựa trên số liệu nào.
+        report_rows = [
+            ["Cung từ giá hiện tại → ATH", f"{overhead_now:,.2f} BTC", _fmt_btc(d1_top) if d1_top is not None else "N/A", _fmt_btc(d7_top) if d7_top is not None else "N/A"],
+            [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", f"{chart_bottom_btc:,.2f} BTC" if chart_bottom_btc is not None else "N/A", _fmt_btc(d1_bottom) if d1_bottom is not None else "N/A", _fmt_btc(d7_bottom) if d7_bottom is not None else "N/A"],
+            ["Tổng URPD", f"{total_now:,.2f} BTC", _fmt_btc(d1_total) if d1_total is not None else "N/A", _fmt_btc(d7_total) if d7_total is not None else "N/A"],
+        ]
+        st.dataframe(
+            pd.DataFrame(report_rows, columns=["Chỉ số", "Hôm nay", "Δ 1 ngày", "Δ 7 ngày"]),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        def _bucket_text(row):
+            return f"${row['low']:,.0f}–${row['high']:,.0f}: {_fmt_btc(row['delta'])} ({_pct(row['pct'])})"
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown("**📈 Bucket tăng mạnh nhất**")
+            if inc1:
+                for r in inc1:
+                    st.write("• " + _bucket_text(r))
+            else:
+                st.write("Không có bucket tăng đáng kể / chưa đủ dữ liệu 1 ngày.")
+        with col_b:
+            st.markdown("**📉 Bucket giảm mạnh nhất**")
+            if dec1:
+                for r in dec1:
+                    st.write("• " + _bucket_text(r))
+            else:
+                st.write("Không có bucket giảm đáng kể / chưa đủ dữ liệu 1 ngày.")
+
+        with st.expander("🔎 Phân tích xu hướng 7 ngày"):
+            if inc7 or dec7:
+                st.write("**Tăng mạnh:**")
+                for r in inc7:
+                    st.write("• " + _bucket_text(r))
+                st.write("**Giảm mạnh:**")
+                for r in dec7:
+                    st.write("• " + _bucket_text(r))
+            else:
+                st.write("Chưa đủ snapshot để phân tích 7 ngày.")
+
+        st.caption(
+            "Lưu ý: URPD cho biết phân bố giá vốn của nguồn cung UTXO tại từng snapshot. "
+            "Biến động bucket không tự chứng minh mua, bán, tích lũy hay phân phối; báo cáo chỉ dùng "
+            "các biến động đó để tạo tín hiệu định lượng và định hướng theo dõi."
+        )
+
     # Bảng tổng hợp ngay dưới biểu đồ.
     chart_summary = pd.DataFrame({
         "Vùng giá": [
