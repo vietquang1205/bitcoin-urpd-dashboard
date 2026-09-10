@@ -854,6 +854,38 @@ if selected_days > 0 and chart_urpd is not None and selected_date:
 st.subheader("Phân bố nguồn cung theo bucket URPD")
 st.caption("Cột xanh: giá vốn thấp hơn giá BTC hiện tại • Cột đỏ: giá vốn cao hơn giá BTC hiện tại")
 
+# So sánh trực tiếp ngay trên biểu đồ hiện tại, không cần chuyển radio lịch sử.
+comparison_options = {
+    "Không so sánh": 0,
+    "So với 1 ngày trước": 1,
+    "So với 7 ngày trước": 7,
+}
+comparison_label = st.selectbox(
+    "So sánh trực tiếp trên biểu đồ",
+    list(comparison_options),
+    index=1,
+)
+comparison_days = comparison_options[comparison_label]
+comparison_urpd = None
+comparison_date = None
+comparison_price = None
+
+if comparison_days and data_date:
+    comparison_date = (
+        datetime.strptime(data_date, "%Y-%m-%d").date()
+        - timedelta(days=comparison_days)
+    ).strftime("%Y-%m-%d")
+    comparison_saved = history.get(comparison_date)
+    if comparison_saved and comparison_saved.get("urpd"):
+        comparison_urpd = records_to_urpd(comparison_saved["urpd"])
+        comparison_price = comparison_saved.get("price")
+        st.caption(
+            f"Đang chồng dữ liệu {data_date} với snapshot {comparison_date}. "
+            "Cột hiện tại giữ màu xanh/đỏ; cột lịch sử màu xám để nhìn chênh lệch ngay từng bucket."
+        )
+    else:
+        st.warning(f"Chưa có snapshot URPD cho ngày {comparison_date} để so sánh.")
+
 if chart_urpd is None:
     st.warning("Chưa có dữ liệu URPD để vẽ biểu đồ.")
 else:
@@ -861,16 +893,46 @@ else:
     urpd["mid_price"] = (urpd.price_low + urpd.price_high) / 2
     price_for_chart = chart_price if chart_price is not None else price
     colors = np.where(urpd.mid_price < price_for_chart, "#10b981", "#ef4444")
-    fig = go.Figure(
+
+    fig = go.Figure()
+
+    # Vẽ snapshot lịch sử trước để snapshot hiện tại nằm nổi lên trên.
+    if comparison_urpd is not None:
+        hist = comparison_urpd.copy()
+        hist["mid_price"] = (hist.price_low + hist.price_high) / 2
+        hist_width = (hist.price_high - hist.price_low) * 0.92
+        fig.add_trace(
+            go.Bar(
+                x=hist.mid_price,
+                y=hist.btc_amount,
+                width=hist_width,
+                name=f"{comparison_date}",
+                marker_color="rgba(148, 163, 184, 0.28)",
+                marker_line=dict(color="rgba(148, 163, 184, 0.75)", width=1),
+                customdata=np.stack(
+                    [hist.price_low, hist.price_high], axis=-1
+                ),
+                hovertemplate=(
+                    f"Snapshot {comparison_date}<br>"
+                    "Khoảng giá: $%{customdata[0]:,.0f} - "
+                    "$%{customdata[1]:,.0f}<br>"
+                    "BTC: %{y:,.2f}<extra></extra>"
+                ),
+            )
+        )
+
+    fig.add_trace(
         go.Bar(
             x=urpd.mid_price,
             y=urpd.btc_amount,
-            width=(urpd.price_high - urpd.price_low) * 0.92,
+            width=(urpd.price_high - urpd.price_low) * (0.72 if comparison_urpd is not None else 0.92),
+            name=f"Hiện tại {chart_date}",
             marker_color=colors,
             customdata=np.stack(
                 [urpd.price_low, urpd.price_high], axis=-1
             ),
             hovertemplate=(
+                f"Snapshot {chart_date}<br>"
                 "Khoảng giá: $%{customdata[0]:,.0f} - "
                 "$%{customdata[1]:,.0f}<br>"
                 "BTC: %{y:,.2f}<extra></extra>"
@@ -925,6 +987,9 @@ else:
         yaxis_title="BTC",
         margin=dict(l=55, r=55, t=75, b=55),
         bargap=0.02,
+        barmode="overlay",
+        showlegend=comparison_urpd is not None,
+        legend=dict(orientation="h", y=1.08, x=0),
     )
     st.plotly_chart(fig, use_container_width=True)
 
