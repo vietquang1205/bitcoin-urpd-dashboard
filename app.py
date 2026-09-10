@@ -1287,20 +1287,39 @@ else:
         borderwidth=1,
         borderpad=5,
     )
+    # Giữ cố định khung trục để khi đổi snapshot, biểu đồ không tự zoom/co giật.
+    # Trục X phủ toàn bộ vùng 0 → ATH; trục Y có sàn 1M BTC và chỉ nới khi cần.
+    y_candidates = [float(urpd_plot.btc_amount.max()) if not urpd_plot.empty else 0.0]
+    if comparison_urpd is not None and not comparison_urpd_plot.empty:
+        y_candidates.append(float(comparison_urpd_plot.btc_amount.max()))
+    y_axis_max = max(1_000_000.0, max(y_candidates, default=0.0) * 1.15)
+    x_axis_max = max(float(ath), float(top_start), float(bottom_end), 1.0) * 1.03
+
     fig.update_layout(
         template="plotly_dark",
         height=560,
-        xaxis_title="Giá vốn on-chain ($)",
-        yaxis_title="BTC",
+        xaxis=dict(
+            title="Giá vốn on-chain ($)",
+            range=[0, x_axis_max],
+            autorange=False,
+        ),
+        yaxis=dict(
+            title="BTC",
+            range=[0, y_axis_max],
+            autorange=False,
+        ),
         margin=dict(l=55, r=55, t=75, b=55),
         bargap=0.02,
         barmode="overlay",
         showlegend=comparison_urpd is not None,
         legend=dict(orientation="h", y=1.08, x=0),
     )
-    # Hiệu ứng chuyển snapshot mượt: giữ nguyên khung biểu đồ và animate
-    # từ snapshot trước sang snapshot mới thay vì để Streamlit thay cả chart
-    # một cách giật/nhảy. Figure cũ được lưu trong session_state.
+
+    # V22: animation thật bằng requestAnimationFrame.
+    # Streamlit vẫn rerun ở server khi bấm radio, nhưng iframe nhận figure cũ
+    # và figure mới rồi tự nội suy từng frame trên client. Không dùng
+    # Plotly.animate vì Plotly có thể bỏ qua tween của bar khi x/y thay đổi
+    # đồng thời hoặc khi trace có cấu trúc khác nhau.
     current_fig_json = json.loads(fig.to_json())
     animation_key = f"{chart_date}|{comparison_date}|{comparison_days}"
     previous_fig_json = st.session_state.get("urpd_previous_fig_json")
@@ -1313,52 +1332,99 @@ else:
     chart_html = f"""
     <div id="urpd-chart-wrap" style="width:100%;height:560px;position:relative;overflow:hidden;background:#0e1117;border-radius:10px;">
       <div id="urpd-chart" style="width:100%;height:100%;"></div>
-      <div id="urpd-fade" style="position:absolute;inset:0;background:#0e1117;opacity:0;pointer-events:none;transition:opacity 180ms ease;"></div>
     </div>
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script>
       const oldFig = {old_payload};
       const newFig = {new_payload};
       const el = document.getElementById('urpd-chart');
-      const fade = document.getElementById('urpd-fade');
       const config = {{responsive:true, displaylogo:false, scrollZoom:false}};
+      const DURATION = 900;
 
-      function renderNew() {{
-        Plotly.newPlot(el, newFig.data, newFig.layout, config);
+      function clone(obj) {{
+        return JSON.parse(JSON.stringify(obj));
       }}
 
-      if (oldFig && Array.isArray(oldFig.data) && oldFig.data.length === newFig.data.length) {{
+      function isNum(v) {{
+        return typeof v === 'number' && Number.isFinite(v);
+      }}
+
+      function lerp(a, b, t) {{
+        return a + (b - a) * t;
+      }}
+
+      function interpolateArray(a, b, t) {{
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return null;
+        const out = new Array(a.length);
+        for (let i = 0; i < a.length; i++) {{
+          if (isNum(a[i]) && isNum(b[i])) out[i] = lerp(a[i], b[i], t);
+          else out[i] = t < 1 ? a[i] : b[i];
+        }}
+        return out;
+      }}
+
+      function ease(t) {{
+        // smoothstep + cubic easing: mượt đầu/cuối, rõ chuyển động ở giữa
+        return t * t * (3 - 2 * t);
+      }}
+
+      function makeFrameData(t) {{
+        const frame = clone(newFig.data);
+        for (let i = 0; i < frame.length; i++) {{
+          const o = oldFig.data[i];
+          const n = newFig.data[i];
+          if (!o || !n) continue;
+
+          // Nội suy trực tiếp x/y/width của bar. Đây là phần làm các cột
+          // thật sự di chuyển và cao lên/thấp xuống thay vì chỉ fade.
+          for (const key of ['x', 'y', 'width']) {{
+            if (o[key] !== undefined && n[key] !== undefined) {{
+              const arr = interpolateArray(o[key], n[key], t);
+              if (arr) frame[i][key] = arr;
+              else if (isNum(o[key]) && isNum(n[key])) frame[i][key] = lerp(o[key], n[key], t);
+            }}
+          }}
+
+          // Các nhãn delta/text không nên hiện nửa cũ nửa mới; giữ nhãn cũ
+          // trong lúc chạy và chuyển sang nhãn mới ở frame cuối.
+          if (t < 1 && o.text !== undefined && n.text !== undefined) frame[i].text = o.text;
+        }}
+        return frame;
+      }}
+
+      function renderNew() {{
+        return Plotly.newPlot(el, newFig.data, newFig.layout, config);
+      }}
+
+      function animateBars() {{
+        const start = performance.now();
+        function tick(now) {{
+          const raw = Math.min(1, (now - start) / DURATION);
+          const t = ease(raw);
+          const frameData = makeFrameData(t);
+          Plotly.react(el, frameData, newFig.layout, config);
+          if (raw < 1) {{
+            requestAnimationFrame(tick);
+          }} else {{
+            // Chốt chính xác figure mới sau frame cuối.
+            Plotly.react(el, newFig.data, newFig.layout, config);
+          }}
+        }}
+        requestAnimationFrame(tick);
+      }}
+
+      if (oldFig && Array.isArray(oldFig.data) && Array.isArray(newFig.data) &&
+          oldFig.data.length === newFig.data.length &&
+          oldFig.data.every((d, i) => d && newFig.data[i] &&
+              Array.isArray(d.y) && Array.isArray(newFig.data[i].y) &&
+              d.y.length === newFig.data[i].y.length)) {{
         Plotly.newPlot(el, oldFig.data, oldFig.layout, config).then(function() {{
-          requestAnimationFrame(function() {{
-            Plotly.animate(
-              el,
-              {{data:newFig.data, layout:newFig.layout}},
-              {{
-                transition:{{duration:850, easing:'cubic-in-out'}},
-                frame:{{duration:850, redraw:true}},
-                mode:'afterall'
-              }}
-            );
-          }});
+          requestAnimationFrame(animateBars);
         }}).catch(renderNew);
       }} else {{
-        // Nếu số trace thay đổi (ví dụ bật/tắt so sánh), cross-fade nhẹ
-        // để vẫn giữ nguyên khung thay vì nhảy sang một layout mới.
-        if (oldFig) {{
-          Plotly.newPlot(el, oldFig.data, oldFig.layout, config).then(function() {{
-            fade.style.opacity = '0';
-            setTimeout(function() {{
-              fade.style.opacity = '0.55';
-              setTimeout(function() {{
-                Plotly.react(el, newFig.data, newFig.layout, config).then(function() {{
-                  fade.style.opacity = '0';
-                }});
-              }}, 120);
-            }}, 90);
-          }}).catch(renderNew);
-        }} else {{
-          renderNew();
-        }}
+        // Khi bật/tắt chế độ so sánh làm số trace khác nhau, vẫn dùng
+        // cross-fade ngắn; còn chuyển ngày cùng chế độ thì luôn tween thật.
+        renderNew();
       }}
     </script>
     """
