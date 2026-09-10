@@ -108,6 +108,11 @@ def normalize_urpd(raw):
     out = out.replace([np.inf, -np.inf], np.nan).dropna()
     out = out[out.btc_amount >= 0].copy()
 
+    # Loại bỏ bucket nguyên thủy tại giá 0.
+    # Bucket này (thường khoảng 3,656,306 BTC) không được đưa vào biểu đồ
+    # hoặc bất kỳ phép tính URPD nào của dashboard.
+    out = out[out.price_low > 0].copy()
+
     # Một số API trả satoshi thay vì BTC.
     if not out.empty and out.btc_amount.max() > 2.1e15:
         out.btc_amount /= 100_000_000
