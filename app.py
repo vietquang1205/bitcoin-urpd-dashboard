@@ -918,7 +918,9 @@ else:
 
     # Vẽ snapshot lịch sử trước để snapshot hiện tại nằm nổi lên trên.
     if comparison_urpd is not None:
-        hist = comparison_urpd[comparison_urpd.price_low > 0].copy()
+        # Chỉ ẩn bucket giá 0 trên biểu đồ; không xóa khỏi dữ liệu/tổng URPD.
+        comparison_urpd_plot = comparison_urpd[comparison_urpd.price_low > 0].copy()
+        hist = comparison_urpd_plot.copy()
         hist["mid_price"] = (hist.price_low + hist.price_high) / 2
         hist_width = (hist.price_high - hist.price_low) * 0.92
         fig.add_trace(
