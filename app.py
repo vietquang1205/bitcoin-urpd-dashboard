@@ -937,18 +937,26 @@ else:
             for lo, hi in zip(urpd.price_low, urpd.price_high)
         ], dtype=float)
         delta_btc = urpd.btc_amount.to_numpy(float) - compare_btc
+        current_values = urpd.btc_amount.to_numpy(float)
+        delta_pct = np.where(
+            np.isfinite(compare_btc) & (compare_btc != 0),
+            delta_btc / compare_btc * 100.0,
+            np.nan,
+        )
         current_customdata = np.column_stack([
             urpd.price_low.to_numpy(float),
             urpd.price_high.to_numpy(float),
             compare_btc,
             delta_btc,
+            delta_pct,
         ])
         current_hover = (
             f"Snapshot {chart_date}<br>"
             "Khoảng giá: $%{customdata[0]:,.0f} - $%{customdata[1]:,.0f}<br>"
             "BTC ngày mới: %{y:,.2f}<br>"
             f"BTC ngày {comparison_date}: %{{customdata[2]:,.2f}}<br>"
-            "Thay đổi: %{customdata[3]:+,.2f} BTC"
+            "Thay đổi: %{customdata[3]:+,.2f} BTC<br>"
+            "Thay đổi %: %{customdata[4]:+.2f}%"
             "<extra></extra>"
         )
     else:
@@ -972,6 +980,32 @@ else:
             hovertemplate=current_hover,
         )
     )
+
+    # Khi đang so sánh, ghi trực tiếp mức tăng/giảm BTC lên biểu đồ.
+    # Chỉ ẩn các thay đổi cực nhỏ để biểu đồ không bị phủ kín nhãn;
+    # tooltip vẫn luôn hiển thị đầy đủ số BTC và chênh lệch.
+    if comparison_urpd is not None:
+        valid_delta = np.isfinite(delta_btc)
+        label_mask = valid_delta & (np.abs(delta_btc) >= 50.0)
+        delta_text = np.where(
+            label_mask,
+            [f"{d:+,.0f} BTC" if np.isfinite(d) else "" for d in delta_btc],
+            "",
+        )
+        delta_y = urpd.btc_amount.to_numpy(float) + np.maximum(urpd.btc_amount.to_numpy(float) * 0.012, 150.0)
+        fig.add_trace(
+            go.Scatter(
+                x=urpd.mid_price,
+                y=delta_y,
+                mode="text",
+                text=delta_text,
+                textposition="top center",
+                textfont=dict(size=9),
+                cliponaxis=False,
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
     # Tô nền vùng đáy theo khoảng giá người dùng thiết lập.
     fig.add_vrect(
         x0=bottom_start,
