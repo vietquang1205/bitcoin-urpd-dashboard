@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V23", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V24", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -44,6 +44,8 @@ TOP_START = 85831.0
 BOTTOM_START = 58000.0
 BOTTOM_END = 78000.0
 DEFAULT_ATH = 126198.07
+AUTO_CHECK_MINUTES = 60
+AUTO_RELOAD_SECONDS = AUTO_CHECK_MINUTES * 60
 
 
 def pick_col(df, candidates):
@@ -506,11 +508,54 @@ with st.sidebar:
 with st.sidebar:
     st.markdown("### Dữ liệu URPD")
     refresh_api = st.button("🔄 Cập nhật URPD mới", use_container_width=True)
+    auto_refresh_enabled = st.checkbox(
+        "🔄 Tự động kiểm tra snapshot mới mỗi 1 giờ",
+        value=True,
+        help=(
+            "Mỗi 1 giờ app sẽ kiểm tra ngày URPD mới. Nếu history đã có ngày đó "
+            "thì không gọi Bitview lại; nếu chưa có thì chỉ lấy snapshot còn thiếu."
+        ),
+    )
     if refresh_api:
         st.cache_data.clear()
         st.session_state["force_urpd_refresh"] = True
 
 force_refresh = st.session_state.pop("force_urpd_refresh", False)
+
+# Tự động kiểm tra tối đa 1 lần/giờ trong cùng phiên. Việc refresh trang chỉ là
+# cơ chế đánh thức app; logic bên dưới vẫn quyết định có cần gọi Bitview hay không.
+now_utc = datetime.now(timezone.utc)
+last_auto_check_raw = st.session_state.get("last_auto_check_utc")
+try:
+    last_auto_check = (
+        datetime.fromisoformat(last_auto_check_raw) if last_auto_check_raw else None
+    )
+except Exception:
+    last_auto_check = None
+
+auto_check_due = (
+    auto_refresh_enabled
+    and (last_auto_check is None or (now_utc - last_auto_check).total_seconds() >= AUTO_RELOAD_SECONDS)
+)
+should_check_new_snapshot = bool(force_refresh or auto_check_due)
+if should_check_new_snapshot:
+    st.session_state["last_auto_check_utc"] = now_utc.isoformat()
+
+if auto_refresh_enabled:
+    components.html(
+        f"""
+        <script>
+        setTimeout(function() {{
+            try {{
+                window.top.location.reload();
+            }} catch (e) {{
+                try {{ window.parent.location.reload(); }} catch (e2) {{}}
+            }}
+        }}, {AUTO_RELOAD_SECONDS * 1000});
+        </script>
+        """,
+        height=1,
+    )
 
 urpd = None
 urpd_source = "Chưa có dữ liệu URPD"
@@ -530,10 +575,10 @@ if uploaded:
     except Exception as e:
         st.error(f"Lỗi URPD từ file: {e}")
 
-# Nếu không có file, ưu tiên dùng dữ liệu đã lưu. Chỉ gọi API khi:
-# 1) Chưa có dữ liệu lịch sử; hoặc 2) người dùng bấm nút cập nhật.
-# Khi cập nhật, Bitview sẽ được dùng để bù các ngày còn thiếu kể từ snapshot gần nhất
-# (tối đa 7 ngày/lần chạy) để không phải chạy app từng ngày.
+# Nếu không có file, ưu tiên dùng dữ liệu đã lưu. API chỉ được gọi khi:
+# 1) Chưa có history; hoặc 2) đến chu kỳ kiểm tra tự động 1 giờ; hoặc
+# 3) người dùng bấm nút cập nhật. Khi cần cập nhật, Bitview chỉ được dùng
+# để bù các ngày còn thiếu kể từ snapshot gần nhất (tối đa 7 ngày/lần chạy).
 history_should_save = False
 pending_history_snapshots = {}
 
@@ -544,7 +589,7 @@ if urpd is None:
     )
     latest_saved_date = saved_dates[-1] if saved_dates else None
 
-    if latest_saved_date and not force_refresh:
+    if latest_saved_date and not should_check_new_snapshot:
         saved_latest = history[latest_saved_date]
         urpd = normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
         urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
@@ -612,16 +657,23 @@ if urpd is None:
                 f"{fetched[0][0]} → {fetched[-1][0]}."
             )
         else:
-            # Không có snapshot mới: giữ dữ liệu cũ, tuyệt đối không tạo ngày giả.
+            # Không có ngày nào thiếu: history đã cập nhật đến hiện tại.
+            # Hoặc Bitview chưa phát hành snapshot mới: giữ dữ liệu cũ, không tạo ngày giả.
             if latest_saved_date:
                 saved_latest = history[latest_saved_date]
                 urpd = normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
                 urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
                 urpd_date = latest_saved_date
-                st.warning(
-                    f"Bitview chưa trả được snapshot mới. "
-                    f"Đang giữ snapshot gần nhất {latest_saved_date}; không tạo snapshot mới."
-                )
+                if dates_to_fetch:
+                    st.warning(
+                        f"Bitview chưa trả được snapshot mới. "
+                        f"Đang giữ snapshot gần nhất {latest_saved_date}; không tạo snapshot mới."
+                    )
+                else:
+                    st.info(
+                        f"History đã có snapshot mới nhất {latest_saved_date}. "
+                        "Không gọi lại URPD của ngày đã lưu."
+                    )
             else:
                 # Chỉ khi chưa có history nào, thử BGeometrics làm nguồn dự phòng.
                 try:
@@ -638,6 +690,14 @@ if urpd is None:
                         f"Chưa lấy được URPD từ Bitview. "
                         f"BGeometrics dự phòng cũng không lấy được: {fallback_error}"
                     )
+
+if auto_refresh_enabled and not history_should_save:
+    st.caption(
+        f"🔄 Tự động kiểm tra snapshot mới mỗi {AUTO_CHECK_MINUTES} phút; "
+        "nếu đã có ngày mới trong history thì không gọi lại Bitview."
+    )
+elif auto_refresh_enabled and history_should_save:
+    st.caption("🟢 Đã kiểm tra tự động và phát hiện snapshot URPD mới; history đã được cập nhật.")
 
 price = btc_price()
 if price is None:
