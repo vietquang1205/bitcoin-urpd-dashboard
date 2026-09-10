@@ -503,6 +503,8 @@ def github_history_save(data, sha=None):
 from urllib.parse import quote_plus
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
+from html import unescape
+import re
 
 NEWS_QUERIES = [
     ("Bitcoin", 'Bitcoin BTC'),
@@ -521,7 +523,7 @@ def fetch_news_radar(days=7, max_items=30):
     cutoff = now - timedelta(days=days)
     rows = []
     seen = set()
-    headers = {"User-Agent": "Mozilla/5.0 BTC-URPD-News-Radar/27"}
+    headers = {"User-Agent": "Mozilla/5.0 BTC-URPD-News-Radar/28"}
 
     for category, query in NEWS_QUERIES:
         rss_url = (
@@ -567,6 +569,58 @@ def fetch_news_radar(days=7, max_items=30):
     rows.sort(key=lambda x: x["published"], reverse=True)
     return rows[:max_items]
 
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def translate_to_vietnamese(text):
+    """Dịch tiêu đề/mô tả tiếng Anh sang tiếng Việt bằng endpoint Google Translate công khai.
+    Có cache 24h để cùng một tin không bị dịch lại mỗi 15 phút.
+    Nếu dịch lỗi, giữ nguyên văn bản gốc.
+    """
+    text = unescape(re.sub(r"<[^>]+>", " ", str(text or "")))
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return ""
+    if len(text) > 1800:
+        text = text[:1800].rsplit(" ", 1)[0] + "…"
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {
+            "client": "gtx",
+            "sl": "en",
+            "tl": "vi",
+            "dt": "t",
+            "q": text,
+        }
+        r = requests.get(
+            url,
+            params=params,
+            headers={"User-Agent": "Mozilla/5.0 BTC-URPD-News-Radar/28"},
+            timeout=12,
+        )
+        r.raise_for_status()
+        payload = r.json()
+        translated = "".join(part[0] for part in payload[0] if part and part[0])
+        return translated.strip() or text
+    except Exception:
+        return text
+
+
+def news_title_vi(item):
+    """Tiêu đề tiếng Việt hiển thị chính; luôn có fallback tiếng Anh."""
+    title = item.get("title", "")
+    return translate_to_vietnamese(title) or title
+
+
+def news_summary_vi(item):
+    """Dịch mô tả RSS thành tóm tắt ngắn; nếu không có thì bỏ qua."""
+    desc = item.get("description", "")
+    if not desc:
+        return ""
+    cleaned = unescape(re.sub(r"<[^>]+>", " ", desc))
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if len(cleaned) > 420:
+        cleaned = cleaned[:420].rsplit(" ", 1)[0] + "…"
+    return translate_to_vietnamese(cleaned)
 
 def news_impact(title, category):
     """Gắn nhãn định hướng đơn giản, minh bạch; không coi đây là dự báo giá."""
@@ -2369,7 +2423,7 @@ else:
 # =========================
 st.markdown("---")
 st.header("📰 BTC News Radar — Vĩ mô, dòng vốn và sự kiện có thể tác động BTC")
-st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. V27 dùng lớp này cho 40% điểm tổng hợp cùng URPD 60%; không phải tín hiệu mua/bán tự động.")
+st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. V28 hiển thị tiêu đề tiếng Việt, giữ tiêu đề tiếng Anh gốc và dịch mô tả khi có; News/Macro vẫn chiếm 40% điểm tổng hợp cùng URPD 60%.")
 
 # V27 đã lấy News Radar trước phần báo cáo để dùng được cho điểm tổng hợp.
 # Hai biến này được cache 15 phút nên không tạo thêm lượt gọi ngoài ý muốn.
@@ -2377,6 +2431,7 @@ st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự k
 n1, n2 = st.columns([1.35, 1])
 with n1:
     st.subheader("🔥 Tin mới nhất / 7 ngày qua")
+    st.info("🇻🇳 Tiêu đề tiếng Việt là bản dịch để dễ đọc; 🇬🇧 tiêu đề gốc được giữ lại để đối chiếu. Nếu nguồn không có mô tả hoặc dịch vụ dịch tạm thời lỗi, dashboard sẽ giữ nguyên nội dung gốc.")
     if news_rows:
         for item in news_rows[:15]:
             impact, direction = news_impact(item["title"], item["category"])
@@ -2385,11 +2440,17 @@ with n1:
                 age = f"{age_h:.0f} giờ trước"
             else:
                 age = f"{age_h/24:.1f} ngày trước"
+            title_vi = news_title_vi(item)
+            summary_vi = news_summary_vi(item)
             st.markdown(
-                f"**{item['title']}**  \n"
+                f"**🇻🇳 {title_vi}**  \n"
+                f"<small>🇬🇧 <i>{item['title']}</i></small>  \n"
                 f"`{item['source']}` · `{item['category']}` · `{impact}` · {direction} · `{age}`  "
-                f"[Đọc tin]({item['link']})"
+                f"[Đọc tin gốc]({item['link']})",
+                unsafe_allow_html=True,
             )
+            if summary_vi:
+                st.caption(f"📝 Tóm tắt: {summary_vi}")
             st.markdown("---")
     else:
         st.warning("Chưa lấy được nguồn tin trực tuyến. Dashboard vẫn hoạt động bình thường; thử refresh sau vài phút.")
