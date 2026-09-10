@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V18", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V20", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -139,6 +139,53 @@ def btc_in_range(df, low, high):
     width = df.price_high.to_numpy(float) - df.price_low.to_numpy(float)
     overlap = np.maximum(0, hi - lo)
     return float(np.sum(df.btc_amount.to_numpy(float) * overlap / width))
+
+
+@st.cache_data(ttl=300)
+def market_overview():
+    """
+    Lấy vốn hóa toàn thị trường và vốn hóa BTC/USDT/USDC từ CoinGecko.
+    BTC dominance điều chỉnh được tính:
+        Market Cap BTC / (Tổng Market Cap - Market Cap USDT - Market Cap USDC)
+    Như vậy USDT và USDC không được tính vào mẫu số của dominance.
+    """
+    global_url = "https://api.coingecko.com/api/v3/global"
+    simple_url = "https://api.coingecko.com/api/v3/simple/price"
+    headers = {"Accept": "application/json", "User-Agent": "BTC-URPD-Dashboard/20"}
+
+    r_global = requests.get(global_url, headers=headers, timeout=20)
+    r_global.raise_for_status()
+    g = r_global.json().get("data", {})
+    total_mcap = float(g.get("total_market_cap", {}).get("usd"))
+    total_mcap_change = g.get("market_cap_change_percentage_24h_usd")
+
+    params = {
+        "ids": "bitcoin,tether,usd-coin",
+        "vs_currencies": "usd",
+        "include_market_cap": "true",
+    }
+    r_simple = requests.get(simple_url, params=params, headers=headers, timeout=20)
+    r_simple.raise_for_status()
+    data = r_simple.json()
+
+    btc_mcap = float(data["bitcoin"]["usd_market_cap"])
+    usdt_mcap = float(data["tether"]["usd_market_cap"])
+    usdc_mcap = float(data["usd-coin"]["usd_market_cap"])
+
+    adjusted_total = total_mcap - usdt_mcap - usdc_mcap
+    adjusted_btc_dom = (btc_mcap / adjusted_total * 100.0) if adjusted_total > 0 else None
+    alt_ex_stables = total_mcap - btc_mcap - usdt_mcap - usdc_mcap
+
+    return {
+        "total_mcap": total_mcap,
+        "total_mcap_change_24h": float(total_mcap_change) if total_mcap_change is not None else None,
+        "btc_mcap": btc_mcap,
+        "usdt_mcap": usdt_mcap,
+        "usdc_mcap": usdc_mcap,
+        "adjusted_total": adjusted_total,
+        "adjusted_btc_dom": adjusted_btc_dom,
+        "alt_ex_stables": alt_ex_stables,
+    }
 
 
 @st.cache_data(ttl=300)
@@ -598,6 +645,13 @@ if price is None:
 else:
     price_source = "Giá thị trường trực tiếp"
 
+market = None
+market_error = None
+try:
+    market = market_overview()
+except Exception as e:
+    market_error = str(e)
+
 loss_btc = None
 loss_percent = None
 loss_source = ""
@@ -765,6 +819,44 @@ c5.metric(
     if loss_percent is not None
     else "API chưa trả dữ liệu",
 )
+
+# =========================
+# THỊ TRƯỜNG TỔNG QUAN
+# =========================
+# BTC Dominance điều chỉnh loại USDT + USDC:
+# BTC market cap / (Tổng market cap - USDT market cap - USDC market cap).
+# Mục đích là đo tỷ trọng của BTC trong phần vốn hóa rủi ro còn lại,
+# thay vì để hai stablecoin lớn làm phình mẫu số.
+if market is not None:
+    st.markdown("### 🌐 Tổng quan vốn hóa thị trường")
+    m1, m2, m3, m4 = st.columns(4)
+
+    total_change = market.get("total_mcap_change_24h")
+    m1.metric(
+        "Tổng vốn hóa thị trường",
+        f"${market['total_mcap'] / 1e12:.2f}T",
+        f"{total_change:+.2f}%" if total_change is not None else None,
+    )
+    m2.metric(
+        "Vốn hóa Bitcoin",
+        f"${market['btc_mcap'] / 1e12:.2f}T",
+    )
+    m3.metric(
+        "BTC Dominance (loại USDT + USDC)",
+        f"{market['adjusted_btc_dom']:.2f}%" if market.get("adjusted_btc_dom") is not None else "N/A",
+    )
+    m4.metric(
+        "Vốn hóa Altcoin (trừ USDT + USDC)",
+        f"${market['alt_ex_stables'] / 1e12:.2f}T",
+    )
+
+    st.caption(
+        "Dominance điều chỉnh = Vốn hóa BTC ÷ (Tổng vốn hóa thị trường − USDT − USDC). "
+        f"USDT + USDC hiện khoảng ${(market['usdt_mcap'] + market['usdc_mcap']) / 1e9:.1f}B. "
+        "Nguồn: CoinGecko; dữ liệu thị trường được làm mới tối đa mỗi 5 phút."
+    )
+elif market_error:
+    st.warning(f"Chưa lấy được dữ liệu vốn hóa thị trường: {market_error}")
 
 st.markdown("---")
 st.subheader("Bảng cung BTC từ giá hiện tại đến ATH và cung đang lỗ")
