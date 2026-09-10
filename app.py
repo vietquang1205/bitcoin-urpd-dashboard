@@ -168,6 +168,7 @@ def market_overview():
         "ids": "bitcoin,tether,usd-coin",
         "vs_currencies": "usd",
         "include_market_cap": "true",
+        "include_24hr_change": "true",
     }
     r_simple = requests.get(simple_url, params=params, headers=headers, timeout=20)
     r_simple.raise_for_status()
@@ -177,19 +178,48 @@ def market_overview():
     usdt_mcap = float(data["tether"]["usd_market_cap"])
     usdc_mcap = float(data["usd-coin"]["usd_market_cap"])
 
+    btc_mcap_change = data["bitcoin"].get("usd_24h_change")
+    usdt_mcap_change = data["tether"].get("usd_24h_change")
+    usdc_mcap_change = data["usd-coin"].get("usd_24h_change")
+
     adjusted_total = total_mcap - usdt_mcap - usdc_mcap
     adjusted_btc_dom = (btc_mcap / adjusted_total * 100.0) if adjusted_total > 0 else None
     alt_ex_stables = total_mcap - btc_mcap - usdt_mcap - usdc_mcap
+
+    # Ước tính biến động 24h của Altcoin (loại BTC, USDT, USDC)
+    # bằng cách dựng vốn hóa đầu kỳ từ % thay đổi 24h của từng thành phần.
+    def previous_cap(current, pct_change):
+        try:
+            pct = float(pct_change)
+            denom = 1.0 + pct / 100.0
+            return current / denom if denom > 0 else None
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
+
+    btc_prev = previous_cap(btc_mcap, btc_mcap_change)
+    usdt_prev = previous_cap(usdt_mcap, usdt_mcap_change)
+    usdc_prev = previous_cap(usdc_mcap, usdc_mcap_change)
+
+    # CoinGecko global endpoint cung cấp % thay đổi vốn hóa toàn thị trường 24h.
+    total_prev = previous_cap(total_mcap, total_mcap_change)
+    alt_prev = None
+    alt_change = None
+    if all(v is not None for v in (total_prev, btc_prev, usdt_prev, usdc_prev)):
+        alt_prev = total_prev - btc_prev - usdt_prev - usdc_prev
+        if alt_prev > 0:
+            alt_change = (alt_ex_stables / alt_prev - 1.0) * 100.0
 
     return {
         "total_mcap": total_mcap,
         "total_mcap_change_24h": float(total_mcap_change) if total_mcap_change is not None else None,
         "btc_mcap": btc_mcap,
+        "btc_mcap_change_24h": float(btc_mcap_change) if btc_mcap_change is not None else None,
         "usdt_mcap": usdt_mcap,
         "usdc_mcap": usdc_mcap,
         "adjusted_total": adjusted_total,
         "adjusted_btc_dom": adjusted_btc_dom,
         "alt_ex_stables": alt_ex_stables,
+        "alt_ex_stables_change_24h": float(alt_change) if alt_change is not None else None,
     }
 
 
@@ -1166,9 +1196,13 @@ if market is not None:
         f"${market['total_mcap'] / 1e12:.2f}T",
         f"{total_change:+.2f}%" if total_change is not None else None,
     )
+    btc_change = market.get("btc_mcap_change_24h")
+    alt_change = market.get("alt_ex_stables_change_24h")
+
     m2.metric(
         "Vốn hóa Bitcoin",
         f"${market['btc_mcap'] / 1e12:.2f}T",
+        f"{btc_change:+.2f}%" if btc_change is not None else None,
     )
     m3.metric(
         "BTC Dominance (loại USDT + USDC)",
@@ -1177,6 +1211,7 @@ if market is not None:
     m4.metric(
         "Vốn hóa Altcoin (trừ USDT + USDC)",
         f"${market['alt_ex_stables'] / 1e12:.2f}T",
+        f"{alt_change:+.2f}%" if alt_change is not None else None,
     )
 
     st.caption(
