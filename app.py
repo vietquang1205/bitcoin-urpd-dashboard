@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V26", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V27", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -44,8 +44,10 @@ TOP_START = 85831.0
 BOTTOM_START = 58000.0
 BOTTOM_END = 78000.0
 DEFAULT_ATH = 126198.07
-AUTO_CHECK_MINUTES = 60
-AUTO_RELOAD_SECONDS = AUTO_CHECK_MINUTES * 60
+URPD_CHECK_MINUTES = 60
+NEWS_CHECK_MINUTES = 15
+URPD_CHECK_SECONDS = URPD_CHECK_MINUTES * 60
+NEWS_RELOAD_SECONDS = NEWS_CHECK_MINUTES * 60
 
 
 def pick_col(df, candidates):
@@ -154,7 +156,7 @@ def market_overview():
     """
     global_url = "https://api.coingecko.com/api/v3/global"
     simple_url = "https://api.coingecko.com/api/v3/simple/price"
-    headers = {"Accept": "application/json", "User-Agent": "BTC-URPD-Dashboard/26"}
+    headers = {"Accept": "application/json", "User-Agent": "BTC-URPD-Dashboard/27"}
 
     r_global = requests.get(global_url, headers=headers, timeout=20)
     r_global.raise_for_status()
@@ -519,7 +521,7 @@ def fetch_news_radar(days=7, max_items=30):
     cutoff = now - timedelta(days=days)
     rows = []
     seen = set()
-    headers = {"User-Agent": "Mozilla/5.0 BTC-URPD-News-Radar/26"}
+    headers = {"User-Agent": "Mozilla/5.0 BTC-URPD-News-Radar/27"}
 
     for category, query in NEWS_QUERIES:
         rss_url = (
@@ -633,11 +635,19 @@ with st.sidebar:
     st.markdown("### Dữ liệu URPD")
     refresh_api = st.button("🔄 Cập nhật URPD mới", use_container_width=True)
     auto_refresh_enabled = st.checkbox(
-        "🔄 Tự động kiểm tra snapshot mới mỗi 1 giờ",
+        "🔄 Tự động kiểm tra snapshot URPD mỗi 1 giờ",
         value=True,
         help=(
             "Mỗi 1 giờ app sẽ kiểm tra ngày URPD mới. Nếu history đã có ngày đó "
             "thì không gọi Bitview lại; nếu chưa có thì chỉ lấy snapshot còn thiếu."
+        ),
+    )
+    news_auto_refresh_enabled = st.checkbox(
+        "📰 Tự động cập nhật tin mỗi 15 phút",
+        value=True,
+        help=(
+            "Mỗi 15 phút dashboard tự rerun để lấy tin mới. News Radar dùng cache 15 phút; "
+            "việc này không gọi lại Bitview trừ khi đến chu kỳ kiểm tra URPD 1 giờ."
         ),
     )
     if refresh_api:
@@ -659,13 +669,25 @@ except Exception:
 
 auto_check_due = (
     auto_refresh_enabled
-    and (last_auto_check is None or (now_utc - last_auto_check).total_seconds() >= AUTO_RELOAD_SECONDS)
+    and (last_auto_check is None or (now_utc - last_auto_check).total_seconds() >= URPD_CHECK_SECONDS)
 )
 should_check_new_snapshot = bool(force_refresh or auto_check_due)
 if should_check_new_snapshot:
     st.session_state["last_auto_check_utc"] = now_utc.isoformat()
 
-if auto_refresh_enabled:
+# V27: trang tự rerun mỗi 15 phút để News Radar có cơ hội lấy headline mới.
+# Nếu tắt News nhưng vẫn bật URPD, trang chỉ cần thức dậy mỗi 1 giờ.
+if news_auto_refresh_enabled:
+    page_reload_seconds = NEWS_RELOAD_SECONDS
+    page_reload_label = f"tin tức {NEWS_CHECK_MINUTES} phút"
+elif auto_refresh_enabled:
+    page_reload_seconds = URPD_CHECK_SECONDS
+    page_reload_label = f"URPD {URPD_CHECK_MINUTES} phút"
+else:
+    page_reload_seconds = 0
+    page_reload_label = "tắt tự động"
+
+if page_reload_seconds > 0:
     components.html(
         f"""
         <script>
@@ -675,7 +697,7 @@ if auto_refresh_enabled:
             }} catch (e) {{
                 try {{ window.parent.location.reload(); }} catch (e2) {{}}
             }}
-        }}, {AUTO_RELOAD_SECONDS * 1000});
+        }}, {page_reload_seconds * 1000});
         </script>
         """,
         height=1,
@@ -817,11 +839,13 @@ if urpd is None:
 
 if auto_refresh_enabled and not history_should_save:
     st.caption(
-        f"🔄 Tự động kiểm tra snapshot mới mỗi {AUTO_CHECK_MINUTES} phút; "
+        f"🔄 URPD: kiểm tra snapshot mới mỗi {URPD_CHECK_MINUTES} phút; "
         "nếu đã có ngày mới trong history thì không gọi lại Bitview."
     )
 elif auto_refresh_enabled and history_should_save:
-    st.caption("🟢 Đã kiểm tra tự động và phát hiện snapshot URPD mới; history đã được cập nhật.")
+    st.caption("🟢 URPD: đã kiểm tra tự động và phát hiện snapshot mới; history đã được cập nhật.")
+if news_auto_refresh_enabled:
+    st.caption(f"📰 News Radar: tự rerun mỗi {NEWS_CHECK_MINUTES} phút; dữ liệu tin được cache {NEWS_CHECK_MINUTES} phút.")
 
 price = btc_price()
 if price is None:
@@ -1985,7 +2009,7 @@ else:
             bias = "🔴 Yếu / nghiêng giảm"
             bias_text = "Cấu trúc nguồn cung đang nghiêng bất lợi cho phía tăng. Ưu tiên phòng thủ và chờ cấu trúc cải thiện trước khi tăng rủi ro."
 
-        # V26: hợp nhất 60% URPD + 40% macro/news.
+        # V27: hợp nhất 60% URPD + 40% macro/news.
         # Quan trọng: chỉ cho phép kết luận nghiêng tăng/giảm khi HAI lớp cùng hướng.
         combined_score = float(np.clip(score * 0.60 + macro_score * 0.40, 0.0, 100.0))
         urpd_direction = "up" if score >= 55 else ("down" if score <= 45 else "neutral")
@@ -2345,9 +2369,9 @@ else:
 # =========================
 st.markdown("---")
 st.header("📰 BTC News Radar — Vĩ mô, dòng vốn và sự kiện có thể tác động BTC")
-st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. V26 dùng lớp này cho 40% điểm tổng hợp cùng URPD 60%; không phải tín hiệu mua/bán tự động.")
+st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. V27 dùng lớp này cho 40% điểm tổng hợp cùng URPD 60%; không phải tín hiệu mua/bán tự động.")
 
-# V26 đã lấy News Radar trước phần báo cáo để dùng được cho điểm tổng hợp.
+# V27 đã lấy News Radar trước phần báo cáo để dùng được cho điểm tổng hợp.
 # Hai biến này được cache 15 phút nên không tạo thêm lượt gọi ngoài ý muốn.
 
 n1, n2 = st.columns([1.35, 1])
@@ -2385,7 +2409,7 @@ with n2:
 # Bảng tóm tắt để báo cáo URPD có thêm bối cảnh vĩ mô.
 st.subheader("🧭 Tác động lên BTC — đọc cùng báo cáo URPD")
 if 'combined_score' in locals():
-    st.info(f"**V26:** Điểm tổng hợp hiện tại **{combined_score:.0f}/100** = URPD 60% + Macro/tin tức 40%. Triển vọng: **{outlook}**.")
+    st.info(f"**V27:** Điểm tổng hợp hiện tại **{combined_score:.0f}/100** = URPD 60% + Macro/tin tức 40%. Triển vọng: **{outlook}**.")
 macro_flags = []
 for item in news_rows[:20]:
     impact, direction = news_impact(item["title"], item["category"])
