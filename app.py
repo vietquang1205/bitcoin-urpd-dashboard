@@ -1086,14 +1086,17 @@ else:
     # =========================
     # BÁO CÁO TỰ ĐỘNG NGÀY
     # =========================
-    # Báo cáo dùng dữ liệu URPD thực tế đang có trong history + các metric của dashboard.
-    # Không dùng tin tức bên ngoài. Các kết luận xu hướng chỉ là tín hiệu on-chain,
+    # Báo cáo luôn bám đúng NGÀY ĐANG XEM trên radio lịch sử.
+    # Các mốc 1D / 3D / 7D cũng tính lùi từ chính ngày đó.
+    # Không dùng tin tức bên ngoài. Kết luận chỉ là tín hiệu on-chain,
     # không phải dự báo chắc chắn về giá.
-    if data_date and urpd is not None:
-        st.subheader("📊 Báo cáo phân tích URPD ngày")
+    report_date = chart_date or data_date
+    report_urpd = chart_urpd if chart_urpd is not None else urpd
+    if report_date and report_urpd is not None:
+        st.subheader(f"📊 Báo cáo phân tích URPD ngày {report_date}")
         st.caption(
-            "Phân tích tự động từ URPD của ngày mới nhất, so sánh 1 ngày và 7 ngày; "
-            "kết hợp sức mạnh nguồn cung, vùng giá và các bucket biến động lớn."
+            f"Phân tích đúng snapshot {report_date}; các mốc 1D / 3D / 7D "
+            "đều được tính lùi từ chính ngày này."
         )
 
         def _fmt_btc(x):
@@ -1104,7 +1107,7 @@ else:
 
         def _snapshot_delta(key, days):
             try:
-                d0 = datetime.strptime(data_date, "%Y-%m-%d").date()
+                d0 = datetime.strptime(report_date, "%Y-%m-%d").date()
                 old_date = (d0 - timedelta(days=days)).strftime("%Y-%m-%d")
                 old = history.get(old_date, {})
                 new = history.get(data_date, {})
@@ -1159,13 +1162,19 @@ else:
         d3_total, _ = _snapshot_delta("total_urpd", 3)
         d7_total, _ = _snapshot_delta("total_urpd", 7)
 
-        current_price = float(chart_price if data_date == chart_date else price)
-        total_now = float(urpd.btc_amount.sum())
-        below_now = float(urpd.loc[urpd.price_high <= current_price, "btc_amount"].sum())
-        overhead_now = btc_in_range(urpd, current_price, float(ath))
-        above_ath_now = float(urpd.loc[urpd.price_low >= float(ath), "btc_amount"].sum())
+        saved_report = history.get(report_date, {}) if history else {}
+        report_price_saved = saved_report.get("price") if isinstance(saved_report, dict) else None
+        current_price = float(
+            chart_price if chart_date == report_date and chart_price is not None
+            else (report_price_saved if report_price_saved is not None else price)
+        )
+        total_now = float(report_urpd.btc_amount.sum())
+        below_now = float(report_urpd.loc[report_urpd.price_high <= current_price, "btc_amount"].sum())
+        overhead_now = btc_in_range(report_urpd, current_price, float(ath))
+        above_ath_now = float(report_urpd.loc[report_urpd.price_low >= float(ath), "btc_amount"].sum())
         below_pct = below_now / total_now * 100.0 if total_now else np.nan
         overhead_pct = overhead_now / total_now * 100.0 if total_now else np.nan
+        report_bottom_btc = btc_in_range(report_urpd, float(bottom_start), float(bottom_end))
 
         df1 = _bucket_deltas(d1_date)
         df3 = _bucket_deltas(d3_date)
@@ -1331,7 +1340,7 @@ else:
             ["Sức mạnh BTC", f"{score:.0f}/100", bias, "Điểm định lượng của dashboard", ""],
             ["Triển vọng", outlook, "", outlook_detail, ""],
             ["Cung từ giá hiện tại → ATH", f"{overhead_now:,.2f} BTC", _fmt_btc(d1_top) if d1_top is not None else "N/A", _fmt_btc(d3_top) if d3_top is not None else "N/A", _fmt_btc(d7_top) if d7_top is not None else "N/A"],
-            [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", f"{chart_bottom_btc:,.2f} BTC" if chart_bottom_btc is not None else "N/A", _fmt_btc(d1_bottom) if d1_bottom is not None else "N/A", _fmt_btc(d3_bottom) if d3_bottom is not None else "N/A", _fmt_btc(d7_bottom) if d7_bottom is not None else "N/A"],
+            [f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}", f"{report_bottom_btc:,.2f} BTC" if report_bottom_btc is not None else "N/A", _fmt_btc(d1_bottom) if d1_bottom is not None else "N/A", _fmt_btc(d3_bottom) if d3_bottom is not None else "N/A", _fmt_btc(d7_bottom) if d7_bottom is not None else "N/A"],
             ["Tổng URPD", f"{total_now:,.2f} BTC", _fmt_btc(d1_total) if d1_total is not None else "N/A", _fmt_btc(d3_total) if d3_total is not None else "N/A", _fmt_btc(d7_total) if d7_total is not None else "N/A"],
         ]
         st.dataframe(
@@ -1422,7 +1431,7 @@ else:
                     action_3d = "Ưu tiên phòng thủ, hạn chế mở vị thế lớn và không bắt đáy chỉ dựa vào URPD."
                     caution_3d = "Cẩn thận với áp lực cung phía trên tăng đồng thời vùng hỗ trợ suy yếu."
 
-                st.markdown("### 🧭 Kết luận 3 ngày")
+                st.markdown(f"### 🧭 Kết luận 3 ngày — tính đến {report_date}")
                 c1, c2, c3 = st.columns(3)
                 with c1:
                     st.metric("Đánh giá sức mạnh", f"{score_3d:.0f}/100")
@@ -1500,13 +1509,13 @@ else:
             "Giá hiện tại",
         ],
         "BTC": [
-            f"{chart_bottom_btc:,.2f}" if chart_bottom_btc is not None else "N/A",
+            f"{report_bottom_btc:,.2f}" if report_bottom_btc is not None else "N/A",
             f"{chart_top_btc:,.2f}" if chart_top_btc is not None else "N/A",
             f"{price_for_chart:,.2f}",
         ],
         "Tỷ trọng URPD": [
-            f"{chart_bottom_btc / chart_total_urpd * 100:.4f}%"
-            if chart_total_urpd and chart_bottom_btc is not None else "N/A",
+            f"{report_bottom_btc / chart_total_urpd * 100:.4f}%"
+            if chart_total_urpd and report_bottom_btc is not None else "N/A",
             f"{chart_top_btc / chart_total_urpd * 100:.4f}%"
             if chart_total_urpd and chart_top_btc is not None else "N/A",
             "—",
