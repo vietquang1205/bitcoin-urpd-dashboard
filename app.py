@@ -1000,7 +1000,7 @@ else:
                 mode="text",
                 text=delta_text,
                 textposition="top center",
-                textfont=dict(size=9),
+                textfont=dict(size=13, family="Arial Black"),
                 cliponaxis=False,
                 hoverinfo="skip",
                 showlegend=False,
