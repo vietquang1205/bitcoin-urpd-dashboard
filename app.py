@@ -8,8 +8,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V20", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V21", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -1297,7 +1298,76 @@ else:
         showlegend=comparison_urpd is not None,
         legend=dict(orientation="h", y=1.08, x=0),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    # Hiệu ứng chuyển snapshot mượt: giữ nguyên khung biểu đồ và animate
+    # từ snapshot trước sang snapshot mới thay vì để Streamlit thay cả chart
+    # một cách giật/nhảy. Figure cũ được lưu trong session_state.
+    current_fig_json = json.loads(fig.to_json())
+    animation_key = f"{chart_date}|{comparison_date}|{comparison_days}"
+    previous_fig_json = st.session_state.get("urpd_previous_fig_json")
+    previous_animation_key = st.session_state.get("urpd_previous_animation_key")
+    should_animate = previous_fig_json is not None and previous_animation_key != animation_key
+
+    old_payload = json.dumps(previous_fig_json, ensure_ascii=False) if should_animate else "null"
+    new_payload = json.dumps(current_fig_json, ensure_ascii=False)
+
+    chart_html = f"""
+    <div id="urpd-chart-wrap" style="width:100%;height:560px;position:relative;overflow:hidden;background:#0e1117;border-radius:10px;">
+      <div id="urpd-chart" style="width:100%;height:100%;"></div>
+      <div id="urpd-fade" style="position:absolute;inset:0;background:#0e1117;opacity:0;pointer-events:none;transition:opacity 180ms ease;"></div>
+    </div>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script>
+      const oldFig = {old_payload};
+      const newFig = {new_payload};
+      const el = document.getElementById('urpd-chart');
+      const fade = document.getElementById('urpd-fade');
+      const config = {{responsive:true, displaylogo:false, scrollZoom:false}};
+
+      function renderNew() {{
+        Plotly.newPlot(el, newFig.data, newFig.layout, config);
+      }}
+
+      if (oldFig && Array.isArray(oldFig.data) && oldFig.data.length === newFig.data.length) {{
+        Plotly.newPlot(el, oldFig.data, oldFig.layout, config).then(function() {{
+          requestAnimationFrame(function() {{
+            Plotly.animate(
+              el,
+              {{data:newFig.data, layout:newFig.layout}},
+              {{
+                transition:{{duration:850, easing:'cubic-in-out'}},
+                frame:{{duration:850, redraw:true}},
+                mode:'afterall'
+              }}
+            );
+          }});
+        }}).catch(renderNew);
+      }} else {{
+        // Nếu số trace thay đổi (ví dụ bật/tắt so sánh), cross-fade nhẹ
+        // để vẫn giữ nguyên khung thay vì nhảy sang một layout mới.
+        if (oldFig) {{
+          Plotly.newPlot(el, oldFig.data, oldFig.layout, config).then(function() {{
+            fade.style.opacity = '0';
+            setTimeout(function() {{
+              fade.style.opacity = '0.55';
+              setTimeout(function() {{
+                Plotly.react(el, newFig.data, newFig.layout, config).then(function() {{
+                  fade.style.opacity = '0';
+                }});
+              }}, 120);
+            }}, 90);
+          }}).catch(renderNew);
+        }} else {{
+          renderNew();
+        }}
+      }}
+    </script>
+    """
+    components.html(chart_html, height=560, scrolling=False)
+
+    # Chỉ lưu figure sau khi đã chuẩn bị payload để lần rerun kế tiếp có
+    # snapshot trước làm điểm bắt đầu cho animation.
+    st.session_state["urpd_previous_fig_json"] = current_fig_json
+    st.session_state["urpd_previous_animation_key"] = animation_key
 
     # =========================
     # BÁO CÁO TỰ ĐỘNG NGÀY
