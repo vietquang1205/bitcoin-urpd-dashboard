@@ -457,7 +457,12 @@ def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
         "Accept": "application/json",
         "X-API-Token": token.strip(),
     }
-    params = {"resolution": resolution, "output_format": "json"}
+    params = {
+        "resolution": resolution,
+        "output_format": "json",
+        "from_time": (datetime.now(timezone.utc).date() - timedelta(days=210)).isoformat(),
+        "to_time": (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat(),
+    }
 
     r = requests.get(url, headers=headers, params=params, timeout=30)
     if r.status_code == 401:
@@ -520,7 +525,13 @@ def _parse_researchbitcoin_timeseries(payload, metric_slug):
 
     rows = find_rows(payload)
     out = []
-    value_keys = [metric_slug, "value", "val", "metric_value", "usd"]
+    value_aliases = {
+        "realizedprofit": ["realized_profit", "realizedprofit"],
+        "realizedloss": ["realized_loss", "realizedloss"],
+        "net_realized_profit_loss": ["net_realized_profit_loss", "net_realized_profitloss"],
+        "price": ["price", "btc_price", "price_usd"],
+    }
+    value_keys = value_aliases.get(metric_slug, [metric_slug]) + ["value", "val", "metric_value", "usd"]
     time_keys = ["timestamp_ms", "timestamp", "time", "date", "datetime", "t"]
 
     for row in rows:
@@ -562,12 +573,25 @@ def researchbitcoin_timeseries(token, metric_slug, resolution="d1"):
     if not token:
         raise RuntimeError("Chưa nhập ResearchBitcoin API token.")
 
-    url = f"https://api.researchbitcoin.net/v2/{metric_slug}"
+    # ResearchBitcoin v2 requires a data_field after each metric group.
+    endpoint_map = {
+        "realizedprofit": ("realizedprofit", "realized_profit"),
+        "realizedloss": ("realizedloss", "realized_loss"),
+        "net_realized_profit_loss": ("net_realized_profit_loss", "net_realized_profit_loss"),
+        "price": ("price", "price"),
+    }
+    group, data_field = endpoint_map.get(metric_slug, (metric_slug, metric_slug))
+    url = f"https://api.researchbitcoin.net/v2/{group}/{data_field}"
     headers = {
         "Accept": "application/json",
         "X-API-Token": token.strip(),
     }
-    params = {"resolution": resolution, "output_format": "json"}
+    params = {
+        "resolution": resolution,
+        "output_format": "json",
+        "from_time": (datetime.now(timezone.utc).date() - timedelta(days=210)).isoformat(),
+        "to_time": (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat(),
+    }
     r = requests.get(url, headers=headers, params=params, timeout=30)
     if r.status_code == 401:
         raise RuntimeError("API token không hợp lệ hoặc đã hết hạn (401).")
