@@ -460,8 +460,9 @@ def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
     params = {
         "resolution": resolution,
         "output_format": "json",
-        "from_time": (datetime.now(timezone.utc).date() - timedelta(days=210)).isoformat(),
-        "to_time": (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat(),
+        "from_time": (datetime.now(timezone.utc).date() - timedelta(days=3)).isoformat(),
+        # to_time là mốc loại trừ (exclusive); không dùng ngày mai vì V2 có thể từ chối mốc tương lai.
+        "to_time": datetime.now(timezone.utc).date().isoformat(),
     }
 
     r = requests.get(url, headers=headers, params=params, timeout=30)
@@ -471,6 +472,12 @@ def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
         raise RuntimeError("Token không có quyền truy cập chỉ số này (403).")
     if r.status_code == 429:
         raise RuntimeError("API đang giới hạn lượt gọi (429).")
+    if r.status_code == 400:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = r.text[:500]
+        raise RuntimeError(f"ResearchBitcoin 400 — tham số không hợp lệ: {detail}")
     r.raise_for_status()
 
     payload = r.json()
@@ -590,7 +597,8 @@ def researchbitcoin_timeseries(token, metric_slug, resolution="d1"):
         "resolution": resolution,
         "output_format": "json",
         "from_time": (datetime.now(timezone.utc).date() - timedelta(days=210)).isoformat(),
-        "to_time": (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat(),
+        # to_time là mốc loại trừ (exclusive); không dùng ngày mai vì V2 có thể từ chối mốc tương lai.
+        "to_time": datetime.now(timezone.utc).date().isoformat(),
     }
     r = requests.get(url, headers=headers, params=params, timeout=30)
     if r.status_code == 401:
@@ -599,6 +607,12 @@ def researchbitcoin_timeseries(token, metric_slug, resolution="d1"):
         raise RuntimeError(f"Token không có quyền truy cập {metric_slug} (403).")
     if r.status_code == 429:
         raise RuntimeError("API đang giới hạn lượt gọi (429).")
+    if r.status_code == 400:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = r.text[:500]
+        raise RuntimeError(f"ResearchBitcoin 400 — tham số không hợp lệ: {detail}")
     r.raise_for_status()
     return _parse_researchbitcoin_timeseries(r.json(), metric_slug)
 
