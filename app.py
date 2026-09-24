@@ -8,6 +8,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 
 st.set_page_config(layout="wide", page_title="BTC URPD Monitor V30", page_icon="🪙")
@@ -221,6 +222,40 @@ def market_overview():
         "alt_ex_stables": alt_ex_stables,
         "alt_ex_stables_change_24h": float(alt_change) if alt_change is not None else None,
     }
+
+
+@st.cache_data(ttl=300)
+def btc_ohlc_daily(days=180):
+    """Lấy nến BTC/USDT 1D miễn phí từ Binance public API.
+    Dùng cho biểu đồ giá, độc lập với URPD.
+    """
+    days = int(max(30, min(days, 1000)))
+    end_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    start_ms = end_ms - days * 24 * 60 * 60 * 1000
+    url = "https://api.binance.com/api/v3/klines"
+    params = {
+        "symbol": "BTCUSDT",
+        "interval": "1d",
+        "startTime": start_ms,
+        "endTime": end_ms,
+        "limit": 1000,
+    }
+    r = requests.get(url, params=params, timeout=20, headers={"User-Agent": "BTC-URPD-Dashboard/30"})
+    r.raise_for_status()
+    rows = r.json()
+    if not rows:
+        raise ValueError("Binance không trả dữ liệu nến BTC/USDT.")
+
+    out = pd.DataFrame(rows, columns=[
+        "open_time", "open", "high", "low", "close", "volume",
+        "close_time", "quote_volume", "trades", "taker_base",
+        "taker_quote", "ignore",
+    ])
+    out["date"] = pd.to_datetime(out["open_time"], unit="ms", utc=True)
+    for c in ["open", "high", "low", "close", "volume"]:
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+    out = out.dropna(subset=["date", "open", "high", "low", "close"]).copy()
+    return out[["date", "open", "high", "low", "close", "volume"]].sort_values("date").reset_index(drop=True)
 
 
 @st.cache_data(ttl=300)
@@ -2713,6 +2748,71 @@ else:
         ],
     })
     st.dataframe(chart_summary, hide_index=True, use_container_width=True)
+
+    # =========================
+    # BTC PRICE — CANDLESTICK
+    # =========================
+    st.markdown("---")
+    st.subheader("📈 Giá BTC theo nến 1D")
+    st.caption(
+        "Biểu đồ giá BTC/USDT theo nến ngày. Binance public API chỉ cung cấp dữ liệu OHLC, "
+        "không cần API key. Có thể phóng to/thu nhỏ và rê chuột để xem OHLC từng ngày."
+    )
+    try:
+        candle_days = st.select_slider(
+            "Khoảng thời gian biểu đồ",
+            options=[30, 90, 180, 365, 730],
+            value=180,
+            format_func=lambda x: f"{x} ngày",
+            key="btc_candle_days",
+        )
+        candles = btc_ohlc_daily(candle_days)
+        if not candles.empty:
+            candle_fig = go.Figure()
+            candle_fig.add_trace(go.Candlestick(
+                x=candles["date"],
+                open=candles["open"],
+                high=candles["high"],
+                low=candles["low"],
+                close=candles["close"],
+                name="BTC/USDT",
+                increasing_line_color="#10b981",
+                increasing_fillcolor="#10b981",
+                decreasing_line_color="#ef4444",
+                decreasing_fillcolor="#ef4444",
+                whiskerwidth=0.7,
+            ))
+            # Đường giá hiện tại của snapshot đang xem để liên hệ với URPD.
+            candle_fig.add_hline(
+                y=float(price_for_chart),
+                line_dash="dash",
+                line_color="#f8fafc",
+                opacity=0.75,
+                annotation_text=f"Giá snapshot ${float(price_for_chart):,.0f}",
+                annotation_position="top right",
+            )
+            candle_fig.update_layout(
+                height=520,
+                margin=dict(l=20, r=20, t=35, b=20),
+                xaxis_title="Ngày",
+                yaxis_title="BTC/USDT (USD)",
+                xaxis_rangeslider_visible=False,
+                hovermode="x unified",
+                showlegend=False,
+            )
+            candle_fig.update_xaxes(showgrid=False)
+            candle_fig.update_yaxes(showgrid=True, tickprefix="$", separatethousands=True)
+            st.plotly_chart(candle_fig, use_container_width=True, key="btc_candlestick_chart")
+
+            latest_candle = candles.iloc[-1]
+            st.caption(
+                f"Nến mới nhất: {latest_candle['date'].strftime('%Y-%m-%d')} • "
+                f"O ${latest_candle['open']:,.0f} • H ${latest_candle['high']:,.0f} • "
+                f"L ${latest_candle['low']:,.0f} • C ${latest_candle['close']:,.0f} • "
+                f"Nguồn giá: Binance BTC/USDT."
+            )
+    except Exception as e:
+        st.warning(f"Chưa tải được dữ liệu nến BTC: {e}")
 
     # =========================
     # PROFIT-TAKING / ACCUMULATION BY URPD BUCKET
