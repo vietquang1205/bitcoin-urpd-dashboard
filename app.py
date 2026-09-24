@@ -2873,29 +2873,20 @@ else:
         else:
             # --------------------------------------------------------
             # MỘT BIỂU ĐỒ DUY NHẤT.
-            # Nến + các cột flow nằm chung trục giá, giống bố cục Glassnode:
+            # Đường giá + các cột flow nằm chung trục giá, giống bố cục Glassnode:
             # cột được neo ở vùng đáy của biểu đồ để không che nến.
             # --------------------------------------------------------
             fig = go.Figure()
             fig.add_trace(
-                go.Candlestick(
+                go.Scatter(
                     x=candles["date"],
-                    open=candles["open"],
-                    high=candles["high"],
-                    low=candles["low"],
-                    close=candles["close"],
+                    y=candles["close"],
+                    mode="lines",
                     name="BTC 1D",
-                    increasing_line_color="#10b981",
-                    increasing_fillcolor="#10b981",
-                    decreasing_line_color="#ef4444",
-                    decreasing_fillcolor="#ef4444",
-                    whiskerwidth=0.7,
+                    line=dict(width=2),
                     hovertemplate=(
                         "%{x|%Y-%m-%d}<br>"
-                        "O: $%{open:,.0f}<br>"
-                        "H: $%{high:,.0f}<br>"
-                        "L: $%{low:,.0f}<br>"
-                        "C: $%{close:,.0f}<extra></extra>"
+                        "Giá đóng cửa: $%{y:,.0f}<extra></extra>"
                     ),
                 )
             )
