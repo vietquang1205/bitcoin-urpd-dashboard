@@ -226,36 +226,89 @@ def market_overview():
 
 @st.cache_data(ttl=300)
 def btc_ohlc_daily(days=180):
-    """Lấy nến BTC/USDT 1D miễn phí từ Binance public API.
-    Dùng cho biểu đồ giá, độc lập với URPD.
-    """
-    days = int(max(30, min(days, 1000)))
-    end_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-    start_ms = end_ms - days * 24 * 60 * 60 * 1000
-    url = "https://api.binance.com/api/v3/klines"
-    params = {
-        "symbol": "BTCUSDT",
-        "interval": "1d",
-        "startTime": start_ms,
-        "endTime": end_ms,
-        "limit": 1000,
-    }
-    r = requests.get(url, params=params, timeout=20, headers={"User-Agent": "BTC-URPD-Dashboard/30"})
-    r.raise_for_status()
-    rows = r.json()
-    if not rows:
-        raise ValueError("Binance không trả dữ liệu nến BTC/USDT.")
+    """Lấy nến BTC/USD 1D từ nguồn public, có fallback khi Binance bị chặn 451.
 
-    out = pd.DataFrame(rows, columns=[
-        "open_time", "open", "high", "low", "close", "volume",
-        "close_time", "quote_volume", "trades", "taker_base",
-        "taker_quote", "ignore",
-    ])
-    out["date"] = pd.to_datetime(out["open_time"], unit="ms", utc=True)
-    for c in ["open", "high", "low", "close", "volume"]:
-        out[c] = pd.to_numeric(out[c], errors="coerce")
-    out = out.dropna(subset=["date", "open", "high", "low", "close"]).copy()
-    return out[["date", "open", "high", "low", "close", "volume"]].sort_values("date").reset_index(drop=True)
+    Ưu tiên Coinbase Exchange (không cần API key), sau đó Kraken.
+    Coinbase giới hạn tối đa 300 nến/request nên hàm tự chia nhỏ khoảng thời gian.
+    """
+    days = int(max(30, min(days, 730)))
+    end_dt = datetime.now(timezone.utc)
+    start_dt = end_dt - timedelta(days=days + 2)
+
+    errors = []
+
+    # 1) Coinbase Exchange public API — OHLC thật, không cần API key.
+    try:
+        rows = []
+        cursor_end = end_dt
+        remaining = days + 2
+        while remaining > 0:
+            chunk_days = min(299, remaining)
+            cursor_start = cursor_end - timedelta(days=chunk_days)
+            url = "https://api.exchange.coinbase.com/products/BTC-USD/candles"
+            params = {
+                "granularity": 86400,
+                "start": cursor_start.isoformat().replace("+00:00", "Z"),
+                "end": cursor_end.isoformat().replace("+00:00", "Z"),
+            }
+            r = requests.get(url, params=params, timeout=20,
+                             headers={"User-Agent": "BTC-URPD-Dashboard/31", "Accept": "application/json"})
+            r.raise_for_status()
+            batch = r.json()
+            if not isinstance(batch, list):
+                raise ValueError("Coinbase trả dữ liệu nến không hợp lệ.")
+            rows.extend(batch)
+            cursor_end = cursor_start
+            remaining -= chunk_days
+
+        if not rows:
+            raise ValueError("Coinbase không trả dữ liệu nến BTC/USD.")
+
+        # Coinbase: [time, low, high, open, close, volume]
+        out = pd.DataFrame(rows, columns=["open_time", "low", "high", "open", "close", "volume"])
+        out["date"] = pd.to_datetime(out["open_time"], unit="s", utc=True)
+        for c in ["open", "high", "low", "close", "volume"]:
+            out[c] = pd.to_numeric(out[c], errors="coerce")
+        out = out.dropna(subset=["date", "open", "high", "low", "close"])
+        out = out.drop_duplicates(subset=["date"]).sort_values("date").reset_index(drop=True)
+        cutoff = end_dt - timedelta(days=days)
+        out = out[out["date"] >= pd.Timestamp(cutoff)].copy()
+        if not out.empty:
+            return out[["date", "open", "high", "low", "close", "volume"]].reset_index(drop=True)
+        errors.append("Coinbase: không có nến sau khi lọc khoảng thời gian.")
+    except Exception as exc:
+        errors.append(f"Coinbase: {exc}")
+
+    # 2) Kraken public API — fallback, không cần API key.
+    try:
+        url = "https://api.kraken.com/0/public/OHLC"
+        params = {"pair": "XBTUSD", "interval": 1440}
+        r = requests.get(url, params=params, timeout=20,
+                         headers={"User-Agent": "BTC-URPD-Dashboard/31", "Accept": "application/json"})
+        r.raise_for_status()
+        payload = r.json()
+        if payload.get("error"):
+            raise ValueError("; ".join(payload["error"]))
+        result = payload.get("result", {})
+        key = next((k for k in result.keys() if k != "last"), None)
+        batch = result.get(key, []) if key else []
+        if not batch:
+            raise ValueError("Kraken không trả dữ liệu nến BTC/USD.")
+        # Kraken: [time, open, high, low, close, vwap, volume, count]
+        out = pd.DataFrame(batch, columns=["open_time", "open", "high", "low", "close", "vwap", "volume", "count"])
+        out["date"] = pd.to_datetime(out["open_time"], unit="s", utc=True)
+        for c in ["open", "high", "low", "close", "volume"]:
+            out[c] = pd.to_numeric(out[c], errors="coerce")
+        out = out.dropna(subset=["date", "open", "high", "low", "close"])
+        cutoff = end_dt - timedelta(days=days)
+        out = out[out["date"] >= pd.Timestamp(cutoff)].sort_values("date").reset_index(drop=True)
+        if not out.empty:
+            return out[["date", "open", "high", "low", "close", "volume"]]
+        errors.append("Kraken: không có nến sau khi lọc khoảng thời gian.")
+    except Exception as exc:
+        errors.append(f"Kraken: {exc}")
+
+    raise RuntimeError("Không tải được dữ liệu nến BTC từ Coinbase/Kraken. " + " | ".join(errors))
 
 
 @st.cache_data(ttl=300)
@@ -2755,7 +2808,7 @@ else:
     st.markdown("---")
     st.subheader("📈 Giá BTC theo nến 1D")
     st.caption(
-        "Biểu đồ giá BTC/USDT theo nến ngày. Binance public API chỉ cung cấp dữ liệu OHLC, "
+        "Biểu đồ giá BTC/USD theo nến ngày. Dùng Coinbase public API, có Kraken làm nguồn dự phòng; "
         "không cần API key. Có thể phóng to/thu nhỏ và rê chuột để xem OHLC từng ngày."
     )
     try:
@@ -2809,7 +2862,7 @@ else:
                 f"Nến mới nhất: {latest_candle['date'].strftime('%Y-%m-%d')} • "
                 f"O ${latest_candle['open']:,.0f} • H ${latest_candle['high']:,.0f} • "
                 f"L ${latest_candle['low']:,.0f} • C ${latest_candle['close']:,.0f} • "
-                f"Nguồn giá: Binance BTC/USDT."
+                f"Nguồn giá: Coinbase BTC/USD (hoặc Kraken nếu Coinbase lỗi)."
             )
     except Exception as e:
         st.warning(f"Chưa tải được dữ liệu nến BTC: {e}")
