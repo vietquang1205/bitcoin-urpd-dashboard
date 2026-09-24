@@ -8,7 +8,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 
 st.set_page_config(layout="wide", page_title="BTC URPD Monitor V30", page_icon="🪙")
@@ -222,93 +221,6 @@ def market_overview():
         "alt_ex_stables": alt_ex_stables,
         "alt_ex_stables_change_24h": float(alt_change) if alt_change is not None else None,
     }
-
-
-@st.cache_data(ttl=300)
-def btc_ohlc_daily(days=180):
-    """Lấy nến BTC/USD 1D từ nguồn public, có fallback khi Binance bị chặn 451.
-
-    Ưu tiên Coinbase Exchange (không cần API key), sau đó Kraken.
-    Coinbase giới hạn tối đa 300 nến/request nên hàm tự chia nhỏ khoảng thời gian.
-    """
-    days = int(max(30, min(days, 730)))
-    end_dt = datetime.now(timezone.utc)
-    start_dt = end_dt - timedelta(days=days + 2)
-
-    errors = []
-
-    # 1) Coinbase Exchange public API — OHLC thật, không cần API key.
-    try:
-        rows = []
-        cursor_end = end_dt
-        remaining = days + 2
-        while remaining > 0:
-            chunk_days = min(299, remaining)
-            cursor_start = cursor_end - timedelta(days=chunk_days)
-            url = "https://api.exchange.coinbase.com/products/BTC-USD/candles"
-            params = {
-                "granularity": 86400,
-                "start": cursor_start.isoformat().replace("+00:00", "Z"),
-                "end": cursor_end.isoformat().replace("+00:00", "Z"),
-            }
-            r = requests.get(url, params=params, timeout=20,
-                             headers={"User-Agent": "BTC-URPD-Dashboard/31", "Accept": "application/json"})
-            r.raise_for_status()
-            batch = r.json()
-            if not isinstance(batch, list):
-                raise ValueError("Coinbase trả dữ liệu nến không hợp lệ.")
-            rows.extend(batch)
-            cursor_end = cursor_start
-            remaining -= chunk_days
-
-        if not rows:
-            raise ValueError("Coinbase không trả dữ liệu nến BTC/USD.")
-
-        # Coinbase: [time, low, high, open, close, volume]
-        out = pd.DataFrame(rows, columns=["open_time", "low", "high", "open", "close", "volume"])
-        out["date"] = pd.to_datetime(out["open_time"], unit="s", utc=True)
-        for c in ["open", "high", "low", "close", "volume"]:
-            out[c] = pd.to_numeric(out[c], errors="coerce")
-        out = out.dropna(subset=["date", "open", "high", "low", "close"])
-        out = out.drop_duplicates(subset=["date"]).sort_values("date").reset_index(drop=True)
-        cutoff = end_dt - timedelta(days=days)
-        out = out[out["date"] >= pd.Timestamp(cutoff)].copy()
-        if not out.empty:
-            return out[["date", "open", "high", "low", "close", "volume"]].reset_index(drop=True)
-        errors.append("Coinbase: không có nến sau khi lọc khoảng thời gian.")
-    except Exception as exc:
-        errors.append(f"Coinbase: {exc}")
-
-    # 2) Kraken public API — fallback, không cần API key.
-    try:
-        url = "https://api.kraken.com/0/public/OHLC"
-        params = {"pair": "XBTUSD", "interval": 1440}
-        r = requests.get(url, params=params, timeout=20,
-                         headers={"User-Agent": "BTC-URPD-Dashboard/31", "Accept": "application/json"})
-        r.raise_for_status()
-        payload = r.json()
-        if payload.get("error"):
-            raise ValueError("; ".join(payload["error"]))
-        result = payload.get("result", {})
-        key = next((k for k in result.keys() if k != "last"), None)
-        batch = result.get(key, []) if key else []
-        if not batch:
-            raise ValueError("Kraken không trả dữ liệu nến BTC/USD.")
-        # Kraken: [time, open, high, low, close, vwap, volume, count]
-        out = pd.DataFrame(batch, columns=["open_time", "open", "high", "low", "close", "vwap", "volume", "count"])
-        out["date"] = pd.to_datetime(out["open_time"], unit="s", utc=True)
-        for c in ["open", "high", "low", "close", "volume"]:
-            out[c] = pd.to_numeric(out[c], errors="coerce")
-        out = out.dropna(subset=["date", "open", "high", "low", "close"])
-        cutoff = end_dt - timedelta(days=days)
-        out = out[out["date"] >= pd.Timestamp(cutoff)].sort_values("date").reset_index(drop=True)
-        if not out.empty:
-            return out[["date", "open", "high", "low", "close", "volume"]]
-        errors.append("Kraken: không có nến sau khi lọc khoảng thời gian.")
-    except Exception as exc:
-        errors.append(f"Kraken: {exc}")
-
-    raise RuntimeError("Không tải được dữ liệu nến BTC từ Coinbase/Kraken. " + " | ".join(errors))
 
 
 @st.cache_data(ttl=300)
@@ -559,6 +471,260 @@ def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
     payload = r.json()
     value = extract_scalar(payload)
     return float(value), r.url
+
+
+
+def _parse_researchbitcoin_timeseries(payload, metric_slug):
+    """Chuẩn hóa nhiều dạng JSON series của ResearchBitcoin thành date/value."""
+    def normalize_time(value):
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            x = float(value)
+            # Hỗ trợ Unix seconds / milliseconds / microseconds.
+            if x > 1e14:
+                x /= 1e6
+            elif x > 1e11:
+                x /= 1e3
+            return datetime.fromtimestamp(x, tz=timezone.utc).date()
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            if text.endswith("Z"):
+                text = text[:-1] + "+00:00"
+            dt = datetime.fromisoformat(text)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc).date()
+        except Exception:
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y"):
+                try:
+                    return datetime.strptime(text[:10], fmt).date()
+                except Exception:
+                    pass
+        return None
+
+    def find_rows(obj):
+        if isinstance(obj, list):
+            return obj
+        if isinstance(obj, dict):
+            for key in ("data", "result", "rows", "values", "results", "series"):
+                value = obj.get(key)
+                if isinstance(value, list):
+                    return value
+            # Một số API có thể trả dict dạng {date: value}.
+            if obj and all(not isinstance(v, (dict, list)) for v in obj.values()):
+                return [{"time": k, "value": v} for k, v in obj.items()]
+        return []
+
+    rows = find_rows(payload)
+    out = []
+    value_keys = [metric_slug, "value", "val", "metric_value", "usd"]
+    time_keys = ["timestamp_ms", "timestamp", "time", "date", "datetime", "t"]
+
+    for row in rows:
+        if isinstance(row, (list, tuple)) and len(row) >= 2:
+            d = normalize_time(row[0])
+            value = row[1]
+        elif isinstance(row, dict):
+            d = None
+            for key in time_keys:
+                if key in row:
+                    d = normalize_time(row.get(key))
+                    if d is not None:
+                        break
+            value = None
+            for key in value_keys:
+                if key in row and row.get(key) is not None:
+                    value = row.get(key)
+                    break
+        else:
+            continue
+
+        if d is None or value is None:
+            continue
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(value):
+            out.append({"date": d, "value": value})
+
+    if not out:
+        raise ValueError(f"Không đọc được time-series {metric_slug} từ ResearchBitcoin.")
+    return pd.DataFrame(out).drop_duplicates("date", keep="last").sort_values("date").reset_index(drop=True)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def researchbitcoin_timeseries(token, metric_slug, resolution="d1"):
+    """Lấy chuỗi ngày từ ResearchBitcoin. Các metric Realized P/L đều Tier 0."""
+    if not token:
+        raise RuntimeError("Chưa nhập ResearchBitcoin API token.")
+
+    url = f"https://api.researchbitcoin.net/v2/{metric_slug}"
+    headers = {
+        "Accept": "application/json",
+        "X-API-Token": token.strip(),
+    }
+    params = {"resolution": resolution, "output_format": "json"}
+    r = requests.get(url, headers=headers, params=params, timeout=30)
+    if r.status_code == 401:
+        raise RuntimeError("API token không hợp lệ hoặc đã hết hạn (401).")
+    if r.status_code == 403:
+        raise RuntimeError(f"Token không có quyền truy cập {metric_slug} (403).")
+    if r.status_code == 429:
+        raise RuntimeError("API đang giới hạn lượt gọi (429).")
+    r.raise_for_status()
+    return _parse_researchbitcoin_timeseries(r.json(), metric_slug)
+
+
+def render_realized_profit_loss_chart(token, current_price):
+    """Biểu đồ Realized Profit/Loss thật, kiểu Glassnode: USD bars + BTC price."""
+    st.markdown("---")
+    st.subheader("💰 BTC Realized Profit / Loss — dòng chốt lời & cắt lỗ thực tế")
+    st.caption(
+        "🟢 Realized Profit = lợi nhuận USD đã thực hiện khi BTC được chi tiêu ở giá cao hơn giá vốn; "
+        "🔴 Realized Loss = khoản lỗ USD đã thực hiện. Đây là dữ liệu on-chain thực tế từ ResearchBitcoin, "
+        "không phải proxy URPD."
+    )
+
+    if not token:
+        st.info("Thêm RESEARCHBITCOIN_API_TOKEN vào Secrets để bật biểu đồ Realized Profit/Loss.")
+        return
+
+    try:
+        profit = researchbitcoin_timeseries(token, "realizedprofit", "d1").rename(columns={"value": "realized_profit"})
+        loss = researchbitcoin_timeseries(token, "realizedloss", "d1").rename(columns={"value": "realized_loss"})
+        net_direct = researchbitcoin_timeseries(token, "net_realized_profit_loss", "d1").rename(columns={"value": "net_direct"})
+        price_ts = researchbitcoin_timeseries(token, "price", "d1").rename(columns={"value": "btc_price"})
+
+        df = profit.merge(loss, on="date", how="inner")
+        df = df.merge(net_direct, on="date", how="left")
+        df = df.merge(price_ts, on="date", how="left")
+        if df.empty:
+            st.warning("ResearchBitcoin trả series rỗng sau khi ghép Realized Profit/Loss.")
+            return
+
+        # Loss được vẽ âm giống Glassnode; dữ liệu gốc vẫn giữ giá trị dương ở realized_loss.
+        df["loss_plot"] = -df["realized_loss"].abs()
+        df["net_calc"] = df["realized_profit"] - df["realized_loss"].abs()
+        df["net_ema7"] = df["net_calc"].ewm(span=7, adjust=False).mean()
+        df["btc_price"] = pd.to_numeric(df["btc_price"], errors="coerce")
+        if df["btc_price"].isna().all():
+            df["btc_price"] = float(current_price)
+        else:
+            df["btc_price"] = df["btc_price"].ffill().bfill().fillna(float(current_price))
+
+        max_days = int(max(1, (df["date"].max() - df["date"].min()).days))
+        range_options = {"30 ngày": 30, "90 ngày": 90, "180 ngày": 180}
+        range_label = st.radio("Khoảng thời gian Realized P/L", list(range_options), horizontal=True, index=2)
+        days = range_options[range_label]
+        cutoff = df["date"].max() - timedelta(days=days - 1)
+        plot_df = df[df["date"] >= cutoff].copy()
+        if plot_df.empty:
+            plot_df = df.tail(min(len(df), days)).copy()
+
+        from plotly.subplots import make_subplots
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(
+            go.Bar(
+                x=plot_df["date"],
+                y=plot_df["realized_profit"],
+                name="🟢 Realized Profit",
+                marker_color="#22c55e",
+                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Profit: $%{y:,.0f}<extra></extra>",
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Bar(
+                x=plot_df["date"],
+                y=plot_df["loss_plot"],
+                name="🔴 Realized Loss",
+                marker_color="#ef4444",
+                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Loss: $%{customdata:,.0f}<extra></extra>",
+                customdata=plot_df["realized_loss"],
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=plot_df["date"],
+                y=plot_df["net_ema7"],
+                name="Net Realized P/L (7D EMA)",
+                mode="lines",
+                line=dict(color="#111827", width=2.2),
+                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Net P/L 7D EMA: $%{y:,.0f}<extra></extra>",
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=plot_df["date"],
+                y=plot_df["btc_price"],
+                name="BTC Price",
+                mode="lines",
+                line=dict(color="#f8fafc", width=2.0),
+                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>BTC Price: $%{y:,.0f}<extra></extra>",
+            ),
+            secondary_y=True,
+        )
+        fig.add_hline(y=0, line_width=1, line_color="#94a3b8", secondary_y=False)
+        fig.update_layout(
+            height=560,
+            template="plotly_dark",
+            barmode="relative",
+            hovermode="x unified",
+            margin=dict(l=55, r=60, t=35, b=45),
+            legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
+            title="BTC — Realized Profit/Loss (USD) + Giá BTC",
+        )
+        fig.update_yaxes(
+            title_text="Realized Profit / Loss (USD)",
+            tickprefix="$",
+            separatethousands=True,
+            zeroline=True,
+            showgrid=True,
+            secondary_y=False,
+        )
+        fig.update_yaxes(
+            title_text="BTC Price (USD)",
+            tickprefix="$",
+            separatethousands=True,
+            showgrid=False,
+            secondary_y=True,
+        )
+        fig.update_xaxes(title_text="Ngày", showgrid=False)
+        st.plotly_chart(fig, use_container_width=True, key="btc_realized_profit_loss_glassnode_style")
+
+        latest = plot_df.iloc[-1]
+        c1, c2, c3 = st.columns(3)
+        c1.metric("🟢 Realized Profit", f"${latest['realized_profit']:,.0f}")
+        c2.metric("🔴 Realized Loss", f"${latest['realized_loss']:,.0f}")
+        c3.metric("Net P/L", f"${latest['net_calc']:+,.0f}")
+
+        st.caption(
+            f"Ngày mới nhất trong series: {latest['date'].strftime('%d/%m/%Y')} • "
+            f"Giá BTC: ${latest['btc_price']:,.0f}. "
+            "Net P/L trên chart được tính = Profit − Loss rồi làm mượt EMA 7 ngày, "
+            "theo cách trình bày của Glassnode. Nguồn dữ liệu bars: ResearchBitcoin."
+        )
+
+        with st.expander("🔎 Kiểm tra chéo Net Realized P/L"):
+            check = plot_df[["date", "net_calc", "net_direct"]].copy()
+            check["sai_khac"] = check["net_calc"] - check["net_direct"]
+            check = check.sort_values("date", ascending=False).head(10)
+            check = check.rename(columns={
+                "date": "Ngày",
+                "net_calc": "Net tính từ Profit − Loss",
+                "net_direct": "Net API trực tiếp",
+                "sai_khac": "Chênh lệch",
+            })
+            st.dataframe(check, hide_index=True, use_container_width=True)
+
+    except Exception as e:
+        st.warning(f"Chưa lấy được Realized Profit/Loss từ ResearchBitcoin: {e}")
 
 
 st.title("Phân bố Nguồn cung Bitcoin theo Giá vốn (URPD)")
@@ -1114,6 +1280,9 @@ if token:
         st.warning(f"Chưa lấy được Supply in Loss trực tiếp: {e}")
 else:
     st.info("Không có token ResearchBitcoin: chỉ số Supply in Loss sẽ để N/A.")
+
+# Realized P/L thật — tách khỏi URPD proxy để có thể đối chiếu kiểu Glassnode.
+render_realized_profit_loss_chart(token, price)
 
 if urpd is not None:
     urpd = urpd.copy()
@@ -2802,228 +2971,82 @@ else:
     })
     st.dataframe(chart_summary, hide_index=True, use_container_width=True)
 
-    # =========================
-    # BTC PRICE + URPD FLOW — ONE GLASSNODE-STYLE CHART
-    # =========================
-    st.markdown("---")
-    st.subheader("📈 BTC theo nến + Chốt lời / Gom thêm")
-    st.caption(
-        "Gộp giá BTC và dòng thay đổi URPD vào cùng một biểu đồ, theo kiểu Glassnode. "
-        "🟢 Chốt lời (proxy) = nguồn cung dưới giá hiện tại giảm; 🔴 Gom thêm (proxy) = nguồn cung tăng. "
-        "Các cột được tính từ từng cặp snapshot URPD liên tiếp trong lịch sử, không phải xác nhận giao dịch ví."
-    )
+    with st.expander("Xem URPD gốc"):
+        st.dataframe(urpd, hide_index=True, use_container_width=True)
 
-    try:
-        candle_days = st.select_slider(
-            "Khoảng thời gian biểu đồ",
-            options=[30, 90, 180, 365, 730],
-            value=180,
-            format_func=lambda x: f"{x} ngày",
-            key="btc_candle_days",
-        )
-        candles = btc_ohlc_daily(candle_days)
+# =========================
+# NEWS RADAR — cập nhật độc lập với snapshot URPD
+# =========================
+st.markdown("---")
+st.header("📰 BTC News Radar — Vĩ mô, dòng vốn và sự kiện có thể tác động BTC")
+st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. V28 hiển thị tiêu đề tiếng Việt, giữ tiêu đề tiếng Anh gốc và dịch mô tả khi có; News/Macro vẫn chiếm 40% điểm tổng hợp cùng URPD 60%.")
 
-        # Flow theo thời gian: mỗi ngày so sánh snapshot URPD với ngày liền trước.
-        flow_rows = []
-        hist_dates = sorted(
-            k for k, v in history.items()
-            if isinstance(k, str) and len(k) == 10 and isinstance(v, dict) and v.get("urpd")
-        )
-        if hist_dates:
-            end_hist = chart_date or data_date or hist_dates[-1]
-            hist_dates = [d for d in hist_dates if d <= end_hist]
-            hist_dates = hist_dates[-(int(candle_days) + 1):]
+# V27 đã lấy News Radar trước phần báo cáo để dùng được cho điểm tổng hợp.
+# Hai biến này được cache 15 phút nên không tạo thêm lượt gọi ngoài ý muốn.
 
-            for prev_date, cur_date in zip(hist_dates[:-1], hist_dates[1:]):
-                try:
-                    prev_saved = history[prev_date]
-                    cur_saved = history[cur_date]
-                    prev_df = records_to_urpd(prev_saved["urpd"])[["price_low", "price_high", "btc_amount"]].copy()
-                    cur_df = records_to_urpd(cur_saved["urpd"])[["price_low", "price_high", "btc_amount"]].copy()
-                    prev_df["key"] = list(zip(prev_df.price_low.round(6), prev_df.price_high.round(6)))
-                    cur_df["key"] = list(zip(cur_df.price_low.round(6), cur_df.price_high.round(6)))
-                    prev_map = dict(zip(prev_df["key"], prev_df["btc_amount"]))
-                    cur_df["previous_btc"] = cur_df["key"].map(prev_map)
-                    cur_df = cur_df.dropna(subset=["previous_btc"]).copy()
-                    cur_df["delta_btc"] = cur_df["btc_amount"] - cur_df["previous_btc"]
-                    cur_df["mid_price"] = (cur_df["price_low"] + cur_df["price_high"]) / 2.0
-
-                    snap_price = cur_saved.get("price")
-                    if snap_price is None:
-                        continue
-                    below = cur_df[cur_df["mid_price"] < float(snap_price)]
-                    profit = float(-below.loc[below["delta_btc"] < 0, "delta_btc"].sum())
-                    accumulation = float(below.loc[below["delta_btc"] > 0, "delta_btc"].sum())
-                    flow_rows.append({
-                        "date": pd.to_datetime(cur_date, utc=True),
-                        "profit_btc": profit,
-                        "accumulation_btc": accumulation,
-                        "net_btc": accumulation - profit,
-                        "price": float(snap_price),
-                    })
-                except Exception:
-                    continue
-
-        flow_hist = pd.DataFrame(flow_rows)
-        if not flow_hist.empty:
-            flow_hist = flow_hist.sort_values("date")
-
-        if candles.empty:
-            st.warning("Chưa tải được dữ liệu nến BTC.")
-        else:
-            # --------------------------------------------------------
-            # MỘT BIỂU ĐỒ DUY NHẤT.
-            # Đường giá + các cột flow nằm chung trục giá, giống bố cục Glassnode:
-            # cột được neo ở vùng đáy của biểu đồ để không che nến.
-            # --------------------------------------------------------
-            fig = go.Figure()
-            fig.add_trace(
-                go.Scatter(
-                    x=candles["date"],
-                    y=candles["close"],
-                    mode="lines",
-                    name="BTC 1D",
-                    line=dict(width=2),
-                    hovertemplate=(
-                        "%{x|%Y-%m-%d}<br>"
-                        "Giá đóng cửa: $%{y:,.0f}<extra></extra>"
-                    ),
-                )
-            )
-
-            if not flow_hist.empty:
-                price_min = float(candles["low"].min())
-                price_max = float(candles["high"].max())
-                price_range = max(price_max - price_min, 1.0)
-
-                # Khu vực dành cho flow chiếm ~22% chiều cao dưới cùng.
-                baseline = price_min + price_range * 0.055
-                band_height = price_range * 0.22
-                max_flow = max(
-                    float(flow_hist["profit_btc"].max()),
-                    float(flow_hist["accumulation_btc"].max()),
-                    1.0,
-                )
-                scale = band_height / max_flow
-                flow_width_ms = 20 * 60 * 60 * 1000
-
-                profit_h = flow_hist["profit_btc"].to_numpy(float) * scale
-                accum_h = flow_hist["accumulation_btc"].to_numpy(float) * scale
-                dates = flow_hist["date"]
-
-                # 🟢 Chốt lời: cột kéo xuống dưới baseline.
-                fig.add_trace(
-                    go.Bar(
-                        x=dates,
-                        y=profit_h,
-                        base=(baseline - profit_h),
-                        width=flow_width_ms,
-                        marker_color="#10b981",
-                        name="🟢 Chốt lời (proxy)",
-                        customdata=np.column_stack([
-                            flow_hist["profit_btc"],
-                            flow_hist["accumulation_btc"],
-                            flow_hist["net_btc"],
-                            flow_hist["price"],
-                        ]),
-                        hovertemplate=(
-                            "Ngày: %{x|%Y-%m-%d}<br>"
-                            "🟢 Chốt lời (proxy): %{customdata[0]:,.2f} BTC<br>"
-                            "🔴 Gom thêm (proxy): %{customdata[1]:,.2f} BTC<br>"
-                            "Cán cân gom − chốt: %{customdata[2]:+,.2f} BTC<br>"
-                            "Giá snapshot: $%{customdata[3]:,.0f}<extra></extra>"
-                        ),
-                    )
-                )
-
-                # 🔴 Gom thêm: cột kéo lên trên baseline.
-                fig.add_trace(
-                    go.Bar(
-                        x=dates,
-                        y=accum_h,
-                        base=baseline,
-                        width=flow_width_ms,
-                        marker_color="#ef4444",
-                        name="🔴 Gom thêm (proxy)",
-                        customdata=np.column_stack([
-                            flow_hist["profit_btc"],
-                            flow_hist["accumulation_btc"],
-                            flow_hist["net_btc"],
-                            flow_hist["price"],
-                        ]),
-                        hovertemplate=(
-                            "Ngày: %{x|%Y-%m-%d}<br>"
-                            "🟢 Chốt lời (proxy): %{customdata[0]:,.2f} BTC<br>"
-                            "🔴 Gom thêm (proxy): %{customdata[1]:,.2f} BTC<br>"
-                            "Cán cân gom − chốt: %{customdata[2]:+,.2f} BTC<br>"
-                            "Giá snapshot: $%{customdata[3]:,.0f}<extra></extra>"
-                        ),
-                    )
-                )
-
-                fig.add_hline(y=baseline, line_color="#64748b", line_width=1, opacity=0.7)
-                fig.add_annotation(
-                    x=0.01, xref="paper", y=baseline, yref="y",
-                    text="0 BTC",
-                    showarrow=False,
-                    font=dict(size=11, color="#94a3b8"),
-                    xanchor="left",
-                    yanchor="bottom",
-                )
-
-            fig.add_hline(
-                y=float(price_for_chart),
-                line_dash="dash",
-                line_color="#f8fafc",
-                opacity=0.85,
-                annotation_text=f"Giá snapshot ${float(price_for_chart):,.0f}",
-                annotation_position="top right",
-            )
-            fig.update_layout(
-                height=650,
-                margin=dict(l=60, r=30, t=60, b=50),
-                hovermode="x unified",
-                template="plotly_dark",
-                barmode="overlay",
-                title="BTC/USD — Nến 1D + Chốt lời/Gom thêm theo thay đổi URPD",
-                legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
-            )
-            fig.update_xaxes(
-                title_text="Ngày",
-                rangeslider_visible=False,
-                showgrid=False,
-            )
-            fig.update_yaxes(
-                title_text="BTC/USD (USD)",
-                tickprefix="$",
-                separatethousands=True,
-                showgrid=True,
-            )
-            st.plotly_chart(fig, use_container_width=True, key="btc_combined_glassnode_chart")
-
-            latest_candle = candles.iloc[-1]
-            st.caption(
-                f"Nến mới nhất: {latest_candle['date'].strftime('%Y-%m-%d')} • "
-                f"O ${latest_candle['open']:,.0f} • H ${latest_candle['high']:,.0f} • "
-                f"L ${latest_candle['low']:,.0f} • C ${latest_candle['close']:,.0f} • "
-                "Nguồn giá: Coinbase BTC/USD (hoặc Kraken nếu Coinbase lỗi)."
-            )
-
-            if flow_hist.empty:
-                st.info(
-                    "Chưa đủ 2 snapshot URPD liên tiếp trong history để tạo cột Chốt lời/Gom thêm theo thời gian."
-                )
+n1, n2 = st.columns([1.35, 1])
+with n1:
+    st.subheader("🔥 Tin mới nhất / 7 ngày qua")
+    st.info("🇻🇳 Tiêu đề tiếng Việt là bản dịch để dễ đọc; 🇬🇧 tiêu đề gốc được giữ lại để đối chiếu. Nếu nguồn không có mô tả hoặc dịch vụ dịch tạm thời lỗi, dashboard sẽ giữ nguyên nội dung gốc.")
+    if news_rows:
+        for item in news_rows[:15]:
+            impact, direction = news_impact(item["title"], item["category"])
+            age_h = max(0.0, (datetime.now(timezone.utc) - item["published"]).total_seconds() / 3600.0)
+            if age_h < 24:
+                age = f"{age_h:.0f} giờ trước"
             else:
-                profit_total = float(flow_hist["profit_btc"].sum())
-                accumulation_total = float(flow_hist["accumulation_btc"].sum())
-                net_total = accumulation_total - profit_total
-                f1, f2, f3 = st.columns(3)
-                f1.metric("🟢 Chốt lời (proxy)", f"{profit_total:,.2f} BTC")
-                f2.metric("🔴 Gom thêm (proxy)", f"{accumulation_total:,.2f} BTC")
-                f3.metric("Cán cân gom − chốt", f"{net_total:+,.2f} BTC")
-                st.caption(
-                    f"Flow được tính theo từng ngày từ history URPD trong {candle_days} ngày gần nhất. "
-                    "Hover từng cột để xem lượng Chốt lời/Gom thêm và giá snapshot của ngày đó."
-                )
-    except Exception as e:
-        st.warning(f"Chưa tải được biểu đồ BTC + URPD: {e}")
+                age = f"{age_h/24:.1f} ngày trước"
+            title_vi = news_title_vi(item)
+            summary_vi = news_summary_vi(item)
+            st.markdown(
+                f"**🇻🇳 {title_vi}**  \n"
+                f"<small>🇬🇧 <i>{item['title']}</i></small>  \n"
+                f"`{item['source']}` · `{item['category']}` · `{impact}` · {direction} · `{age}`  "
+                f"[Đọc tin gốc]({item['link']})",
+                unsafe_allow_html=True,
+            )
+            if summary_vi:
+                st.caption(f"📝 Tóm tắt: {summary_vi}")
+            st.markdown("---")
+    else:
+        st.warning("Chưa lấy được nguồn tin trực tuyến. Dashboard vẫn hoạt động bình thường; thử refresh sau vài phút.")
+
+with n2:
+    st.subheader("⏰ 7 ngày sắp tới")
+    if upcoming:
+        for e in upcoming:
+            st.markdown(
+                f"**{e['date']} · {e['time']} — {e['event']}**  \n"
+                f"{e['impact']} · {e['why']}"
+            )
+            st.markdown("---")
+    else:
+        st.info("Không có sự kiện trọng yếu đã cấu hình trong 7 ngày tới.")
+
+# Bảng tóm tắt để báo cáo URPD có thêm bối cảnh vĩ mô.
+st.subheader("🧭 Tác động lên BTC — đọc cùng báo cáo URPD")
+if 'combined_score' in locals():
+    st.info(f"**V27:** Điểm tổng hợp hiện tại **{combined_score:.0f}/100** = URPD 60% + Macro/tin tức 40%. Triển vọng: **{outlook}**.")
+macro_flags = []
+for item in news_rows[:20]:
+    impact, direction = news_impact(item["title"], item["category"])
+    if direction != "🟡 Chưa rõ":
+        macro_flags.append((item, impact, direction))
+
+if macro_flags:
+    cols = st.columns(3)
+    for i, (item, impact, direction) in enumerate(macro_flags[:3]):
+        with cols[i % 3]:
+            st.metric("Tín hiệu tin tức", direction)
+            st.caption(f"{impact} · {item['category']}")
+            st.write(item["title"])
+else:
+    st.info("Chưa có đủ tiêu đề rõ hướng để tạo tín hiệu tin tức.")
+
+st.markdown("**Cách dashboard sẽ kết hợp:**")
+st.markdown(
+    "- 🟢 **URPD hỗ trợ + tin vĩ mô thuận lợi** → mức xác nhận xu hướng tăng cao hơn.  "
+    "\n- 🔴 **URPD cản tăng + tin vĩ mô bất lợi** → mức xác nhận xu hướng giảm cao hơn.  "
+    "\n- 🟡 **Hai bên trái chiều** → giữ trạng thái *chưa xác nhận*, không ép kết luận.  "
+    "\n- ⚠️ Tin tức không được dùng để biến thành 'xác suất BTC tăng/giảm'; nó chỉ là lớp bối cảnh và catalyst cần theo dõi."
+)
