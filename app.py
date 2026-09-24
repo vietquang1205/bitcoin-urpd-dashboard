@@ -2803,20 +2803,19 @@ else:
     st.dataframe(chart_summary, hide_index=True, use_container_width=True)
 
     # =========================
-    # BTC PRICE + URPD FLOW — COMBINED CHART
+    # BTC PRICE + URPD FLOW — ONE GLASSNODE-STYLE CHART
     # =========================
     st.markdown("---")
-    st.subheader("📈 BTC theo nến + vùng Chốt lời / Gom thêm")
+    st.subheader("📈 BTC theo nến + Chốt lời / Gom thêm")
     st.caption(
-        "Hai dữ liệu được ghép vào cùng một biểu đồ và dùng chung trục giá: bên trái là nến BTC 1D, "
-        "bên phải là thay đổi URPD theo từng vùng giá. 🟢 Chốt lời = nguồn cung ở vùng giá vốn dưới giá hiện tại giảm; "
-        "🔴 Gom thêm = nguồn cung tăng. Nhờ chung trục giá, có thể nhìn ngay BTC đang thay đổi mạnh ở vùng giá nào. "
-        "Đây là proxy từ URPD, không phải xác nhận giao dịch của ví."
+        "Gộp giá BTC và dòng thay đổi URPD vào cùng một biểu đồ, theo kiểu Glassnode. "
+        "🟢 Chốt lời (proxy) = nguồn cung dưới giá hiện tại giảm; 🔴 Gom thêm (proxy) = nguồn cung tăng. "
+        "Các cột được tính từ từng cặp snapshot URPD liên tiếp trong lịch sử, không phải xác nhận giao dịch ví."
     )
 
     try:
         candle_days = st.select_slider(
-            "Khoảng thời gian biểu đồ nến",
+            "Khoảng thời gian biểu đồ",
             options=[30, 90, 180, 365, 730],
             value=180,
             format_func=lambda x: f"{x} ngày",
@@ -2824,34 +2823,61 @@ else:
         )
         candles = btc_ohlc_daily(candle_days)
 
-        # -------------------------
-        # Chuẩn bị flow URPD
-        # -------------------------
-        flow = pd.DataFrame()
-        if comparison_urpd is not None:
-            cur = urpd_plot[["price_low", "price_high", "btc_amount"]].copy()
-            old = comparison_urpd[["price_low", "price_high", "btc_amount"]].copy()
-            cur["key"] = list(zip(cur.price_low.round(6), cur.price_high.round(6)))
-            old["key"] = list(zip(old.price_low.round(6), old.price_high.round(6)))
-            old_map = dict(zip(old["key"], old["btc_amount"]))
-            cur["previous_btc"] = cur["key"].map(old_map)
-            cur = cur.dropna(subset=["previous_btc"]).copy()
-            cur["delta_btc"] = cur["btc_amount"] - cur["previous_btc"]
-            cur["mid_price"] = (cur["price_low"] + cur["price_high"]) / 2.0
+        # Flow theo thời gian: mỗi ngày so sánh snapshot URPD với ngày liền trước.
+        flow_rows = []
+        hist_dates = sorted(
+            k for k, v in history.items()
+            if isinstance(k, str) and len(k) == 10 and isinstance(v, dict) and v.get("urpd")
+        )
+        if hist_dates:
+            end_hist = chart_date or data_date or hist_dates[-1]
+            hist_dates = [d for d in hist_dates if d <= end_hist]
+            hist_dates = hist_dates[-(int(candle_days) + 1):]
 
-            # Chỉ phân loại bucket dưới giá snapshot để tránh diễn giải quá mức.
-            flow = cur[cur["mid_price"] < float(price_for_chart)].copy()
-            flow = flow[flow["delta_btc"] != 0].copy()
+            for prev_date, cur_date in zip(hist_dates[:-1], hist_dates[1:]):
+                try:
+                    prev_saved = history[prev_date]
+                    cur_saved = history[cur_date]
+                    prev_df = records_to_urpd(prev_saved["urpd"])[["price_low", "price_high", "btc_amount"]].copy()
+                    cur_df = records_to_urpd(cur_saved["urpd"])[["price_low", "price_high", "btc_amount"]].copy()
+                    prev_df["key"] = list(zip(prev_df.price_low.round(6), prev_df.price_high.round(6)))
+                    cur_df["key"] = list(zip(cur_df.price_low.round(6), cur_df.price_high.round(6)))
+                    prev_map = dict(zip(prev_df["key"], prev_df["btc_amount"]))
+                    cur_df["previous_btc"] = cur_df["key"].map(prev_map)
+                    cur_df = cur_df.dropna(subset=["previous_btc"]).copy()
+                    cur_df["delta_btc"] = cur_df["btc_amount"] - cur_df["previous_btc"]
+                    cur_df["mid_price"] = (cur_df["price_low"] + cur_df["price_high"]) / 2.0
+
+                    snap_price = cur_saved.get("price")
+                    if snap_price is None:
+                        continue
+                    below = cur_df[cur_df["mid_price"] < float(snap_price)]
+                    profit = float(-below.loc[below["delta_btc"] < 0, "delta_btc"].sum())
+                    accumulation = float(below.loc[below["delta_btc"] > 0, "delta_btc"].sum())
+                    flow_rows.append({
+                        "date": pd.to_datetime(cur_date, utc=True),
+                        "profit_btc": profit,
+                        "accumulation_btc": accumulation,
+                        "net_btc": accumulation - profit,
+                        "price": float(snap_price),
+                    })
+                except Exception:
+                    continue
+
+        flow_hist = pd.DataFrame(flow_rows)
+        if not flow_hist.empty:
+            flow_hist = flow_hist.sort_values("date")
 
         if candles.empty:
             st.warning("Chưa tải được dữ liệu nến BTC.")
         else:
-            # Hai biểu đồ xếp dọc để đọc vùng giá rõ hơn:
-            #   trên = nến BTC theo thời gian
-            #   dưới = thay đổi URPD theo GIÁ, trục X là giá BTC
-            # Cách này tránh việc panel flow quá hẹp khiến khó biết chốt lời/gom thêm xảy ra ở giá nào.
-            fig_price = go.Figure()
-            fig_price.add_trace(
+            # --------------------------------------------------------
+            # MỘT BIỂU ĐỒ DUY NHẤT.
+            # Nến + các cột flow nằm chung trục giá, giống bố cục Glassnode:
+            # cột được neo ở vùng đáy của biểu đồ để không che nến.
+            # --------------------------------------------------------
+            fig = go.Figure()
+            fig.add_trace(
                 go.Candlestick(
                     x=candles["date"],
                     open=candles["open"],
@@ -2864,19 +2890,97 @@ else:
                     decreasing_line_color="#ef4444",
                     decreasing_fillcolor="#ef4444",
                     whiskerwidth=0.7,
-                    customdata=np.column_stack([
-                        candles["open"], candles["high"], candles["low"], candles["close"]
-                    ]),
                     hovertemplate=(
                         "%{x|%Y-%m-%d}<br>"
-                        "O: $%{customdata[0]:,.0f}<br>"
-                        "H: $%{customdata[1]:,.0f}<br>"
-                        "L: $%{customdata[2]:,.0f}<br>"
-                        "C: $%{customdata[3]:,.0f}<extra></extra>"
+                        "O: $%{open:,.0f}<br>"
+                        "H: $%{high:,.0f}<br>"
+                        "L: $%{low:,.0f}<br>"
+                        "C: $%{close:,.0f}<extra></extra>"
                     ),
                 )
             )
-            fig_price.add_hline(
+
+            if not flow_hist.empty:
+                price_min = float(candles["low"].min())
+                price_max = float(candles["high"].max())
+                price_range = max(price_max - price_min, 1.0)
+
+                # Khu vực dành cho flow chiếm ~22% chiều cao dưới cùng.
+                baseline = price_min + price_range * 0.055
+                band_height = price_range * 0.22
+                max_flow = max(
+                    float(flow_hist["profit_btc"].max()),
+                    float(flow_hist["accumulation_btc"].max()),
+                    1.0,
+                )
+                scale = band_height / max_flow
+                flow_width_ms = 20 * 60 * 60 * 1000
+
+                profit_h = flow_hist["profit_btc"].to_numpy(float) * scale
+                accum_h = flow_hist["accumulation_btc"].to_numpy(float) * scale
+                dates = flow_hist["date"]
+
+                # 🟢 Chốt lời: cột kéo xuống dưới baseline.
+                fig.add_trace(
+                    go.Bar(
+                        x=dates,
+                        y=profit_h,
+                        base=(baseline - profit_h),
+                        width=flow_width_ms,
+                        marker_color="#10b981",
+                        name="🟢 Chốt lời (proxy)",
+                        customdata=np.column_stack([
+                            flow_hist["profit_btc"],
+                            flow_hist["accumulation_btc"],
+                            flow_hist["net_btc"],
+                            flow_hist["price"],
+                        ]),
+                        hovertemplate=(
+                            "Ngày: %{x|%Y-%m-%d}<br>"
+                            "🟢 Chốt lời (proxy): %{customdata[0]:,.2f} BTC<br>"
+                            "🔴 Gom thêm (proxy): %{customdata[1]:,.2f} BTC<br>"
+                            "Cán cân gom − chốt: %{customdata[2]:+,.2f} BTC<br>"
+                            "Giá snapshot: $%{customdata[3]:,.0f}<extra></extra>"
+                        ),
+                    )
+                )
+
+                # 🔴 Gom thêm: cột kéo lên trên baseline.
+                fig.add_trace(
+                    go.Bar(
+                        x=dates,
+                        y=accum_h,
+                        base=baseline,
+                        width=flow_width_ms,
+                        marker_color="#ef4444",
+                        name="🔴 Gom thêm (proxy)",
+                        customdata=np.column_stack([
+                            flow_hist["profit_btc"],
+                            flow_hist["accumulation_btc"],
+                            flow_hist["net_btc"],
+                            flow_hist["price"],
+                        ]),
+                        hovertemplate=(
+                            "Ngày: %{x|%Y-%m-%d}<br>"
+                            "🟢 Chốt lời (proxy): %{customdata[0]:,.2f} BTC<br>"
+                            "🔴 Gom thêm (proxy): %{customdata[1]:,.2f} BTC<br>"
+                            "Cán cân gom − chốt: %{customdata[2]:+,.2f} BTC<br>"
+                            "Giá snapshot: $%{customdata[3]:,.0f}<extra></extra>"
+                        ),
+                    )
+                )
+
+                fig.add_hline(y=baseline, line_color="#64748b", line_width=1, opacity=0.7)
+                fig.add_annotation(
+                    x=0.01, xref="paper", y=baseline, yref="y",
+                    text="0 BTC",
+                    showarrow=False,
+                    font=dict(size=11, color="#94a3b8"),
+                    xanchor="left",
+                    yanchor="bottom",
+                )
+
+            fig.add_hline(
                 y=float(price_for_chart),
                 line_dash="dash",
                 line_color="#f8fafc",
@@ -2884,83 +2988,27 @@ else:
                 annotation_text=f"Giá snapshot ${float(price_for_chart):,.0f}",
                 annotation_position="top right",
             )
-            fig_price.update_layout(
-                height=460,
-                margin=dict(l=55, r=25, t=55, b=35),
+            fig.update_layout(
+                height=650,
+                margin=dict(l=60, r=30, t=60, b=50),
                 hovermode="x unified",
                 template="plotly_dark",
-                title="BTC/USD — Nến 1D",
+                barmode="overlay",
+                title="BTC/USD — Nến 1D + Chốt lời/Gom thêm theo thay đổi URPD",
+                legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
             )
-            fig_price.update_xaxes(title_text="Ngày", rangeslider_visible=False, showgrid=False)
-            fig_price.update_yaxes(title_text="Giá BTC (USD)", tickprefix="$", separatethousands=True, showgrid=True)
-            st.plotly_chart(fig_price, use_container_width=True, key="btc_candles_chart")
-
-            # -------------------------
-            # FLOW URPD THEO GIÁ — đặt riêng bên dưới, full width
-            # -------------------------
-            st.markdown("### 💰 Chốt lời / Gom thêm theo vùng giá")
-            st.caption(
-                "Biểu đồ dưới dùng trục X là GIÁ BTC nên nhìn trực tiếp được vùng nào đang thay đổi nguồn cung. "
-                "🟢 Thanh âm = Chốt lời (proxy); 🔴 thanh dương = Gom thêm (proxy)."
+            fig.update_xaxes(
+                title_text="Ngày",
+                rangeslider_visible=False,
+                showgrid=False,
             )
-            if not flow.empty:
-                flow_colors = np.where(flow["delta_btc"] < 0, "#10b981", "#ef4444")
-                flow_hover = np.column_stack([
-                    flow["price_low"].to_numpy(float),
-                    flow["price_high"].to_numpy(float),
-                    flow["previous_btc"].to_numpy(float),
-                    flow["btc_amount"].to_numpy(float),
-                    flow["delta_btc"].to_numpy(float),
-                ])
-                flow_fig = go.Figure()
-                flow_fig.add_trace(
-                    go.Bar(
-                        x=flow["mid_price"],
-                        y=flow["delta_btc"],
-                        width=(flow["price_high"] - flow["price_low"]) * 0.88,
-                        marker_color=flow_colors,
-                        customdata=flow_hover,
-                        name="Thay đổi URPD",
-                        hovertemplate=(
-                            "Vùng giá: $%{customdata[0]:,.0f} – $%{customdata[1]:,.0f}<br>"
-                            "BTC trước: %{customdata[2]:,.2f}<br>"
-                            "BTC mới: %{customdata[3]:,.2f}<br>"
-                            "Thay đổi: %{customdata[4]:+,.2f} BTC<extra></extra>"
-                        ),
-                        showlegend=False,
-                    )
-                )
-                flow_fig.add_hline(y=0, line_color="#94a3b8", line_width=1)
-                flow_fig.add_vline(
-                    x=float(price_for_chart),
-                    line_dash="dash",
-                    line_color="#f8fafc",
-                    opacity=0.9,
-                    annotation_text=f"Giá hiện tại ${float(price_for_chart):,.0f}",
-                    annotation_position="top right",
-                )
-                flow_fig.update_layout(
-                    height=430,
-                    margin=dict(l=55, r=25, t=35, b=55),
-                    hovermode="closest",
-                    template="plotly_dark",
-                    bargap=0.04,
-                )
-                flow_fig.update_xaxes(
-                    title_text="Giá BTC (USD) — vùng nào có thanh xanh/đỏ là vùng nguồn cung thay đổi",
-                    tickprefix="$",
-                    separatethousands=True,
-                    showgrid=True,
-                )
-                flow_fig.update_yaxes(
-                    title_text="Δ BTC",
-                    separatethousands=True,
-                    showgrid=True,
-                    zeroline=True,
-                )
-                st.plotly_chart(flow_fig, use_container_width=True, key="btc_urpd_flow_by_price_chart")
-            else:
-                st.info("Chọn 'So với 1 ngày trước', '3 ngày trước' hoặc '7 ngày trước' để hiển thị các vùng Chốt lời / Gom thêm.")
+            fig.update_yaxes(
+                title_text="BTC/USD (USD)",
+                tickprefix="$",
+                separatethousands=True,
+                showgrid=True,
+            )
+            st.plotly_chart(fig, use_container_width=True, key="btc_combined_glassnode_chart")
 
             latest_candle = candles.iloc[-1]
             st.caption(
@@ -2970,44 +3018,21 @@ else:
                 "Nguồn giá: Coinbase BTC/USD (hoặc Kraken nếu Coinbase lỗi)."
             )
 
-            if comparison_urpd is None:
-                st.info("Chọn 'So với 1 ngày trước', '3 ngày trước' hoặc '7 ngày trước' để hiển thị các vùng Chốt lời / Gom thêm.")
-            elif flow.empty:
-                st.info("Không có thay đổi URPD khác 0 trong các bucket dưới giá snapshot.")
+            if flow_hist.empty:
+                st.info(
+                    "Chưa đủ 2 snapshot URPD liên tiếp trong history để tạo cột Chốt lời/Gom thêm theo thời gian."
+                )
             else:
-                profit_btc = float(-flow.loc[flow.delta_btc < 0, "delta_btc"].sum())
-                accumulation_btc = float(flow.loc[flow.delta_btc > 0, "delta_btc"].sum())
-                net_below = accumulation_btc - profit_btc
+                profit_total = float(flow_hist["profit_btc"].sum())
+                accumulation_total = float(flow_hist["accumulation_btc"].sum())
+                net_total = accumulation_total - profit_total
                 f1, f2, f3 = st.columns(3)
-                f1.metric("🟢 Chốt lời (proxy)", f"{profit_btc:,.2f} BTC")
-                f2.metric("🔴 Gom thêm (proxy)", f"{accumulation_btc:,.2f} BTC")
-                f3.metric("Cán cân gom − chốt", f"{net_below:+,.2f} BTC")
-
-                flow_table = flow[[
-                    "price_low", "price_high", "previous_btc", "btc_amount", "delta_btc"
-                ]].copy()
-                flow_table["signal"] = np.where(
-                    flow_table["delta_btc"] < 0,
-                    "🟢 Chốt lời (proxy)",
-                    "🔴 Gom thêm (proxy)",
-                )
-                flow_table = flow_table.sort_values("price_low", ascending=True)
-                flow_table.columns = [
-                    "Giá thấp", "Giá cao", "BTC snapshot trước", "BTC snapshot mới", "Thay đổi BTC", "Tín hiệu"
-                ]
-                st.dataframe(flow_table, hide_index=True, use_container_width=True)
-                st.download_button(
-                    "Tải bảng Chốt lời / Gom thêm CSV",
-                    data=flow_table.to_csv(index=False).encode("utf-8-sig"),
-                    file_name=f"btc_profit_accumulation_{chart_date or data_date}.csv",
-                    mime="text/csv",
-                    key="download_profit_accumulation_csv",
-                )
+                f1.metric("🟢 Chốt lời (proxy)", f"{profit_total:,.2f} BTC")
+                f2.metric("🔴 Gom thêm (proxy)", f"{accumulation_total:,.2f} BTC")
+                f3.metric("Cán cân gom − chốt", f"{net_total:+,.2f} BTC")
                 st.caption(
-                    f"So sánh {chart_date or data_date} với {comparison_date}. "
-                    "Thanh xanh nằm đúng tại vùng giá mà nguồn cung URPD giảm; thanh đỏ nằm đúng tại vùng giá mà nguồn cung tăng. "
-                    "Các bucket trên giá hiện tại không được gán nhãn để tránh diễn giải quá mức."
+                    f"Flow được tính theo từng ngày từ history URPD trong {candle_days} ngày gần nhất. "
+                    "Hover từng cột để xem lượng Chốt lời/Gom thêm và giá snapshot của ngày đó."
                 )
     except Exception as e:
         st.warning(f"Chưa tải được biểu đồ BTC + URPD: {e}")
-
