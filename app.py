@@ -2714,6 +2714,133 @@ else:
     })
     st.dataframe(chart_summary, hide_index=True, use_container_width=True)
 
+    # =========================
+    # PROFIT-TAKING / ACCUMULATION BY URPD BUCKET
+    # =========================
+    # Quy ước theo yêu cầu:
+    #   🟢 Xanh = Chốt lời (proxy): lượng BTC trong bucket giá vốn thấp hơn
+    #                    giá hiện tại giảm so với snapshot đối chiếu.
+    #   🔴 Đỏ = Gom thêm (proxy): lượng BTC trong bucket giá vốn thấp hơn
+    #                  giá hiện tại tăng so với snapshot đối chiếu.
+    # Chỉ dùng các bucket dưới giá BTC hiện tại để tránh gán nhãn mua/bán
+    # cho các bucket phía trên giá hiện tại, nơi ý nghĩa biến động URPD không đủ rõ.
+    st.markdown("---")
+    st.subheader("💰 Chốt lời / Gom thêm theo thay đổi URPD")
+    st.caption(
+        "🟢 Chốt lời = BTC trong vùng giá vốn dưới giá hiện tại giảm; "
+        "🔴 Gom thêm = BTC trong vùng giá vốn dưới giá hiện tại tăng. "
+        "Đây là tín hiệu proxy từ thay đổi URPD, không phải xác nhận giao dịch của ví."
+    )
+
+    if comparison_urpd is None:
+        st.info("Chọn 'So với 1 ngày trước', '3 ngày trước' hoặc '7 ngày trước' để tạo bảng này.")
+    else:
+        cur = urpd_plot[["price_low", "price_high", "btc_amount"]].copy()
+        old = comparison_urpd[["price_low", "price_high", "btc_amount"]].copy()
+        cur["key"] = list(zip(cur.price_low.round(6), cur.price_high.round(6)))
+        old["key"] = list(zip(old.price_low.round(6), old.price_high.round(6)))
+        old_map = dict(zip(old["key"], old["btc_amount"]))
+        cur["previous_btc"] = cur["key"].map(old_map)
+        cur = cur.dropna(subset=["previous_btc"]).copy()
+        cur["delta_btc"] = cur["btc_amount"] - cur["previous_btc"]
+        cur["mid_price"] = (cur["price_low"] + cur["price_high"]) / 2.0
+
+        # Chỉ phân loại vùng giá vốn thấp hơn giá BTC hiện tại.
+        flow = cur[cur["mid_price"] < float(price_for_chart)].copy()
+        flow["signal"] = np.where(
+            flow["delta_btc"] < 0,
+            "🟢 Chốt lời (proxy)",
+            np.where(flow["delta_btc"] > 0, "🔴 Gom thêm (proxy)", "Không đổi")
+        )
+        flow["amount"] = flow["delta_btc"].abs()
+        flow = flow[flow["delta_btc"] != 0].copy()
+
+        if flow.empty:
+            st.info("Không có thay đổi URPD khác 0 trong các bucket dưới giá hiện tại.")
+        else:
+            # Biểu đồ giống kiểu net-flow theo từng vùng giá: xanh = chốt lời,
+            # đỏ = gom thêm. Giá trị luôn hiển thị là BTC thay đổi tuyệt đối.
+            flow_colors = np.where(flow["delta_btc"] < 0, "#10b981", "#ef4444")
+            flow_hover = np.column_stack([
+                flow["price_low"].to_numpy(float),
+                flow["price_high"].to_numpy(float),
+                flow["previous_btc"].to_numpy(float),
+                flow["btc_amount"].to_numpy(float),
+                flow["delta_btc"].to_numpy(float),
+            ])
+
+            flow_fig = go.Figure()
+            flow_fig.add_trace(go.Bar(
+                x=flow["mid_price"],
+                y=flow["amount"],
+                width=(flow["price_high"] - flow["price_low"]) * 0.88,
+                marker_color=flow_colors,
+                customdata=flow_hover,
+                hovertemplate=(
+                    "Khoảng giá vốn: $%{customdata[0]:,.0f} – $%{customdata[1]:,.0f}<br>"
+                    "BTC snapshot trước: %{customdata[2]:,.2f}<br>"
+                    "BTC snapshot mới: %{customdata[3]:,.2f}<br>"
+                    "Thay đổi: %{customdata[4]:+,.2f} BTC<br>"
+                    "<extra></extra>"
+                ),
+                showlegend=False,
+            ))
+            flow_fig.add_vline(
+                x=float(price_for_chart),
+                line_dash="dash",
+                line_color="white",
+                annotation_text=f"Giá hiện tại ${float(price_for_chart):,.0f}",
+                annotation_position="top right",
+            )
+            flow_fig.update_layout(
+                height=430,
+                xaxis_title="Giá vốn (USD)",
+                yaxis_title="BTC thay đổi",
+                bargap=0.05,
+                margin=dict(l=20, r=20, t=35, b=20),
+                legend=dict(orientation="h"),
+            )
+            flow_fig.add_trace(go.Bar(
+                x=[None], y=[None], name="🟢 Chốt lời (proxy)",
+                marker_color="#10b981", showlegend=True,
+            ))
+            flow_fig.add_trace(go.Bar(
+                x=[None], y=[None], name="🔴 Gom thêm (proxy)",
+                marker_color="#ef4444", showlegend=True,
+            ))
+            st.plotly_chart(flow_fig, use_container_width=True)
+
+            profit_btc = float(-flow.loc[flow.delta_btc < 0, "delta_btc"].sum())
+            accumulation_btc = float(flow.loc[flow.delta_btc > 0, "delta_btc"].sum())
+            net_below = accumulation_btc - profit_btc
+            f1, f2, f3 = st.columns(3)
+            f1.metric("🟢 Chốt lời (proxy)", f"{profit_btc:,.2f} BTC")
+            f2.metric("🔴 Gom thêm (proxy)", f"{accumulation_btc:,.2f} BTC")
+            f3.metric("Cán cân gom − chốt", f"{net_below:+,.2f} BTC")
+
+            flow_table = flow[[
+                "price_low", "price_high", "previous_btc", "btc_amount", "delta_btc", "signal"
+            ]].copy()
+            flow_table = flow_table.sort_values("mid_price", ascending=True)
+            flow_table.columns = [
+                "Giá thấp", "Giá cao", "BTC snapshot trước", "BTC snapshot mới", "Thay đổi BTC", "Tín hiệu"
+            ]
+            st.dataframe(flow_table, hide_index=True, use_container_width=True)
+            st.download_button(
+                "Tải bảng Chốt lời / Gom thêm CSV",
+                data=flow_table.to_csv(index=False).encode("utf-8-sig"),
+                file_name=f"btc_profit_accumulation_{chart_date or data_date}.csv",
+                mime="text/csv",
+                key="download_profit_accumulation_csv",
+            )
+
+            st.caption(
+                f"So sánh {chart_date or data_date} với {comparison_date}. "
+                "Giảm nguồn cung ở bucket giá vốn thấp được đánh dấu Chốt lời; "
+                "tăng nguồn cung ở các bucket này được đánh dấu Gom thêm. "
+                "Các bucket trên giá hiện tại không được gán nhãn để tránh diễn giải quá mức."
+            )
+
     with st.expander("Xem URPD gốc"):
         st.dataframe(urpd, hide_index=True, use_container_width=True)
 
