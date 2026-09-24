@@ -2821,7 +2821,7 @@ else:
             flow_table = flow[[
                 "price_low", "price_high", "previous_btc", "btc_amount", "delta_btc", "signal"
             ]].copy()
-            flow_table = flow_table.sort_values("mid_price", ascending=True)
+            flow_table = flow_table.sort_values("price_low", ascending=True)
             flow_table.columns = [
                 "Giá thấp", "Giá cao", "BTC snapshot trước", "BTC snapshot mới", "Thay đổi BTC", "Tín hiệu"
             ]
