@@ -2846,20 +2846,12 @@ else:
         if candles.empty:
             st.warning("Chưa tải được dữ liệu nến BTC.")
         else:
-            # Một figure duy nhất:
-            #   trái  = nến BTC theo thời gian
-            #   phải  = flow URPD theo mức giá, dùng CHUNG trục Y với nến.
-            fig = make_subplots(
-                rows=1,
-                cols=2,
-                shared_yaxes=True,
-                column_widths=[0.72, 0.28],
-                horizontal_spacing=0.025,
-                specs=[[{"type": "candlestick"}, {"type": "bar"}]],
-                subplot_titles=("BTC/USD — Nến 1D", "Thay đổi URPD theo giá"),
-            )
-
-            fig.add_trace(
+            # Hai biểu đồ xếp dọc để đọc vùng giá rõ hơn:
+            #   trên = nến BTC theo thời gian
+            #   dưới = thay đổi URPD theo GIÁ, trục X là giá BTC
+            # Cách này tránh việc panel flow quá hẹp khiến khó biết chốt lời/gom thêm xảy ra ở giá nào.
+            fig_price = go.Figure()
+            fig_price.add_trace(
                 go.Candlestick(
                     x=candles["date"],
                     open=candles["open"],
@@ -2882,12 +2874,35 @@ else:
                         "L: $%{customdata[2]:,.0f}<br>"
                         "C: $%{customdata[3]:,.0f}<extra></extra>"
                     ),
-                ),
-                row=1, col=1,
+                )
             )
+            fig_price.add_hline(
+                y=float(price_for_chart),
+                line_dash="dash",
+                line_color="#f8fafc",
+                opacity=0.85,
+                annotation_text=f"Giá snapshot ${float(price_for_chart):,.0f}",
+                annotation_position="top right",
+            )
+            fig_price.update_layout(
+                height=460,
+                margin=dict(l=55, r=25, t=55, b=35),
+                hovermode="x unified",
+                template="plotly_dark",
+                title="BTC/USD — Nến 1D",
+            )
+            fig_price.update_xaxes(title_text="Ngày", rangeslider_visible=False, showgrid=False)
+            fig_price.update_yaxes(title_text="Giá BTC (USD)", tickprefix="$", separatethousands=True, showgrid=True)
+            st.plotly_chart(fig_price, use_container_width=True, key="btc_candles_chart")
 
-            # Flow theo từng bucket giá. Âm = Chốt lời (xanh, kéo sang trái),
-            # dương = Gom thêm (đỏ, kéo sang phải).
+            # -------------------------
+            # FLOW URPD THEO GIÁ — đặt riêng bên dưới, full width
+            # -------------------------
+            st.markdown("### 💰 Chốt lời / Gom thêm theo vùng giá")
+            st.caption(
+                "Biểu đồ dưới dùng trục X là GIÁ BTC nên nhìn trực tiếp được vùng nào đang thay đổi nguồn cung. "
+                "🟢 Thanh âm = Chốt lời (proxy); 🔴 thanh dương = Gom thêm (proxy)."
+            )
             if not flow.empty:
                 flow_colors = np.where(flow["delta_btc"] < 0, "#10b981", "#ef4444")
                 flow_hover = np.column_stack([
@@ -2897,11 +2912,11 @@ else:
                     flow["btc_amount"].to_numpy(float),
                     flow["delta_btc"].to_numpy(float),
                 ])
-                fig.add_trace(
+                flow_fig = go.Figure()
+                flow_fig.add_trace(
                     go.Bar(
-                        x=flow["delta_btc"],
-                        y=flow["mid_price"],
-                        orientation="h",
+                        x=flow["mid_price"],
+                        y=flow["delta_btc"],
                         width=(flow["price_high"] - flow["price_low"]) * 0.88,
                         marker_color=flow_colors,
                         customdata=flow_hover,
@@ -2913,68 +2928,39 @@ else:
                             "Thay đổi: %{customdata[4]:+,.2f} BTC<extra></extra>"
                         ),
                         showlegend=False,
-                    ),
-                    row=1, col=2,
+                    )
                 )
-
-                # Legend giả để giữ màu diễn giải rõ ràng.
-                fig.add_trace(
-                    go.Bar(x=[None], y=[None], name="🟢 Chốt lời (proxy)", marker_color="#10b981"),
-                    row=1, col=2,
+                flow_fig.add_hline(y=0, line_color="#94a3b8", line_width=1)
+                flow_fig.add_vline(
+                    x=float(price_for_chart),
+                    line_dash="dash",
+                    line_color="#f8fafc",
+                    opacity=0.9,
+                    annotation_text=f"Giá hiện tại ${float(price_for_chart):,.0f}",
+                    annotation_position="top right",
                 )
-                fig.add_trace(
-                    go.Bar(x=[None], y=[None], name="🔴 Gom thêm (proxy)", marker_color="#ef4444"),
-                    row=1, col=2,
+                flow_fig.update_layout(
+                    height=430,
+                    margin=dict(l=55, r=25, t=35, b=55),
+                    hovermode="closest",
+                    template="plotly_dark",
+                    bargap=0.04,
                 )
-
-            # Giá snapshot chạy xuyên suốt cả hai panel vì chúng dùng chung trục giá.
-            fig.add_hline(
-                y=float(price_for_chart),
-                line_dash="dash",
-                line_color="#f8fafc",
-                opacity=0.85,
-                annotation_text=f"Giá snapshot ${float(price_for_chart):,.0f}",
-                annotation_position="top right",
-                row=1, col=1,
-            )
-            fig.add_hline(
-                y=float(price_for_chart),
-                line_dash="dash",
-                line_color="#f8fafc",
-                opacity=0.85,
-                annotation_text=f"${float(price_for_chart):,.0f}",
-                annotation_position="top right",
-                row=1, col=2,
-            )
-
-            fig.update_layout(
-                height=650,
-                margin=dict(l=20, r=20, t=55, b=25),
-                hovermode="closest",
-                template="plotly_dark",
-                legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
-                bargap=0.05,
-            )
-            fig.update_xaxes(title_text="Ngày", showgrid=False, rangeslider_visible=False, row=1, col=1)
-            fig.update_yaxes(
-                title_text="Giá BTC (USD)",
-                showgrid=True,
-                tickprefix="$",
-                separatethousands=True,
-                row=1, col=1,
-            )
-            fig.update_xaxes(
-                title_text="Δ BTC (âm = chốt lời / dương = gom thêm)",
-                zeroline=True,
-                zerolinecolor="#94a3b8",
-                zerolinewidth=1,
-                showgrid=True,
-                row=1, col=2,
-            )
-            # Ẩn nhãn Y của panel phải nhưng vẫn giữ trục giá chung.
-            fig.update_yaxes(showticklabels=False, row=1, col=2)
-
-            st.plotly_chart(fig, use_container_width=True, key="btc_price_urpd_combined_chart")
+                flow_fig.update_xaxes(
+                    title_text="Giá BTC (USD) — vùng nào có thanh xanh/đỏ là vùng nguồn cung thay đổi",
+                    tickprefix="$",
+                    separatethousands=True,
+                    showgrid=True,
+                )
+                flow_fig.update_yaxes(
+                    title_text="Δ BTC",
+                    separatethousands=True,
+                    showgrid=True,
+                    zeroline=True,
+                )
+                st.plotly_chart(flow_fig, use_container_width=True, key="btc_urpd_flow_by_price_chart")
+            else:
+                st.info("Chọn 'So với 1 ngày trước', '3 ngày trước' hoặc '7 ngày trước' để hiển thị các vùng Chốt lời / Gom thêm.")
 
             latest_candle = candles.iloc[-1]
             st.caption(
