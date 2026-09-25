@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V30", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V34", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -447,43 +447,92 @@ def extract_scalar(payload):
     raise ValueError(f"Không đọc được giá trị từ phản hồi API: {payload}")
 
 
-@st.cache_data(ttl=300)
-def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
-    if not token:
-        raise RuntimeError("Chưa nhập ResearchBitcoin API token.")
+# =========================
+# RESEARCHBITCOIN DAILY CACHE
+# =========================
+# V34: Không gọi lại lịch sử Realized P/L và Supply in Loss mỗi lần Streamlit rerun.
+# Dữ liệu được lưu bền vững vào GitHub (nếu đã cấu hình GITHUB_TOKEN/GITHUB_REPO).
+# Mỗi ngày chỉ lấy 1 lần cho từng metric cần thiết, sau đó dùng dữ liệu đã lưu.
+RESEARCH_DAILY_FILE = "researchbitcoin_daily_history.json"
+RESEARCH_DAILY_LOOKBACK_DAYS = 180
 
-    url = f"https://api.researchbitcoin.net/v2/supply_in_profitloss/{metric}"
-    headers = {
-        "Accept": "application/json",
-        "X-API-Token": token.strip(),
-    }
-    params = {
-        "resolution": resolution,
-        "output_format": "json",
-        "from_time": (datetime.now(timezone.utc).date() - timedelta(days=3)).isoformat(),
-        # to_time là mốc loại trừ (exclusive); không dùng ngày mai vì V2 có thể từ chối mốc tương lai.
-        "to_time": datetime.now(timezone.utc).date().isoformat(),
-    }
 
-    r = requests.get(url, headers=headers, params=params, timeout=30)
-    if r.status_code == 401:
-        raise RuntimeError("API token không hợp lệ hoặc đã hết hạn (401).")
-    if r.status_code == 403:
-        raise RuntimeError("Token không có quyền truy cập chỉ số này (403).")
-    if r.status_code == 429:
-        raise RuntimeError("API đang giới hạn lượt gọi (429).")
-    if r.status_code == 400:
+def github_json_get(filename):
+    """Đọc một JSON nhỏ từ GitHub; fallback về file local nếu GitHub chưa cấu hình/lỗi."""
+    if not github_token or not github_repo:
         try:
-            detail = r.json()
+            with open(filename, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}, None
         except Exception:
-            detail = r.text[:500]
-        raise RuntimeError(f"ResearchBitcoin 400 — tham số không hợp lệ: {detail}")
-    r.raise_for_status()
+            return {}, None
 
-    payload = r.json()
-    value = extract_scalar(payload)
-    return float(value), r.url
+    url = f"https://api.github.com/repos/{github_repo}/contents/{filename}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token.strip()}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        r = requests.get(url, headers=headers, params={"ref": github_branch}, timeout=20)
+        if r.status_code == 404:
+            return {}, None
+        r.raise_for_status()
+        payload = r.json()
+        content = base64.b64decode(payload.get("content", "")).decode("utf-8")
+        data = json.loads(content)
+        return (data if isinstance(data, dict) else {}), payload.get("sha")
+    except Exception as e:
+        st.warning(f"Không đọc được {filename} từ GitHub: {e}")
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return (data if isinstance(data, dict) else {}), None
+        except Exception:
+            return {}, None
 
+
+def github_json_save(filename, data, sha=None, commit_message="Update ResearchBitcoin daily history"):
+    """Lưu JSON nhỏ lên GitHub, có xử lý conflict 409 một lần."""
+    if not github_token or not github_repo:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True, sha
+
+    url = f"https://api.github.com/repos/{github_repo}/contents/{filename}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token.strip()}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+    payload = {
+        "message": commit_message,
+        "content": base64.b64encode(body).decode("ascii"),
+        "branch": github_branch,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    try:
+        r = requests.put(url, headers=headers, json=payload, timeout=30)
+        if r.status_code == 409:
+            _, fresh_sha = github_json_get(filename)
+            if fresh_sha:
+                payload["sha"] = fresh_sha
+                r = requests.put(url, headers=headers, json=payload, timeout=30)
+        r.raise_for_status()
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True, r.json().get("content", {}).get("sha", sha)
+    except Exception as e:
+        st.warning(f"Không lưu được {filename} lên GitHub: {e}")
+        try:
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return False, sha
 
 
 def _parse_researchbitcoin_timeseries(payload, metric_slug):
@@ -574,57 +623,259 @@ def _parse_researchbitcoin_timeseries(payload, metric_slug):
     return pd.DataFrame(out).drop_duplicates("date", keep="last").sort_values("date").reset_index(drop=True)
 
 
-@st.cache_data(ttl=900, show_spinner=False)
-def researchbitcoin_timeseries(token, metric_slug, resolution="d1"):
-    """Lấy chuỗi ngày từ ResearchBitcoin. Các metric Realized P/L đều Tier 0."""
-    if not token:
-        raise RuntimeError("Chưa nhập ResearchBitcoin API token.")
 
-    # ResearchBitcoin v2 requires a data_field after each metric group.
+def _research_endpoint(metric_slug):
     endpoint_map = {
         "realizedprofit": ("realizedprofit", "realized_profit"),
         "realizedloss": ("realizedloss", "realized_loss"),
         "net_realized_profit_loss": ("net_realized_profit_loss", "net_realized_profit_loss"),
         "price": ("price", "price"),
+        "supply_in_loss": ("supply_in_profitloss", "supply_in_loss"),
+        "supply_in_loss_percent": ("supply_in_profitloss", "supply_in_loss_percent"),
     }
-    group, data_field = endpoint_map.get(metric_slug, (metric_slug, metric_slug))
+    return endpoint_map.get(metric_slug, (metric_slug, metric_slug))
+
+
+def _researchbitcoin_error(r, metric_slug):
+    try:
+        detail = r.json()
+    except Exception:
+        detail = r.text[:800]
+    if r.status_code == 400:
+        return RuntimeError(f"ResearchBitcoin 400 — tham số không hợp lệ ({metric_slug}): {detail}")
+    if r.status_code == 401:
+        return RuntimeError("ResearchBitcoin 401 — API token không hợp lệ hoặc đã hết hạn.")
+    if r.status_code == 402:
+        return RuntimeError(
+            f"ResearchBitcoin 402 — Payment Required ({metric_slug}). "
+            f"Chi tiết: {detail}. Tier 0 hiện là gói miễn phí, nên cần kiểm tra trạng thái token/quota trên user_info."
+        )
+    if r.status_code == 403:
+        return RuntimeError(f"ResearchBitcoin 403 — token không có quyền truy cập {metric_slug}: {detail}")
+    if r.status_code == 429:
+        return RuntimeError(f"ResearchBitcoin 429 — bị giới hạn tốc độ/quota: {detail}")
+    return RuntimeError(f"ResearchBitcoin HTTP {r.status_code} ({metric_slug}): {detail}")
+
+
+def researchbitcoin_fetch_series(token, metric_slug, from_date, to_date):
+    """Gọi ResearchBitcoin đúng một lần cho một metric + khoảng ngày."""
+    if not token:
+        raise RuntimeError("Chưa nhập ResearchBitcoin API token.")
+
+    group, data_field = _research_endpoint(metric_slug)
     url = f"https://api.researchbitcoin.net/v2/{group}/{data_field}"
     headers = {
         "Accept": "application/json",
         "X-API-Token": token.strip(),
     }
     params = {
-        "resolution": resolution,
+        "resolution": "d1",
         "output_format": "json",
-        "from_time": (datetime.now(timezone.utc).date() - timedelta(days=210)).isoformat(),
-        # to_time là mốc loại trừ (exclusive); không dùng ngày mai vì V2 có thể từ chối mốc tương lai.
-        "to_time": datetime.now(timezone.utc).date().isoformat(),
+        "from_time": from_date.isoformat(),
+        "to_time": to_date.isoformat(),
     }
     r = requests.get(url, headers=headers, params=params, timeout=30)
-    if r.status_code == 401:
-        raise RuntimeError("API token không hợp lệ hoặc đã hết hạn (401).")
-    if r.status_code == 403:
-        raise RuntimeError(f"Token không có quyền truy cập {metric_slug} (403).")
-    if r.status_code == 429:
-        raise RuntimeError("API đang giới hạn lượt gọi (429).")
-    if r.status_code == 400:
-        try:
-            detail = r.json()
-        except Exception:
-            detail = r.text[:500]
-        raise RuntimeError(f"ResearchBitcoin 400 — tham số không hợp lệ: {detail}")
-    r.raise_for_status()
+    if r.status_code >= 400:
+        raise _researchbitcoin_error(r, metric_slug)
     return _parse_researchbitcoin_timeseries(r.json(), metric_slug)
 
 
+def _research_daily_state():
+    """Load once per Streamlit session to avoid repeated GitHub reads."""
+    if "research_daily_state" not in st.session_state:
+        data, sha = github_json_get(RESEARCH_DAILY_FILE)
+        if not isinstance(data, dict):
+            data = {}
+        data.setdefault("version", 1)
+        data.setdefault("daily", {})
+        data.setdefault("last_attempt_date", None)
+        data.setdefault("bootstrap_done", False)
+        st.session_state["research_daily_state"] = data
+        st.session_state["research_daily_sha"] = sha
+    return st.session_state["research_daily_state"]
+
+
+def _save_research_daily_state(data):
+    sha = st.session_state.get("research_daily_sha")
+    ok, new_sha = github_json_save(
+        RESEARCH_DAILY_FILE,
+        data,
+        sha,
+        commit_message="Update ResearchBitcoin daily cache",
+    )
+    st.session_state["research_daily_state"] = data
+    if new_sha:
+        st.session_state["research_daily_sha"] = new_sha
+    return ok
+
+
+def _merge_series_into_daily(state, metric_slug, frame):
+    aliases = {
+        "realizedprofit": "realized_profit",
+        "realizedloss": "realized_loss",
+        "price": "btc_price",
+        "supply_in_loss": "supply_in_loss",
+        "supply_in_loss_percent": "supply_in_loss_percent",
+    }
+    key = aliases.get(metric_slug, metric_slug)
+    count = 0
+    for _, row in frame.iterrows():
+        day = row["date"].isoformat() if hasattr(row["date"], "isoformat") else str(row["date"])
+        try:
+            value = float(row["value"])
+        except Exception:
+            continue
+        if not np.isfinite(value):
+            continue
+        state["daily"].setdefault(day, {})[key] = value
+        count += 1
+    return count
+
+
+def ensure_researchbitcoin_daily_cache(token):
+    """
+    Cơ chế V34:
+      - Nếu chưa có cache: bootstrap 180 ngày một lần.
+      - Sau bootstrap: mỗi ngày chỉ cập nhật ngày còn thiếu gần nhất.
+      - Trong cùng một ngày, dù Streamlit rerun bao nhiêu lần cũng không gọi lại API.
+      - Profit/Loss/Supply in Loss/Price đều lưu chung một JSON.
+    """
+    state = _research_daily_state()
+    if not token:
+        return state, False, "Chưa có token."
+
+    today_utc = datetime.now(timezone.utc).date()
+    latest_complete_date = today_utc - timedelta(days=1)
+
+    # Nếu bootstrap đã thử hôm nay nhưng thất bại, không retry khi Streamlit rerun.
+    # Ngày mai mới thử lại để tránh đốt quota/API request.
+    if (not state.get("bootstrap_done") and
+            state.get("last_attempt_date") == today_utc.isoformat()):
+        return state, False, "Đã thử bootstrap ResearchBitcoin hôm nay; không gọi lại trong ngày."
+
+    # Bootstrap một lần duy nhất để chart 180 ngày có dữ liệu nền.
+    if not state.get("bootstrap_done"):
+        bootstrap_from = latest_complete_date - timedelta(days=RESEARCH_DAILY_LOOKBACK_DAYS - 1)
+        bootstrap_to = latest_complete_date + timedelta(days=1)
+        bootstrap_errors = []
+        fetched_any = False
+        for metric in (
+            "realizedprofit",
+            "realizedloss",
+            "supply_in_loss",
+            "supply_in_loss_percent",
+            "price",
+        ):
+            try:
+                frame = researchbitcoin_fetch_series(token, metric, bootstrap_from, bootstrap_to)
+                _merge_series_into_daily(state, metric, frame)
+                fetched_any = True
+            except Exception as e:
+                bootstrap_errors.append(str(e))
+
+        if fetched_any:
+            state["bootstrap_done"] = True
+            state["last_attempt_date"] = today_utc.isoformat()
+            # Giữ tối đa 365 ngày, đủ cho dashboard và không phình file.
+            state["daily"] = dict(sorted(state["daily"].items())[-365:])
+            _save_research_daily_state(state)
+
+        if bootstrap_errors and not fetched_any:
+            # Dù bootstrap lỗi (ví dụ 402), đánh dấu đã thử hôm nay để
+            # Streamlit rerun không spam API. Ngày mai mới thử lại.
+            state["last_attempt_date"] = today_utc.isoformat()
+            _save_research_daily_state(state)
+            return state, False, "Bootstrap chưa thành công: " + " | ".join(bootstrap_errors[:3])
+
+    # Sau bootstrap: đúng 1 lần/ngày. Nếu ngày hôm qua đã đủ các metric thì không gọi.
+    daily = state.get("daily", {})
+    target = latest_complete_date
+    target_key = target.isoformat()
+    required = ("realized_profit", "realized_loss", "supply_in_loss", "supply_in_loss_percent", "btc_price")
+    target_complete = target_key in daily and all(daily[target_key].get(k) is not None for k in required)
+
+    if target_complete:
+        return state, False, f"Đã có dữ liệu ngày {target_key}; không gọi lại ResearchBitcoin."
+
+    # Nếu hôm nay đã thử và thất bại, không retry thêm trong cùng ngày.
+    if state.get("last_attempt_date") == today_utc.isoformat():
+        return state, False, f"Đã thử cập nhật ResearchBitcoin hôm nay; giữ dữ liệu gần nhất."
+
+    # Chỉ lấy ngày còn thiếu gần nhất. Mỗi metric đúng một request trong lần cập nhật này.
+    errors = []
+    for metric in (
+        "realizedprofit",
+        "realizedloss",
+        "supply_in_loss",
+        "supply_in_loss_percent",
+        "price",
+    ):
+        try:
+            frame = researchbitcoin_fetch_series(token, metric, target, target + timedelta(days=1))
+            _merge_series_into_daily(state, metric, frame)
+        except Exception as e:
+            errors.append(str(e))
+
+    state["last_attempt_date"] = today_utc.isoformat()
+    state["daily"] = dict(sorted(state["daily"].items())[-365:])
+    _save_research_daily_state(state)
+
+    if errors:
+        return state, True, "Một số metric chưa cập nhật được: " + " | ".join(errors[:3])
+    return state, True, f"Đã cập nhật ResearchBitcoin một lần cho ngày {target_key}."
+
+
+def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
+    """Lấy giá trị mới nhất từ cache ngày; không gọi API lại nếu ngày đã có."""
+    state, _, status = ensure_researchbitcoin_daily_cache(token)
+    daily = state.get("daily", {})
+    aliases = {
+        "supply_in_loss": "supply_in_loss",
+        "supply_in_loss_percent": "supply_in_loss_percent",
+    }
+    key = aliases.get(metric, metric)
+    candidates = sorted(
+        (d for d, rec in daily.items() if isinstance(rec, dict) and rec.get(key) is not None),
+        reverse=True,
+    )
+    if not candidates:
+        raise RuntimeError(status)
+    day = candidates[0]
+    value = float(daily[day][key])
+    return value, f"ResearchBitcoin daily cache • {day}"
+
+
+def researchbitcoin_timeseries(token, metric_slug, resolution="d1"):
+    """Trả time-series từ cache bền vững, không gọi ResearchBitcoin trong lúc render chart."""
+    state, _, _ = ensure_researchbitcoin_daily_cache(token)
+    key_map = {
+        "realizedprofit": "realized_profit",
+        "realizedloss": "realized_loss",
+        "price": "btc_price",
+        "supply_in_loss": "supply_in_loss",
+        "supply_in_loss_percent": "supply_in_loss_percent",
+    }
+    key = key_map.get(metric_slug, metric_slug)
+    rows = []
+    for day, rec in state.get("daily", {}).items():
+        if not isinstance(rec, dict) or rec.get(key) is None:
+            continue
+        try:
+            rows.append({"date": pd.to_datetime(day).date(), "value": float(rec[key])})
+        except Exception:
+            continue
+    if not rows:
+        raise ValueError(f"Cache ResearchBitcoin chưa có time-series {metric_slug}.")
+    return pd.DataFrame(rows).drop_duplicates("date", keep="last").sort_values("date").reset_index(drop=True)
+
+
 def render_realized_profit_loss_chart(token, current_price):
-    """Biểu đồ Realized Profit/Loss thật, kiểu Glassnode: USD bars + BTC price."""
+    """Biểu đồ Realized Profit/Loss thật, đọc từ cache daily để không gọi API mỗi rerun."""
     st.markdown("---")
     st.subheader("💰 BTC Realized Profit / Loss — dòng chốt lời & cắt lỗ thực tế")
     st.caption(
         "🟢 Realized Profit = lợi nhuận USD đã thực hiện khi BTC được chi tiêu ở giá cao hơn giá vốn; "
-        "🔴 Realized Loss = khoản lỗ USD đã thực hiện. Đây là dữ liệu on-chain thực tế từ ResearchBitcoin, "
-        "không phải proxy URPD."
+        "🔴 Realized Loss = khoản lỗ USD đã thực hiện. Dữ liệu được lấy từ ResearchBitcoin và lưu daily cache."
     )
 
     if not token:
@@ -632,19 +883,22 @@ def render_realized_profit_loss_chart(token, current_price):
         return
 
     try:
+        state, updated, status = ensure_researchbitcoin_daily_cache(token)
+        if updated:
+            st.info("🗓️ " + status)
+        else:
+            st.caption("🗃️ " + status)
+
         profit = researchbitcoin_timeseries(token, "realizedprofit", "d1").rename(columns={"value": "realized_profit"})
         loss = researchbitcoin_timeseries(token, "realizedloss", "d1").rename(columns={"value": "realized_loss"})
-        net_direct = researchbitcoin_timeseries(token, "net_realized_profit_loss", "d1").rename(columns={"value": "net_direct"})
         price_ts = researchbitcoin_timeseries(token, "price", "d1").rename(columns={"value": "btc_price"})
 
         df = profit.merge(loss, on="date", how="inner")
-        df = df.merge(net_direct, on="date", how="left")
         df = df.merge(price_ts, on="date", how="left")
         if df.empty:
-            st.warning("ResearchBitcoin trả series rỗng sau khi ghép Realized Profit/Loss.")
+            st.warning("Cache chưa có đủ Realized Profit/Loss để ghép biểu đồ.")
             return
 
-        # Loss được vẽ âm giống Glassnode; dữ liệu gốc vẫn giữ giá trị dương ở realized_loss.
         df["loss_plot"] = -df["realized_loss"].abs()
         df["net_calc"] = df["realized_profit"] - df["realized_loss"].abs()
         df["net_ema7"] = df["net_calc"].ewm(span=7, adjust=False).mean()
@@ -654,7 +908,6 @@ def render_realized_profit_loss_chart(token, current_price):
         else:
             df["btc_price"] = df["btc_price"].ffill().bfill().fillna(float(current_price))
 
-        max_days = int(max(1, (df["date"].max() - df["date"].min()).days))
         range_options = {"30 ngày": 30, "90 ngày": 90, "180 ngày": 180}
         range_label = st.radio("Khoảng thời gian Realized P/L", list(range_options), horizontal=True, index=2)
         days = range_options[range_label]
@@ -665,74 +918,20 @@ def render_realized_profit_loss_chart(token, current_price):
 
         from plotly.subplots import make_subplots
         fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(
-            go.Bar(
-                x=plot_df["date"],
-                y=plot_df["realized_profit"],
-                name="🟢 Realized Profit",
-                marker_color="#22c55e",
-                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Profit: $%{y:,.0f}<extra></extra>",
-            ),
-            secondary_y=False,
-        )
-        fig.add_trace(
-            go.Bar(
-                x=plot_df["date"],
-                y=plot_df["loss_plot"],
-                name="🔴 Realized Loss",
-                marker_color="#ef4444",
-                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Loss: $%{customdata:,.0f}<extra></extra>",
-                customdata=plot_df["realized_loss"],
-            ),
-            secondary_y=False,
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=plot_df["date"],
-                y=plot_df["net_ema7"],
-                name="Net Realized P/L (7D EMA)",
-                mode="lines",
-                line=dict(color="#111827", width=2.2),
-                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Net P/L 7D EMA: $%{y:,.0f}<extra></extra>",
-            ),
-            secondary_y=False,
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=plot_df["date"],
-                y=plot_df["btc_price"],
-                name="BTC Price",
-                mode="lines",
-                line=dict(color="#f8fafc", width=2.0),
-                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>BTC Price: $%{y:,.0f}<extra></extra>",
-            ),
-            secondary_y=True,
-        )
+        fig.add_trace(go.Bar(x=plot_df["date"], y=plot_df["realized_profit"], name="🟢 Realized Profit", marker_color="#22c55e",
+                             hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Profit: $%{y:,.0f}<extra></extra>"), secondary_y=False)
+        fig.add_trace(go.Bar(x=plot_df["date"], y=plot_df["loss_plot"], name="🔴 Realized Loss", marker_color="#ef4444",
+                             hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Loss: $%{customdata:,.0f}<extra></extra>", customdata=plot_df["realized_loss"]), secondary_y=False)
+        fig.add_trace(go.Scatter(x=plot_df["date"], y=plot_df["net_ema7"], name="Net Realized P/L (7D EMA)", mode="lines",
+                                 line=dict(color="#111827", width=2.2), hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Net P/L 7D EMA: $%{y:,.0f}<extra></extra>"), secondary_y=False)
+        fig.add_trace(go.Scatter(x=plot_df["date"], y=plot_df["btc_price"], name="BTC Price", mode="lines",
+                                 line=dict(color="#f8fafc", width=2.0), hovertemplate="Ngày: %{x|%d/%m/%Y}<br>BTC Price: $%{y:,.0f}<extra></extra>"), secondary_y=True)
         fig.add_hline(y=0, line_width=1, line_color="#94a3b8", secondary_y=False)
-        fig.update_layout(
-            height=560,
-            template="plotly_dark",
-            barmode="relative",
-            hovermode="x unified",
-            margin=dict(l=55, r=60, t=35, b=45),
-            legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
-            title="BTC — Realized Profit/Loss (USD) + Giá BTC",
-        )
-        fig.update_yaxes(
-            title_text="Realized Profit / Loss (USD)",
-            tickprefix="$",
-            separatethousands=True,
-            zeroline=True,
-            showgrid=True,
-            secondary_y=False,
-        )
-        fig.update_yaxes(
-            title_text="BTC Price (USD)",
-            tickprefix="$",
-            separatethousands=True,
-            showgrid=False,
-            secondary_y=True,
-        )
+        fig.update_layout(height=560, template="plotly_dark", barmode="relative", hovermode="x unified",
+                          margin=dict(l=55, r=60, t=35, b=45), legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
+                          title="BTC — Realized Profit/Loss (USD) + Giá BTC")
+        fig.update_yaxes(title_text="Realized Profit / Loss (USD)", tickprefix="$", separatethousands=True, zeroline=True, showgrid=True, secondary_y=False)
+        fig.update_yaxes(title_text="BTC Price (USD)", tickprefix="$", separatethousands=True, showgrid=False, secondary_y=True)
         fig.update_xaxes(title_text="Ngày", showgrid=False)
         st.plotly_chart(fig, use_container_width=True, key="btc_realized_profit_loss_glassnode_style")
 
@@ -741,29 +940,13 @@ def render_realized_profit_loss_chart(token, current_price):
         c1.metric("🟢 Realized Profit", f"${latest['realized_profit']:,.0f}")
         c2.metric("🔴 Realized Loss", f"${latest['realized_loss']:,.0f}")
         c3.metric("Net P/L", f"${latest['net_calc']:+,.0f}")
-
         st.caption(
-            f"Ngày mới nhất trong series: {latest['date'].strftime('%d/%m/%Y')} • "
-            f"Giá BTC: ${latest['btc_price']:,.0f}. "
-            "Net P/L trên chart được tính = Profit − Loss rồi làm mượt EMA 7 ngày, "
-            "theo cách trình bày của Glassnode. Nguồn dữ liệu bars: ResearchBitcoin."
+            f"Ngày mới nhất trong cache: {latest['date'].strftime('%d/%m/%Y')} • Giá BTC: ${latest['btc_price']:,.0f}. "
+            "Từ nay chart đọc dữ liệu đã lưu; ResearchBitcoin chỉ được gọi tối đa 1 lần/ngày cho mỗi metric cần cập nhật."
         )
 
-        with st.expander("🔎 Kiểm tra chéo Net Realized P/L"):
-            check = plot_df[["date", "net_calc", "net_direct"]].copy()
-            check["sai_khac"] = check["net_calc"] - check["net_direct"]
-            check = check.sort_values("date", ascending=False).head(10)
-            check = check.rename(columns={
-                "date": "Ngày",
-                "net_calc": "Net tính từ Profit − Loss",
-                "net_direct": "Net API trực tiếp",
-                "sai_khac": "Chênh lệch",
-            })
-            st.dataframe(check, hide_index=True, use_container_width=True)
-
     except Exception as e:
-        st.warning(f"Chưa lấy được Realized Profit/Loss từ ResearchBitcoin: {e}")
-
+        st.warning(f"Chưa lấy được Realized Profit/Loss từ ResearchBitcoin/cache: {e}")
 
 st.title("Phân bố Nguồn cung Bitcoin theo Giá vốn (URPD)")
 st.caption("URPD thực tế từ Bitview • BGeometrics dự phòng • Supply in Loss trực tiếp • News Radar • Không mô phỏng")
