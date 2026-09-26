@@ -8,7 +8,7 @@
   },
   "last_attempt_date": "2026-09-26",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=realizedloss, updated=1, quota_before=1.0, quota_after=0.0",
+  "last_attempt_status": "metric=None, updated=0, quota_before=0.0, quota_after=None",
   "attempts_by_date": {
     "2026-09-26": [
       "realizedloss",
