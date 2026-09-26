@@ -1,7 +1,7 @@
 {
   "version": 1,
   "daily": {},
-  "last_attempt_date": "2026-09-26",
+  "last_attempt_date": null,
   "bootstrap_done": false,
-  "last_attempt_status": "Quota còn 2 DP, cần khoảng 5 DP cho batch ngày 2026-09-25."
+  "last_attempt_status": "Manual refresh requested"
 }
