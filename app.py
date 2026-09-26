@@ -786,13 +786,12 @@ def _research_daily_target_complete(state, target_key):
 
 def ensure_researchbitcoin_daily_cache(token):
     """
-    V35:
-      - KHÔNG bootstrap 180 ngày.
-      - Mỗi ngày chỉ cập nhật ngày hoàn chỉnh gần nhất (UTC).
-      - Mỗi metric tối đa 1 request/ngày.
-      - Kiểm tra user_info trước; nếu quota còn < 5 DP thì không gọi batch nặng.
-      - Rerun trong cùng ngày không gọi lại.
-      - Dữ liệu tích lũy dần thành lịch sử tối đa 365 ngày.
+    V38 an toàn quota:
+      - Chỉ lấy 1 ngày hoàn chỉnh gần nhất (UTC), payload d1 rất nhỏ.
+      - Mỗi metric là 1 request riêng; trước MỖI request đều kiểm tra quota.
+      - Không còn preflight yêu cầu đủ 5 DP cho cả batch.
+      - Nếu quota chỉ còn 1-2 DP thì vẫn lấy được 1-2 metric, không bỏ cả batch.
+      - Một metric đã thử trong ngày sẽ không bị gọi lại qua auto-rerun.
     """
     state = _research_daily_state()
     if not token:
@@ -806,64 +805,164 @@ def ensure_researchbitcoin_daily_cache(token):
     if _research_daily_target_complete(state, target_key):
         return state, False, f"Đã có đủ dữ liệu ngày {target_key}; không gọi lại ResearchBitcoin."
 
-    # Một lần thử/ngày. Quan trọng: không spam 5 endpoint nếu lần trước đã fail.
-    if state.get("last_attempt_date") == today_utc.isoformat():
-        return state, False, "Đã thử cập nhật ResearchBitcoin hôm nay; giữ dữ liệu gần nhất."
+    # V38: theo dõi metric nào đã thử trong ngày thay vì khóa toàn bộ batch.
+    attempt_map = state.setdefault("attempts_by_date", {})
+    today_key = today_utc.isoformat()
+    attempted_today = set(attempt_map.get(today_key, []))
 
-    # Preflight quota: user_info là endpoint nhẹ, giúp tránh request 402 payload 180
-    # như V34 khi quota còn quá ít.
-    try:
-        info = researchbitcoin_user_info(token)
-        quota_remaining = _research_quota_remaining(info)
-    except Exception as e:
-        state["last_attempt_date"] = today_utc.isoformat()
-        state["last_attempt_status"] = f"Không đọc được user_info: {e}"
-        _save_research_daily_state(state)
-        return state, False, f"Không kiểm tra được quota ResearchBitcoin: {e}"
-
-    batch_cost = len(RESEARCH_DAILY_METRICS)  # d1, 1 ngày = khoảng 1 DP/metric
-    if quota_remaining is not None and quota_remaining < batch_cost:
-        state["last_attempt_date"] = today_utc.isoformat()
-        state["last_attempt_status"] = (
-            f"Quota còn {quota_remaining:.0f} DP, cần khoảng {batch_cost} DP cho batch ngày {target_key}."
-        )
-        _save_research_daily_state(state)
-        return state, False, (
-            f"⏸️ Chưa đủ quota ResearchBitcoin: còn {quota_remaining:.0f} DP, "
-            f"cần khoảng {batch_cost} DP. Không gọi API dữ liệu; chờ quota reset."
-        )
+    aliases = {
+        "realizedprofit": "realized_profit",
+        "realizedloss": "realized_loss",
+        "supply_in_loss": "supply_in_loss",
+        "supply_in_loss_percent": "supply_in_loss_percent",
+        "price": "btc_price",
+    }
 
     errors = []
     updated_metrics = 0
+    quota_before = None
+    quota_after = None
+    attempted_metric = None
+
+    # Mỗi lần ensure chỉ xử lý metric đầu tiên chưa có/chưa thử.
     for metric in RESEARCH_DAILY_METRICS:
-        # Nếu metric đã có trong target thì không gọi lại, kể cả batch trước bị lỗi giữa chừng.
-        aliases = {
-            "realizedprofit": "realized_profit",
-            "realizedloss": "realized_loss",
-            "supply_in_loss": "supply_in_loss",
-            "supply_in_loss_percent": "supply_in_loss_percent",
-            "price": "btc_price",
-        }
         key = aliases[metric]
         if daily.get(target_key, {}).get(key) is not None:
             continue
+        if metric in attempted_today:
+            continue
+
+        try:
+            info = researchbitcoin_user_info(token)
+            quota_before = _research_quota_remaining(info)
+        except Exception as e:
+            errors.append(f"Không đọc được quota: {e}")
+            break
+
+        # Một request d1/ngày chỉ cần khoảng 1 DP theo thiết kế cache.
+        if quota_before is not None and quota_before < 1:
+            errors.append(f"Quota còn {quota_before:.0f} DP, chưa đủ cho 1 request metric.")
+            break
+
+        attempted_metric = metric
         try:
             frame = researchbitcoin_fetch_series(token, metric, latest_complete_date, today_utc)
-            updated_metrics += _merge_series_into_daily(state, metric, frame)
-        except Exception as e:
-            errors.append(str(e))
+            added = _merge_series_into_daily(state, metric, frame)
+            updated_metrics += added
+            attempted_today.add(metric)
 
-    state["last_attempt_date"] = today_utc.isoformat()
-    state["last_attempt_status"] = f"updated_metrics={updated_metrics}"
+            # Đọc lại quota để biết request thực tế đã tiêu bao nhiêu.
+            try:
+                info_after = researchbitcoin_user_info(token)
+                quota_after = _research_quota_remaining(info_after)
+            except Exception:
+                quota_after = None
+            break
+        except Exception as e:
+            attempted_today.add(metric)
+            errors.append(str(e))
+            # Không thử metric kế tiếp trong cùng lượt nếu request vừa lỗi.
+            break
+
+    attempt_map[today_key] = sorted(attempted_today)
+    state["attempts_by_date"] = dict(sorted(attempt_map.items())[-14:])
+    state["last_attempt_date"] = today_key
+    state["last_attempt_status"] = (
+        f"metric={attempted_metric}, updated={updated_metrics}, "
+        f"quota_before={quota_before}, quota_after={quota_after}"
+    )
     state["daily"] = dict(sorted(daily.items())[-RESEARCH_DAILY_MAX_DAYS:])
     _save_research_daily_state(state)
 
     if errors:
         return state, updated_metrics > 0, (
-            f"Đã cập nhật {updated_metrics} giá trị cho ngày {target_key}; "
-            f"một số metric lỗi: {' | '.join(errors[:2])}"
+            f"Metric {attempted_metric or 'chưa xác định'}: {' | '.join(errors[:2])}. "
+            f"Quota trước={quota_before if quota_before is not None else 'N/A'} DP, "
+            f"sau={quota_after if quota_after is not None else 'N/A'} DP."
         )
-    return state, True, f"Đã cập nhật dữ liệu ResearchBitcoin cho ngày {target_key}; tối đa 1 lần/ngày/metric."
+
+    if attempted_metric is None:
+        return state, False, f"Không có metric nào cần gọi cho ngày {target_key}."
+
+    quota_text = (
+        f"Quota {quota_before:.0f} → {quota_after:.0f} DP"
+        if quota_before is not None and quota_after is not None
+        else f"Quota trước={quota_before if quota_before is not None else 'N/A'} DP"
+    )
+    return state, True, (
+        f"Đã gọi 1 metric nhỏ: {attempted_metric} cho ngày {target_key}. "
+        f"{quota_text}."
+    )
+
+
+def researchbitcoin_manual_one_metric(token, metric_slug=None):
+    """Manual V38: chỉ gọi đúng 1 metric + đúng 1 ngày, rồi đo quota trước/sau."""
+    if not token:
+        raise RuntimeError("Chưa có RESEARCHBITCOIN_API_TOKEN trong Secrets.")
+
+    state = _research_daily_state()
+    today_utc = datetime.now(timezone.utc).date()
+    latest_complete_date = today_utc - timedelta(days=1)
+    target_key = latest_complete_date.isoformat()
+    daily = state.setdefault("daily", {})
+
+    aliases = {
+        "realizedprofit": "realized_profit",
+        "realizedloss": "realized_loss",
+        "supply_in_loss": "supply_in_loss",
+        "supply_in_loss_percent": "supply_in_loss_percent",
+        "price": "btc_price",
+    }
+
+    if metric_slug is None:
+        for candidate in RESEARCH_DAILY_METRICS:
+            if daily.get(target_key, {}).get(aliases[candidate]) is None:
+                metric_slug = candidate
+                break
+        if metric_slug is None:
+            metric_slug = "realizedprofit"
+
+    if metric_slug not in RESEARCH_DAILY_METRICS:
+        raise ValueError(f"Metric không hợp lệ: {metric_slug}")
+
+    key = aliases[metric_slug]
+    if daily.get(target_key, {}).get(key) is not None:
+        return state, False, (
+            f"{metric_slug} ngày {target_key} đã có cache; không gọi API để tránh tốn quota.",
+            None,
+            None,
+        )
+
+    info_before = researchbitcoin_user_info(token)
+    quota_before = _research_quota_remaining(info_before)
+    if quota_before is not None and quota_before < 1:
+        return state, False, (
+            f"Quota chỉ còn {quota_before:.0f} DP; chưa gọi {metric_slug}.",
+            quota_before,
+            quota_before,
+        )
+
+    frame = researchbitcoin_fetch_series(token, metric_slug, latest_complete_date, today_utc)
+    added = _merge_series_into_daily(state, metric_slug, frame)
+
+    try:
+        info_after = researchbitcoin_user_info(token)
+        quota_after = _research_quota_remaining(info_after)
+    except Exception:
+        quota_after = None
+
+    state["daily"] = dict(sorted(daily.items())[-RESEARCH_DAILY_MAX_DAYS:])
+    state["last_manual_metric"] = metric_slug
+    state["last_manual_date"] = today_utc.isoformat()
+    _save_research_daily_state(state)
+
+    return state, added > 0, (
+        f"Đã gọi {metric_slug} cho ngày {target_key}; thêm {added} giá trị. "
+        f"Quota: {quota_before if quota_before is not None else 'N/A'} → "
+        f"{quota_after if quota_after is not None else 'N/A'} DP.",
+        quota_before,
+        quota_after,
+    )
 
 
 def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
@@ -1539,35 +1638,44 @@ else:
     st.info("Không có token ResearchBitcoin: chỉ số Supply in Loss sẽ để N/A.")
 
 # =========================
-# RESEARCHBITCOIN: GỌI THỦ CÔNG
+# RESEARCHBITCOIN: GỌI THỦ CÔNG — V38 SAFE ONE-METRIC
 # =========================
-# Nút này bỏ qua khóa "đã thử hôm nay" của V35/V36 để người dùng có thể
-# chủ động thử lại ngay sau khi quota đã reset. Vẫn giữ preflight quota để
-# không cố tình đốt request khi quota không đủ.
 with st.sidebar:
     st.markdown("### 🧪 ResearchBitcoin")
+    st.caption("V38: mỗi lần chỉ gọi 1 metric + 1 ngày, đo quota trước/sau.")
+    manual_metric = st.selectbox(
+        "Metric test thủ công",
+        options=list(RESEARCH_DAILY_METRICS),
+        format_func=lambda x: {
+            "realizedprofit": "🟢 Realized Profit",
+            "realizedloss": "🔴 Realized Loss",
+            "supply_in_loss": "📉 Supply in Loss",
+            "supply_in_loss_percent": "📊 Supply in Loss %",
+            "price": "₿ BTC Price",
+        }.get(x, x),
+        key="manual_research_metric_v38",
+    )
     manual_research_refresh = st.button(
-        "🧪 Gọi ResearchBitcoin thủ công",
+        "🧪 Gọi 1 metric an toàn",
         use_container_width=True,
-        help=(
-            "Bỏ qua trạng thái đã thử hôm nay và gọi lại batch dữ liệu ngày hoàn chỉnh gần nhất. "
-            "Dùng nút này để test ngay sau khi quota ResearchBitcoin reset."
-        ),
+        help="Chỉ gọi đúng 1 metric của ngày hoàn chỉnh gần nhất; không chạy cả batch 5 metric.",
     )
 
 if manual_research_refresh and token:
     try:
-        manual_state = _research_daily_state()
-        # Cho phép ensure_researchbitcoin_daily_cache thử lại ngay trong hôm nay.
-        manual_state["last_attempt_date"] = None
-        manual_state["last_attempt_status"] = "Manual refresh requested"
-        _save_research_daily_state(manual_state)
-
-        manual_state, manual_updated, manual_status = ensure_researchbitcoin_daily_cache(token)
+        manual_state, manual_updated, manual_result = researchbitcoin_manual_one_metric(
+            token, manual_metric
+        )
+        message, quota_before, quota_after = manual_result
         if manual_updated:
-            st.success("🟢 " + manual_status)
+            st.success("🟢 " + message)
         else:
-            st.warning("🟡 " + manual_status)
+            st.warning("🟡 " + message)
+        if quota_before is not None:
+            if quota_after is not None:
+                st.info(f"📊 Quota ResearchBitcoin: **{quota_before:.0f} DP → {quota_after:.0f} DP**")
+            else:
+                st.info(f"📊 Quota trước request: **{quota_before:.0f} DP**")
     except Exception as e:
         st.error(f"🔴 Gọi ResearchBitcoin thủ công lỗi: {e}")
 elif manual_research_refresh and not token:
