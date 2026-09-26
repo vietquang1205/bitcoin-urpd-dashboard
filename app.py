@@ -1538,6 +1538,41 @@ if token:
 else:
     st.info("Không có token ResearchBitcoin: chỉ số Supply in Loss sẽ để N/A.")
 
+# =========================
+# RESEARCHBITCOIN: GỌI THỦ CÔNG
+# =========================
+# Nút này bỏ qua khóa "đã thử hôm nay" của V35/V36 để người dùng có thể
+# chủ động thử lại ngay sau khi quota đã reset. Vẫn giữ preflight quota để
+# không cố tình đốt request khi quota không đủ.
+with st.sidebar:
+    st.markdown("### 🧪 ResearchBitcoin")
+    manual_research_refresh = st.button(
+        "🧪 Gọi ResearchBitcoin thủ công",
+        use_container_width=True,
+        help=(
+            "Bỏ qua trạng thái đã thử hôm nay và gọi lại batch dữ liệu ngày hoàn chỉnh gần nhất. "
+            "Dùng nút này để test ngay sau khi quota ResearchBitcoin reset."
+        ),
+    )
+
+if manual_research_refresh and token:
+    try:
+        manual_state = _research_daily_state()
+        # Cho phép ensure_researchbitcoin_daily_cache thử lại ngay trong hôm nay.
+        manual_state["last_attempt_date"] = None
+        manual_state["last_attempt_status"] = "Manual refresh requested"
+        _save_research_daily_state(manual_state)
+
+        manual_state, manual_updated, manual_status = ensure_researchbitcoin_daily_cache(token)
+        if manual_updated:
+            st.success("🟢 " + manual_status)
+        else:
+            st.warning("🟡 " + manual_status)
+    except Exception as e:
+        st.error(f"🔴 Gọi ResearchBitcoin thủ công lỗi: {e}")
+elif manual_research_refresh and not token:
+    st.warning("Chưa có RESEARCHBITCOIN_API_TOKEN trong Secrets.")
+
 # Realized P/L thật — tách khỏi URPD proxy để có thể đối chiếu kiểu Glassnode.
 render_realized_profit_loss_chart(token, price)
 
