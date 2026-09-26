@@ -2160,7 +2160,7 @@ else:
         label_mask = valid_delta & (np.abs(delta_btc) >= 50.0)
         delta_text = np.where(
             label_mask,
-            [f"{d:+,.0f} BTC" if np.isfinite(d) else "" for d in delta_btc],
+            [f"{d:+,.0f}" if np.isfinite(d) else "" for d in delta_btc],
             "",
         )
         delta_y = urpd_plot.btc_amount.to_numpy(float) + np.maximum(urpd_plot.btc_amount.to_numpy(float) * 0.012, 150.0)
