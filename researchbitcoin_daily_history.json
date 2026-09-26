@@ -2,14 +2,16 @@
   "version": 1,
   "daily": {
     "2026-09-25": {
-      "realized_profit": 940330766.2044747
+      "realized_profit": 940330766.2044747,
+      "realized_loss": 385688865.06889045
     }
   },
   "last_attempt_date": "2026-09-26",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=realizedprofit, updated=1, quota_before=2.0, quota_after=1.0",
+  "last_attempt_status": "metric=realizedloss, updated=1, quota_before=1.0, quota_after=0.0",
   "attempts_by_date": {
     "2026-09-26": [
+      "realizedloss",
       "realizedprofit"
     ]
   }
