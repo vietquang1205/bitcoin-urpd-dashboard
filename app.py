@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V39", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V40", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -805,7 +805,7 @@ def ensure_researchbitcoin_daily_cache(token):
     if _research_daily_target_complete(state, target_key):
         return state, False, f"Đã có đủ dữ liệu ngày {target_key}; không gọi lại ResearchBitcoin."
 
-    # V38: theo dõi metric nào đã thử trong ngày thay vì khóa toàn bộ batch.
+    # V40: batch thủ công tổng hợp toàn bộ metric, từng request vẫn kiểm tra quota.
     attempt_map = state.setdefault("attempts_by_date", {})
     today_key = today_utc.isoformat()
     attempted_today = set(attempt_map.get(today_key, []))
@@ -896,7 +896,7 @@ def ensure_researchbitcoin_daily_cache(token):
 
 
 def researchbitcoin_manual_one_metric(token, metric_slug=None):
-    """Manual V38: chỉ gọi đúng 1 metric + đúng 1 ngày, rồi đo quota trước/sau."""
+    """Manual V40: một lần bấm gọi batch toàn bộ metric cho ngày gần nhất, đo quota trước/sau từng request."""
     if not token:
         raise RuntimeError("Chưa có RESEARCHBITCOIN_API_TOKEN trong Secrets.")
 
@@ -1638,11 +1638,12 @@ else:
     st.info("Không có token ResearchBitcoin: chỉ số Supply in Loss sẽ để N/A.")
 
 # =========================
-# RESEARCHBITCOIN: GỌI THỦ CÔNG — V38 SAFE ONE-METRIC
+# RESEARCHBITCOIN: GỌI THỦ CÔNG — V40 BATCH TỔNG HỢP
 # =========================
 with st.sidebar:
+    st.caption("🛠️ BTC URPD Monitor V40 — bản batch thủ công")
     st.markdown("### 🧪 ResearchBitcoin")
-    st.caption("V39: bấm 1 lần để gọi tuần tự toàn bộ metric còn thiếu của ngày gần nhất; mỗi request vẫn kiểm tra quota trước/sau.")
+    st.caption("V40: một nút gọi tổng hợp toàn bộ metric còn thiếu của ngày gần nhất; mỗi request vẫn kiểm tra quota trước/sau.")
     manual_research_refresh = st.button(
         "🧪 Cập nhật toàn bộ Realized P/L thủ công",
         use_container_width=True,
@@ -3433,10 +3434,10 @@ else:
 # =========================
 st.markdown("---")
 st.header("📰 BTC News Radar — Vĩ mô, dòng vốn và sự kiện có thể tác động BTC")
-st.caption("Tin tức được làm mới khoảng mỗi 15 phút; lịch sự kiện lọc trong 7 ngày tới. V28 hiển thị tiêu đề tiếng Việt, giữ tiêu đề tiếng Anh gốc và dịch mô tả khi có; News/Macro vẫn chiếm 40% điểm tổng hợp cùng URPD 60%.")
+st.caption("Tin tức được làm mới khoảng mỗi 12 giờ; lịch sự kiện lọc trong 7 ngày tới. V40 hiển thị tiêu đề tiếng Việt, giữ tiêu đề tiếng Anh gốc và dịch mô tả khi có; News/Macro vẫn chiếm 40% điểm tổng hợp cùng URPD 60%.")
 
 # V27 đã lấy News Radar trước phần báo cáo để dùng được cho điểm tổng hợp.
-# Hai biến này được cache 15 phút nên không tạo thêm lượt gọi ngoài ý muốn.
+# Hai biến này được cache 12 giờ nên không tạo thêm lượt gọi ngoài ý muốn.
 
 n1, n2 = st.columns([1.35, 1])
 with n1:
