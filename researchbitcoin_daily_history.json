@@ -29,5 +29,7 @@
       "supply_in_loss",
       "supply_in_loss_percent"
     ]
-  }
+  },
+  "last_manual_batch_date": "2026-09-28",
+  "last_manual_batch_status": "✓ realizedprofit: đã có cache | ✓ realizedloss: đã có cache | ✓ supply_in_loss: đã có cache | ✓ supply_in_loss_percent: đã có cache | ✓ price: đã có cache"
 }
