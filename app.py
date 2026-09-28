@@ -1044,7 +1044,8 @@ def render_realized_profit_loss_chart(token, current_price):
             df["btc_price"] = df["btc_price"].ffill().bfill().fillna(float(current_price))
 
         range_options = {"30 ngày": 30, "90 ngày": 90, "180 ngày": 180}
-        range_label = st.radio("Khoảng thời gian Realized P/L", list(range_options), horizontal=True, index=2)
+        # Mặc định 90 ngày để biểu đồ thoáng và giống bố cục tham chiếu.
+        range_label = st.radio("Khoảng thời gian Realized P/L", list(range_options), horizontal=True, index=1)
         days = range_options[range_label]
         cutoff = df["date"].max() - timedelta(days=days - 1)
         plot_df = df[df["date"] >= cutoff].copy()
@@ -1053,22 +1054,111 @@ def render_realized_profit_loss_chart(token, current_price):
 
         from plotly.subplots import make_subplots
         fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Bar(x=plot_df["date"], y=plot_df["realized_profit"], name="🟢 Realized Profit", marker_color="#22c55e",
-                             hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Profit: $%{y:,.0f}<extra></extra>"), secondary_y=False)
-        fig.add_trace(go.Bar(x=plot_df["date"], y=plot_df["loss_plot"], name="🔴 Realized Loss", marker_color="#ef4444",
-                             hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Loss: $%{customdata:,.0f}<extra></extra>", customdata=plot_df["realized_loss"]), secondary_y=False)
-        fig.add_trace(go.Scatter(x=plot_df["date"], y=plot_df["net_ema7"], name="Net Realized P/L (7D EMA)", mode="lines",
-                                 line=dict(color="#111827", width=2.2), hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Net P/L 7D EMA: $%{y:,.0f}<extra></extra>"), secondary_y=False)
-        fig.add_trace(go.Scatter(x=plot_df["date"], y=plot_df["btc_price"], name="BTC Price", mode="lines",
-                                 line=dict(color="#f8fafc", width=2.0), hovertemplate="Ngày: %{x|%d/%m/%Y}<br>BTC Price: $%{y:,.0f}<extra></extra>"), secondary_y=True)
+
+        # Phong cách giống biểu đồ tham chiếu:
+        # - Profit xanh nằm trên 0
+        # - Loss đỏ nằm dưới 0
+        # - Net Realized P/L (7D EMA) là đường tối, mảnh
+        # - BTC Price là đường trắng trên trục phải
+        # - Không nhồi title vào bên trong vùng plot
+        fig.add_trace(
+            go.Bar(
+                x=plot_df["date"],
+                y=plot_df["realized_profit"],
+                name="Realized Profit",
+                marker=dict(color="#22c55e"),
+                width=0.72,
+                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Profit: $%{y:,.0f}<extra></extra>",
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Bar(
+                x=plot_df["date"],
+                y=plot_df["loss_plot"],
+                name="Realized Loss",
+                marker=dict(color="#ef4444"),
+                width=0.72,
+                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Realized Loss: $%{customdata:,.0f}<extra></extra>",
+                customdata=plot_df["realized_loss"],
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=plot_df["date"],
+                y=plot_df["net_ema7"],
+                name="Net Realized P/L (7D EMA)",
+                mode="lines",
+                line=dict(color="#111827", width=2.4),
+                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>Net P/L 7D EMA: $%{y:,.0f}<extra></extra>",
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=plot_df["date"],
+                y=plot_df["btc_price"],
+                name="BTC Price",
+                mode="lines",
+                line=dict(color="#f8fafc", width=2.5),
+                hovertemplate="Ngày: %{x|%d/%m/%Y}<br>BTC Price: $%{y:,.0f}<extra></extra>",
+            ),
+            secondary_y=True,
+        )
+
         fig.add_hline(y=0, line_width=1, line_color="#94a3b8", secondary_y=False)
-        fig.update_layout(height=560, template="plotly_dark", barmode="relative", hovermode="x unified",
-                          margin=dict(l=55, r=60, t=35, b=45), legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
-                          title="BTC — Realized Profit/Loss (USD) + Giá BTC")
-        fig.update_yaxes(title_text="Realized Profit / Loss (USD)", tickprefix="$", separatethousands=True, zeroline=True, showgrid=True, secondary_y=False)
-        fig.update_yaxes(title_text="BTC Price (USD)", tickprefix="$", separatethousands=True, showgrid=False, secondary_y=True)
-        fig.update_xaxes(title_text="Ngày", showgrid=False)
-        st.plotly_chart(fig, use_container_width=True, key="btc_realized_profit_loss_glassnode_style")
+
+        fig.update_layout(
+            height=570,
+            template="plotly_dark",
+            barmode="relative",
+            hovermode="x unified",
+            margin=dict(l=48, r=62, t=38, b=52),
+            paper_bgcolor="#0b0f14",
+            plot_bgcolor="#0b0f14",
+            bargap=0.16,
+            bargroupgap=0.04,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.015,
+                xanchor="left",
+                x=0.02,
+                bgcolor="rgba(0,0,0,0)",
+                font=dict(size=12),
+            ),
+        )
+
+        fig.update_yaxes(
+            title_text="Realized Profit / Loss (USD)",
+            tickprefix="$",
+            separatethousands=True,
+            zeroline=False,
+            showgrid=True,
+            gridcolor="rgba(148,163,184,0.22)",
+            secondary_y=False,
+        )
+        fig.update_yaxes(
+            title_text="BTC Price (USD)",
+            tickprefix="$",
+            separatethousands=True,
+            showgrid=False,
+            zeroline=False,
+            secondary_y=True,
+        )
+        fig.update_xaxes(
+            title_text="Ngày",
+            showgrid=False,
+            rangeslider_visible=False,
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            key="btc_realized_profit_loss_glassnode_style",
+            config={"displaylogo": False, "responsive": True},
+        )
 
         latest = plot_df.iloc[-1]
         c1, c2, c3 = st.columns(3)
