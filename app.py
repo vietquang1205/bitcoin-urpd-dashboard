@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V35", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V39", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -45,7 +45,7 @@ BOTTOM_START = 58000.0
 BOTTOM_END = 78000.0
 DEFAULT_ATH = 126198.07
 URPD_CHECK_MINUTES = 60
-NEWS_CHECK_MINUTES = 15
+NEWS_CHECK_MINUTES = 12 * 60
 URPD_CHECK_SECONDS = URPD_CHECK_MINUTES * 60
 NEWS_RELOAD_SECONDS = NEWS_CHECK_MINUTES * 60
 
@@ -1077,7 +1077,7 @@ def render_realized_profit_loss_chart(token, current_price):
         c3.metric("Net P/L", f"${latest['net_calc']:+,.0f}")
         st.caption(
             f"Ngày mới nhất trong cache: {latest['date'].strftime('%d/%m/%Y')} • Giá BTC: ${latest['btc_price']:,.0f}. "
-            "Chart đọc dữ liệu đã lưu; ResearchBitcoin chỉ được gọi tối đa 1 lần/ngày cho mỗi metric."
+            "Chart đọc dữ liệu đã lưu; ResearchBitcoin chỉ gọi dữ liệu mới khi thiếu ngày và luôn kiểm tra quota trước từng request."
         )
 
     except Exception as e:
@@ -1222,7 +1222,7 @@ NEWS_QUERIES = [
     ("Địa chính trị / dầu", 'Bitcoin oil OR Iran OR Middle East OR geopolitics'),
 ]
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=12 * 60 * 60, show_spinner=False)
 def fetch_news_radar(days=7, max_items=30):
     """Lấy tin 7 ngày gần nhất từ Google News RSS; thất bại nguồn nào thì bỏ qua."""
     now = datetime.now(timezone.utc)
@@ -1403,10 +1403,10 @@ with st.sidebar:
         ),
     )
     news_auto_refresh_enabled = st.checkbox(
-        "📰 Tự động cập nhật tin mỗi 15 phút",
+        "📰 Tự động cập nhật tin mỗi 12 giờ",
         value=True,
         help=(
-            "Mỗi 15 phút dashboard tự rerun để lấy tin mới. News Radar dùng cache 15 phút; "
+            "Mỗi 12 giờ dashboard tự rerun để lấy tin mới. News Radar dùng cache 12 giờ; "
             "việc này không gọi lại Bitview trừ khi đến chu kỳ kiểm tra URPD 1 giờ."
         ),
     )
@@ -1435,11 +1435,11 @@ should_check_new_snapshot = bool(force_refresh or auto_check_due)
 if should_check_new_snapshot:
     st.session_state["last_auto_check_utc"] = now_utc.isoformat()
 
-# V27: trang tự rerun mỗi 15 phút để News Radar có cơ hội lấy headline mới.
+# V39: trang tự rerun mỗi 12 giờ để News Radar có cơ hội lấy headline mới.
 # Nếu tắt News nhưng vẫn bật URPD, trang chỉ cần thức dậy mỗi 1 giờ.
 if news_auto_refresh_enabled:
     page_reload_seconds = NEWS_RELOAD_SECONDS
-    page_reload_label = f"tin tức {NEWS_CHECK_MINUTES} phút"
+    page_reload_label = "tin tức 12 giờ"
 elif auto_refresh_enabled:
     page_reload_seconds = URPD_CHECK_SECONDS
     page_reload_label = f"URPD {URPD_CHECK_MINUTES} phút"
@@ -1605,7 +1605,7 @@ if auto_refresh_enabled and not history_should_save:
 elif auto_refresh_enabled and history_should_save:
     st.caption("🟢 URPD: đã kiểm tra tự động và phát hiện snapshot mới; history đã được cập nhật.")
 if news_auto_refresh_enabled:
-    st.caption(f"📰 News Radar: tự rerun mỗi {NEWS_CHECK_MINUTES} phút; dữ liệu tin được cache {NEWS_CHECK_MINUTES} phút.")
+    st.caption("📰 News Radar: tự rerun mỗi 12 giờ; dữ liệu tin được cache 12 giờ.")
 
 price = btc_price()
 if price is None:
@@ -1642,42 +1642,96 @@ else:
 # =========================
 with st.sidebar:
     st.markdown("### 🧪 ResearchBitcoin")
-    st.caption("V38: mỗi lần chỉ gọi 1 metric + 1 ngày, đo quota trước/sau.")
-    manual_metric = st.selectbox(
-        "Metric test thủ công",
-        options=list(RESEARCH_DAILY_METRICS),
-        format_func=lambda x: {
-            "realizedprofit": "🟢 Realized Profit",
-            "realizedloss": "🔴 Realized Loss",
-            "supply_in_loss": "📉 Supply in Loss",
-            "supply_in_loss_percent": "📊 Supply in Loss %",
-            "price": "₿ BTC Price",
-        }.get(x, x),
-        key="manual_research_metric_v38",
-    )
+    st.caption("V39: bấm 1 lần để gọi tuần tự toàn bộ metric còn thiếu của ngày gần nhất; mỗi request vẫn kiểm tra quota trước/sau.")
     manual_research_refresh = st.button(
-        "🧪 Gọi 1 metric an toàn",
+        "🧪 Cập nhật toàn bộ Realized P/L thủ công",
         use_container_width=True,
-        help="Chỉ gọi đúng 1 metric của ngày hoàn chỉnh gần nhất; không chạy cả batch 5 metric.",
+        help="Một lần bấm sẽ lần lượt lấy Realized Profit, Realized Loss, Supply in Loss, Supply in Loss %, và BTC Price cho ngày hoàn chỉnh gần nhất. Nếu quota hết giữa chừng, dừng an toàn và giữ dữ liệu đã lấy.",
     )
+
+def researchbitcoin_manual_batch(token):
+    """V39: một lần bấm gọi tuần tự toàn bộ metric còn thiếu cho 1 ngày.
+    Mỗi request vẫn kiểm tra quota; hết quota thì dừng, không spam API.
+    """
+    if not token:
+        raise RuntimeError("Chưa có RESEARCHBITCOIN_API_TOKEN trong Secrets.")
+
+    state = _research_daily_state()
+    today_utc = datetime.now(timezone.utc).date()
+    latest_complete_date = today_utc - timedelta(days=1)
+    target_key = latest_complete_date.isoformat()
+    daily = state.setdefault("daily", {})
+    aliases = {
+        "realizedprofit": "realized_profit",
+        "realizedloss": "realized_loss",
+        "supply_in_loss": "supply_in_loss",
+        "supply_in_loss_percent": "supply_in_loss_percent",
+        "price": "btc_price",
+    }
+
+    results = []
+    total_added = 0
+    quota_start = None
+    quota_last = None
+
+    for metric in RESEARCH_DAILY_METRICS:
+        key = aliases[metric]
+        if daily.get(target_key, {}).get(key) is not None:
+            results.append(f"✓ {metric}: đã có cache")
+            continue
+
+        try:
+            info_before = researchbitcoin_user_info(token)
+            quota_before = _research_quota_remaining(info_before)
+            if quota_start is None:
+                quota_start = quota_before
+            if quota_before is not None and quota_before < 1:
+                results.append(f"⏸ {metric}: quota còn {quota_before:.0f} DP, dừng")
+                break
+
+            frame = researchbitcoin_fetch_series(token, metric, latest_complete_date, today_utc)
+            added = _merge_series_into_daily(state, metric, frame)
+            total_added += added
+
+            try:
+                info_after = researchbitcoin_user_info(token)
+                quota_after = _research_quota_remaining(info_after)
+                quota_last = quota_after
+            except Exception:
+                quota_after = None
+                quota_last = quota_before
+
+            results.append(
+                f"✓ {metric}: +{added} giá trị"
+                + (f" | {quota_before:.0f}→{quota_after:.0f} DP" if quota_after is not None else "")
+            )
+        except Exception as e:
+            results.append(f"✗ {metric}: {e}")
+            break
+
+    state["last_manual_batch_date"] = today_utc.isoformat()
+    state["last_manual_batch_status"] = " | ".join(results)
+    state["daily"] = dict(sorted(daily.items())[-RESEARCH_DAILY_MAX_DAYS:])
+    _save_research_daily_state(state)
+
+    return state, total_added > 0, results, quota_start, quota_last
+
 
 if manual_research_refresh and token:
     try:
-        manual_state, manual_updated, manual_result = researchbitcoin_manual_one_metric(
-            token, manual_metric
-        )
-        message, quota_before, quota_after = manual_result
+        manual_state, manual_updated, manual_results, quota_start, quota_last = researchbitcoin_manual_batch(token)
         if manual_updated:
-            st.success("🟢 " + message)
+            st.success(f"🟢 Đã xử lý batch Realized P/L cho ngày {(datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()}.")
         else:
-            st.warning("🟡 " + message)
-        if quota_before is not None:
-            if quota_after is not None:
-                st.info(f"📊 Quota ResearchBitcoin: **{quota_before:.0f} DP → {quota_after:.0f} DP**")
+            st.warning("🟡 Không thêm dữ liệu mới; xem chi tiết bên dưới.")
+        st.code("\n".join(manual_results), language="text")
+        if quota_start is not None:
+            if quota_last is not None:
+                st.info(f"📊 Quota tổng: **{quota_start:.0f} DP → {quota_last:.0f} DP**")
             else:
-                st.info(f"📊 Quota trước request: **{quota_before:.0f} DP**")
+                st.info(f"📊 Quota đầu batch: **{quota_start:.0f} DP**")
     except Exception as e:
-        st.error(f"🔴 Gọi ResearchBitcoin thủ công lỗi: {e}")
+        st.error(f"🔴 Gọi ResearchBitcoin batch thủ công lỗi: {e}")
 elif manual_research_refresh and not token:
     st.warning("Chưa có RESEARCHBITCOIN_API_TOKEN trong Secrets.")
 
