@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V44", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V43", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -1266,14 +1266,6 @@ try:
     market = market_overview()
 except Exception as e:
     market_error = str(e)
-
-# ResearchBitcoin token: giữ cho Supply in Loss trực tiếp hoạt động.
-# V43 bị thiếu biến này nên Streamlit báo NameError tại `if token:`.
-token = os.getenv("RESEARCHBITCOIN_API_TOKEN", "").strip()
-try:
-    token = str(st.secrets.get("RESEARCHBITCOIN_API_TOKEN", token) or token).strip()
-except Exception:
-    pass
 
 loss_btc = None
 loss_percent = None
