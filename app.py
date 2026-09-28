@@ -896,7 +896,7 @@ def ensure_researchbitcoin_daily_cache(token):
 
 
 def researchbitcoin_manual_one_metric(token, metric_slug=None):
-    """Manual V40: một lần bấm gọi batch toàn bộ metric cho ngày gần nhất, đo quota trước/sau từng request."""
+    """Manual V42: một lần bấm chạy toàn bộ metric còn thiếu cho ngày gần nhất."""
     if not token:
         raise RuntimeError("Chưa có RESEARCHBITCOIN_API_TOKEN trong Secrets.")
 
@@ -1731,17 +1731,17 @@ else:
 # RESEARCHBITCOIN: GỌI THỦ CÔNG — V40 BATCH TỔNG HỢP
 # =========================
 with st.sidebar:
-    st.caption("🛠️ BTC URPD Monitor V40 — bản batch thủ công")
+    st.caption("🛠️ BTC URPD Monitor V42 — batch thủ công 1 nút")
     st.markdown("### 🧪 ResearchBitcoin")
-    st.caption("V40: một nút gọi tổng hợp toàn bộ metric còn thiếu của ngày gần nhất; mỗi request vẫn kiểm tra quota trước/sau.")
+    st.caption("V42: chỉ 1 nút cho toàn bộ Realized P/L; không có chọn metric riêng.")
     manual_research_refresh = st.button(
-        "🧪 Cập nhật toàn bộ Realized P/L thủ công",
+        "🧪 CẬP NHẬT TOÀN BỘ Realized P/L (1 LẦN BẤM)",
         use_container_width=True,
-        help="Một lần bấm sẽ lần lượt lấy Realized Profit, Realized Loss, Supply in Loss, Supply in Loss %, và BTC Price cho ngày hoàn chỉnh gần nhất. Nếu quota hết giữa chừng, dừng an toàn và giữ dữ liệu đã lấy.",
+        help="Chỉ bấm 1 lần: app tự xử lý toàn bộ metric còn thiếu của ngày gần nhất. Không cần chọn từng metric. Nếu quota hết giữa chừng, dừng an toàn và giữ dữ liệu đã lấy.",
     )
 
 def researchbitcoin_manual_batch(token):
-    """V39: một lần bấm gọi tuần tự toàn bộ metric còn thiếu cho 1 ngày.
+    """V42: một lần bấm gọi tuần tự toàn bộ metric còn thiếu cho 1 ngày.
     Mỗi request vẫn kiểm tra quota; hết quota thì dừng, không spam API.
     """
     if not token:
@@ -3524,7 +3524,7 @@ else:
 # =========================
 st.markdown("---")
 st.header("📰 BTC News Radar — Vĩ mô, dòng vốn và sự kiện có thể tác động BTC")
-st.caption("Tin tức được làm mới khoảng mỗi 12 giờ; lịch sự kiện lọc trong 7 ngày tới. V40 hiển thị tiêu đề tiếng Việt, giữ tiêu đề tiếng Anh gốc và dịch mô tả khi có; News/Macro vẫn chiếm 40% điểm tổng hợp cùng URPD 60%.")
+st.caption("Tin tức được làm mới khoảng mỗi 12 giờ; lịch sự kiện lọc trong 7 ngày tới. V42 hiển thị tiêu đề tiếng Việt, giữ tiêu đề tiếng Anh gốc và dịch mô tả khi có; News/Macro vẫn chiếm 40% điểm tổng hợp cùng URPD 60%.")
 
 # V27 đã lấy News Radar trước phần báo cáo để dùng được cho điểm tổng hợp.
 # Hai biến này được cache 12 giờ nên không tạo thêm lượt gọi ngoài ý muốn.
