@@ -6,12 +6,13 @@
       "realized_loss": 385688865.06889045
     },
     "2026-09-27": {
-      "realized_profit": 190448429.90772754
+      "realized_profit": 190448429.90772754,
+      "realized_loss": 53091869.18360886
     }
   },
   "last_attempt_date": "2026-09-28",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=realizedprofit, updated=1, quota_before=55000.0, quota_after=54999.0",
+  "last_attempt_status": "metric=realizedloss, updated=1, quota_before=54999.0, quota_after=54998.0",
   "attempts_by_date": {
     "2026-09-26": [
       "realizedloss",
@@ -19,6 +20,7 @@
     ],
     "2026-09-27": [],
     "2026-09-28": [
+      "realizedloss",
       "realizedprofit"
     ]
   }
