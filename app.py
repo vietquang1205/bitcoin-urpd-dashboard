@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V44", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V45", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -49,6 +49,24 @@ URPD_CHECK_MINUTES = 60
 NEWS_CHECK_MINUTES = 12 * 60
 URPD_CHECK_SECONDS = URPD_CHECK_MINUTES * 60
 NEWS_RELOAD_SECONDS = NEWS_CHECK_MINUTES * 60
+
+# =========================
+# GLOBAL CONFIG — GitHub + ResearchBitcoin
+# Phải khai báo trước mọi hàm có thể dùng cache GitHub.
+# =========================
+def _secret(name, default=""):
+    try:
+        value = st.secrets.get(name, default)
+    except Exception:
+        value = default
+    return str(value or default).strip()
+
+
+github_token = _secret("GITHUB_TOKEN")
+github_repo = _secret("GITHUB_REPO")
+github_branch = _secret("GITHUB_BRANCH", "main") or "main"
+
+token = _secret("RESEARCHBITCOIN_API_TOKEN") or os.getenv("RESEARCHBITCOIN_API_TOKEN", "").strip()
 
 
 def pick_col(df, candidates):
@@ -1267,14 +1285,6 @@ try:
 except Exception as e:
     market_error = str(e)
 
-# ResearchBitcoin token: giữ cho Supply in Loss trực tiếp hoạt động.
-# V43 bị thiếu biến này nên Streamlit báo NameError tại `if token:`.
-token = os.getenv("RESEARCHBITCOIN_API_TOKEN", "").strip()
-try:
-    token = str(st.secrets.get("RESEARCHBITCOIN_API_TOKEN", token) or token).strip()
-except Exception:
-    pass
-
 loss_btc = None
 loss_percent = None
 loss_source = ""
@@ -1295,7 +1305,7 @@ else:
 # BGEOMETRICS: CẬP NHẬT REALIZED P/L — 1 NÚT
 # =========================
 with st.sidebar:
-    st.caption("🛠️ BTC URPD Monitor V43 — Realized P/L từ BGeometrics Free")
+    st.caption("🛠️ BTC URPD Monitor V45 — Realized P/L từ BGeometrics Free")
     st.markdown("### 🟢 Realized P/L")
     st.caption("Bấm 1 lần: lấy toàn bộ Profit + Loss + NRPL + BTC Price + Supply Loss rồi lưu cache.")
     manual_bg_refresh = st.button(
