@@ -21,7 +21,7 @@
   },
   "last_attempt_date": "2026-09-29",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=supply_in_loss_percent, updated=1, quota_before=54989.0, quota_after=54988.0",
+  "last_attempt_status": "metric=supply_in_loss_percent, updated=1, quota_before=54988.0, quota_after=54987.0",
   "attempts_by_date": {
     "2026-09-26": [
       "realizedloss",
