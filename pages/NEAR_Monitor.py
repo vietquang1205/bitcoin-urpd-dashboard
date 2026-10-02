@@ -14,7 +14,7 @@ st.caption("NEAR chạy độc lập với BTC. API chỉ được gọi sau khi
 # NEAR MONITOR — free/public data layer
 # =========================
 NEAR_CG_ID = "near"
-NEAR_RPC_URL = "https://rpc.mainnet.near.org"
+NEAR_RPC_URL = "https://rpc.mainnet.fastnear.com"
 try:
     NEARBLOCKS_API_KEY = st.secrets.get("NEARBLOCKS_API_KEY", "")
 except Exception:
@@ -120,7 +120,7 @@ def _near_rpc(method, params=None):
 @st.cache_data(ttl=600, show_spinner=False)
 def near_network_data():
     status = _near_rpc("status", [])
-    validators = _near_rpc("validators", ["final"])
+    validators = _near_rpc("validators", [None])
     current = validators.get("current_validators", []) or []
     total_stake_yocto = 0.0
     for v in current:
