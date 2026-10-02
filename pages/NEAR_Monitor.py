@@ -136,29 +136,48 @@ def near_network_data():
 
 @st.cache_data(ttl=900, show_spinner=False)
 def near_defillama_data():
-    chain_url = "https://api.llama.fi/v2/chain/Near"
-    hist_url = "https://api.llama.fi/v2/historicalChainTvl/Near"
-    r1 = requests.get(chain_url, timeout=25)
+    # DeFiLlama's current chain data is served from /v2/chains.
+    # The old /v2/chain/Near URL returns 404, so do not call it.
+    chains_url = "https://api.llama.fi/v2/chains"
+    r1 = requests.get(chains_url, timeout=25)
     r1.raise_for_status()
-    chain = r1.json()
+    chains = r1.json()
+    if not isinstance(chains, list):
+        raise ValueError("DeFiLlama /v2/chains không trả về danh sách chain.")
 
-    r2 = requests.get(hist_url, timeout=25)
-    r2.raise_for_status()
-    hist = r2.json()
-    hist_rows = []
-    for row in hist if isinstance(hist, list) else []:
-        if isinstance(row, dict):
-            ts = row.get("date")
-            tvl = row.get("tvl")
-            try:
-                if isinstance(ts, (int, float)):
-                    dt = pd.to_datetime(ts, unit="s", utc=True)
-                else:
-                    dt = pd.to_datetime(ts, utc=True)
-                hist_rows.append({"date": dt, "tvl": float(tvl)})
-            except Exception:
-                pass
-    hist_df = pd.DataFrame(hist_rows).sort_values("date") if hist_rows else pd.DataFrame(columns=["date", "tvl"])
+    chain = next(
+        (row for row in chains if isinstance(row, dict) and str(row.get("name", "")).strip().lower() == "near"),
+        None,
+    )
+    if chain is None:
+        raise ValueError("Không tìm thấy chain Near trong DeFiLlama /v2/chains.")
+
+    # /charts/{chain} is the public historical chain TVL endpoint.
+    # If history is temporarily unavailable, keep current metrics usable.
+    hist_df = pd.DataFrame(columns=["date", "tvl"])
+    try:
+        hist_url = "https://api.llama.fi/charts/Near"
+        r2 = requests.get(hist_url, timeout=25)
+        r2.raise_for_status()
+        hist = r2.json()
+        hist_rows = []
+        for row in hist if isinstance(hist, list) else []:
+            if isinstance(row, dict):
+                ts = row.get("date")
+                tvl = row.get("tvl")
+                try:
+                    if isinstance(ts, (int, float)):
+                        dt = pd.to_datetime(ts, unit="s", utc=True)
+                    else:
+                        dt = pd.to_datetime(ts, utc=True)
+                    hist_rows.append({"date": dt, "tvl": float(tvl)})
+                except Exception:
+                    pass
+        if hist_rows:
+            hist_df = pd.DataFrame(hist_rows).sort_values("date").reset_index(drop=True)
+    except Exception:
+        # Do not fail the entire NEAR dashboard just because historical TVL is unavailable.
+        pass
 
     return {"chain": chain, "history": hist_df}
 
@@ -265,9 +284,9 @@ def render_near_monitor():
     chain = defi.get("chain", {})
     hist = defi.get("history")
     tvl_now = _near_num(chain.get("tvl"))
-    stables = _near_num(chain.get("stablecoinsMcap", chain.get("stablecoinsMcapUsd")))
-    dex_vol = _near_num(chain.get("dexsVolume24h", chain.get("dexsVolume")))
-    active = _near_num(chain.get("activeAddresses24h", chain.get("activeAddresses")))
+    stables = _near_num(chain.get("stablesMcap", chain.get("stablecoinsMcap", chain.get("stablecoinsMcapUsd"))))
+    dex_vol = _near_num(chain.get("24hVolume", chain.get("dexsVolume24h", chain.get("dexsVolume"))))
+    active = _near_num(chain.get("activeAddresses", chain.get("activeAddresses24h")))
     txs = _near_num(chain.get("transactions24h", chain.get("transactions")))
 
     # Market Snapshot
