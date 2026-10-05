@@ -55,12 +55,13 @@
       "btc_price": 84689.2
     },
     "2026-10-04": {
-      "realized_profit": 368708949.1486658
+      "realized_profit": 368708949.1486658,
+      "realized_loss": 19063445.923425604
     }
   },
   "last_attempt_date": "2026-10-05",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=realizedprofit, updated=1, quota_before=54947.0, quota_after=54946.0",
+  "last_attempt_status": "metric=realizedloss, updated=1, quota_before=54946.0, quota_after=54945.0",
   "attempts_by_date": {
     "2026-09-26": [
       "realizedloss",
@@ -117,6 +118,7 @@
       "supply_in_loss_percent"
     ],
     "2026-10-05": [
+      "realizedloss",
       "realizedprofit"
     ]
   },
