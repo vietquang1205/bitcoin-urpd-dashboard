@@ -935,6 +935,11 @@
       "realized_profit": 370647147.29,
       "realized_loss": -23410357.33,
       "btc_price": 86614.0
+    },
+    "2026-10-05": {
+      "realized_profit": 1072317937.5,
+      "realized_loss": -173385278.6,
+      "btc_price": 85904.0
     }
   }
 }
