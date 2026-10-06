@@ -1,4 +1,5 @@
 import requests
+from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -51,15 +52,11 @@ def _near_fmt_near(v):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def near_market_data():
+def _coingecko_market_data():
     url = f"https://api.coingecko.com/api/v3/coins/{NEAR_CG_ID}"
     params = {
-        "localization": "false",
-        "tickers": "false",
-        "market_data": "true",
-        "community_data": "false",
-        "developer_data": "false",
-        "sparkline": "false",
+        "localization": "false", "tickers": "false", "market_data": "true",
+        "community_data": "false", "developer_data": "false", "sparkline": "false",
     }
     r = requests.get(url, params=params, timeout=20)
     r.raise_for_status()
@@ -79,22 +76,84 @@ def near_market_data():
     }
 
 
-@st.cache_data(ttl=900, show_spinner=False)
-def near_market_chart(days=90):
-    url = f"https://api.coingecko.com/api/v3/coins/{NEAR_CG_ID}/market_chart"
-    r = requests.get(url, params={"vs_currency": "usd", "days": days}, timeout=25)
+@st.cache_data(ttl=120, show_spinner=False)
+def _binance_near_ticker():
+    r = requests.get(
+        "https://api.binance.com/api/v3/ticker/24hr",
+        params={"symbol": "NEARUSDT"}, timeout=15
+    )
     r.raise_for_status()
-    prices = r.json().get("prices", [])
+    j = r.json()
+    return {
+        "price": _near_num(j.get("lastPrice")),
+        "volume_24h": _near_num(j.get("quoteVolume")),
+        "change_24h": _near_num(j.get("priceChangePercent")),
+    }
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _binance_near_chart(days=90):
+    r = requests.get(
+        "https://api.binance.com/api/v3/klines",
+        params={"symbol": "NEARUSDT", "interval": "1d", "limit": min(int(days), 1000)},
+        timeout=20,
+    )
+    r.raise_for_status()
     rows = []
-    for ts, price in prices:
+    for row in r.json():
         try:
-            rows.append({
-                "date": pd.to_datetime(ts, unit="ms", utc=True),
-                "price": float(price),
-            })
+            rows.append({"date": pd.to_datetime(row[0], unit="ms", utc=True), "price": float(row[4])})
         except Exception:
-            continue
+            pass
     return pd.DataFrame(rows).drop_duplicates("date").sort_values("date")
+
+
+def near_market_data():
+    """CoinGecko first, Binance fallback. A 429 must not kill the dashboard."""
+    try:
+        data = _coingecko_market_data()
+        data["_source"] = "CoinGecko"
+        return data
+    except Exception as cg_error:
+        try:
+            b = _binance_near_ticker()
+            return {
+                "price": b["price"], "market_cap": np.nan, "fdv": np.nan,
+                "volume_24h": b["volume_24h"], "change_24h": b["change_24h"],
+                "circulating_supply": np.nan, "total_supply": np.nan, "max_supply": np.nan,
+                "updated": None, "_source": "Binance fallback",
+                "_fallback_error": str(cg_error),
+            }
+        except Exception as bin_error:
+            return {
+                "price": np.nan, "market_cap": np.nan, "fdv": np.nan,
+                "volume_24h": np.nan, "change_24h": np.nan,
+                "circulating_supply": np.nan, "total_supply": np.nan, "max_supply": np.nan,
+                "updated": None, "_source": "Unavailable",
+                "_fallback_error": f"CoinGecko: {cg_error}; Binance: {bin_error}",
+            }
+
+
+def near_market_chart(days=90):
+    try:
+        url = f"https://api.coingecko.com/api/v3/coins/{NEAR_CG_ID}/market_chart"
+        r = requests.get(url, params={"vs_currency": "usd", "days": days}, timeout=25)
+        r.raise_for_status()
+        rows = []
+        for ts, price in r.json().get("prices", []):
+            try:
+                rows.append({"date": pd.to_datetime(ts, unit="ms", utc=True), "price": float(price)})
+            except Exception:
+                pass
+        df = pd.DataFrame(rows).drop_duplicates("date").sort_values("date")
+        if not df.empty:
+            return df
+    except Exception:
+        pass
+    try:
+        return _binance_near_chart(days)
+    except Exception:
+        return pd.DataFrame(columns=["date", "price"])
 
 
 def _near_rpc(method, params=None):
@@ -261,6 +320,246 @@ def _near_holder_flow():
     return r.json()
 
 
+
+# ============================================================
+# NEAR WHALE MONITOR V2
+# ============================================================
+WHALE_HISTORY_FILE = "near_whale_history.json"
+DEFAULT_WHALE_CONFIG = """# account.near | label | type
+# example.near | Whale #1 | whale
+# binance.near | Binance | exchange
+"""
+
+
+def _whale_rpc_account(account_id):
+    payload = {
+        "jsonrpc": "2.0", "id": "near-whale-monitor", "method": "query",
+        "params": {"request_type": "view_account", "finality": "final", "account_id": account_id.strip()},
+    }
+    r = requests.post(NEAR_RPC_URL, json=payload, headers={"content-type": "application/json"}, timeout=20)
+    r.raise_for_status()
+    j = r.json()
+    if j.get("error"):
+        raise RuntimeError(j["error"])
+    result = j.get("result") or {}
+    amount = _near_num(result.get("amount"), 0.0) / 1e24
+    locked = _near_num(result.get("locked"), 0.0) / 1e24
+    return {"balance": amount + locked, "liquid": amount, "locked": locked}
+
+
+def _load_whale_history():
+    import json
+    path = Path(WHALE_HISTORY_FILE)
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _save_whale_history(rows):
+    import json
+    cleaned = [r for r in rows if isinstance(r, dict) and r.get("date")]
+    cleaned.sort(key=lambda x: str(x["date"]))
+    dedup = {str(r["date"]): r for r in cleaned}
+    Path(WHALE_HISTORY_FILE).write_text(
+        json.dumps(list(dedup.values()), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def _parse_whale_config(text):
+    rows = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [x.strip() for x in line.split("|")]
+        if len(parts) < 3:
+            continue
+        account, label, kind = parts[:3]
+        kind = kind.lower()
+        if kind not in {"whale", "exchange", "validator", "protocol", "unknown"}:
+            kind = "unknown"
+        rows.append({"account": account, "label": label or account, "type": kind})
+    return rows
+
+
+def _whale_snapshot(config_rows):
+    from datetime import datetime, timezone
+    wallets, errors = [], []
+    now = datetime.now(timezone.utc)
+    for item in config_rows:
+        try:
+            bal = _whale_rpc_account(item["account"])
+            wallets.append({
+                "account": item["account"], "label": item["label"], "type": item["type"],
+                "balance": bal["balance"], "liquid": bal["liquid"], "locked": bal["locked"],
+            })
+        except Exception as e:
+            errors.append(f'{item["account"]}: {e}')
+    return {
+        "date": now.strftime("%Y-%m-%d"), "timestamp": now.isoformat(),
+        "wallets": wallets, "errors": errors,
+    }
+
+
+def _whale_daily_series(history, kind="whale"):
+    rows = []
+    for snap in history:
+        total = sum(
+            _near_num(w.get("balance"), 0.0)
+            for w in (snap.get("wallets") or []) if w.get("type") == kind
+        )
+        rows.append({"date": snap.get("date"), "balance": total})
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+    df["date"] = pd.to_datetime(df["date"], utc=True, errors="coerce")
+    df["balance"] = pd.to_numeric(df["balance"], errors="coerce").fillna(0)
+    return df.dropna(subset=["date"]).drop_duplicates("date").sort_values("date")
+
+
+def _whale_delta(df, days):
+    if df is None or df.empty:
+        return np.nan
+    end = float(df.iloc[-1]["balance"])
+    cutoff = df.iloc[-1]["date"] - pd.Timedelta(days=days)
+    old = df[df["date"] <= cutoff]
+    if old.empty:
+        return np.nan
+    return end - float(old.iloc[-1]["balance"])
+
+
+def _whale_score(netflow, holdings):
+    if not np.isfinite(netflow) or holdings <= 0:
+        return np.nan
+    return float(np.clip(50 + (netflow / holdings) * 1000, 0, 100))
+
+
+def render_whale_monitor():
+    st.markdown("---")
+    st.header("🐋 NEAR Whale Monitor V2")
+    st.caption(
+        "Theo dõi thay đổi số dư native NEAR của các ví ông đánh dấu. "
+        "Dương = số dư tăng, âm = số dư giảm. Không đồng nhất balance change với lệnh mua/bán."
+    )
+    if "whale_config_text" not in st.session_state:
+        st.session_state["whale_config_text"] = DEFAULT_WHALE_CONFIG
+
+    with st.expander("⚙️ Cấu hình ví theo dõi", expanded=False):
+        st.caption("Mỗi dòng: account.near | tên hiển thị | loại.")
+        text_value = st.text_area(
+            "Danh sách ví", value=st.session_state["whale_config_text"],
+            height=180, key="whale_config_editor"
+        )
+        if st.button("💾 Lưu danh sách ví", key="save_whale_config"):
+            st.session_state["whale_config_text"] = text_value
+            st.success("Đã lưu danh sách ví cho phiên hiện tại.")
+
+    config_rows = _parse_whale_config(st.session_state.get("whale_config_text", ""))
+    if not config_rows:
+        st.info("Chưa có ví theo dõi. Nhập danh sách ví ở phần cấu hình rồi bấm Lưu.")
+        return
+
+    history = _load_whale_history()
+    c1, c2, c3 = st.columns([1, 1, 2])
+    with c1:
+        if st.button("🐋 Cập nhật whale", type="primary", key="update_whale"):
+            with st.spinner("Đang đọc balance native NEAR..."):
+                snap = _whale_snapshot(config_rows)
+            if snap["wallets"]:
+                history.append(snap)
+                _save_whale_history(history)
+                history = _load_whale_history()
+                st.success(f"Đã lưu snapshot {snap['date']}: {len(snap['wallets'])} ví.")
+            if snap["errors"]:
+                st.warning("Một số ví không đọc được:\n\n" + "\n".join(snap["errors"]))
+    with c2:
+        if st.button("🗑️ Xóa history whale", key="clear_whale_cache"):
+            _save_whale_history([])
+            history = []
+            st.success("Đã xóa history whale cục bộ.")
+    with c3:
+        if history:
+            import json
+            st.download_button(
+                "⬇️ Tải history JSON", data=json.dumps(history, ensure_ascii=False, indent=2),
+                file_name="near_whale_history.json", mime="application/json",
+                key="download_whale_history"
+            )
+
+    if not history:
+        st.info("Chưa có snapshot whale. Bấm **Cập nhật whale** để tạo ngày đầu tiên.")
+        return
+
+    whale_df = _whale_daily_series(history, "whale")
+    exchange_df = _whale_daily_series(history, "exchange")
+    latest = history[-1]
+    current_wallets = latest.get("wallets") or []
+    whale_total = sum(_near_num(w.get("balance"), 0.0) for w in current_wallets if w.get("type") == "whale")
+    exchange_total = sum(_near_num(w.get("balance"), 0.0) for w in current_wallets if w.get("type") == "exchange")
+    d24, d7, d30 = _whale_delta(whale_df, 1), _whale_delta(whale_df, 7), _whale_delta(whale_df, 30)
+    score = _whale_score(d24, whale_total)
+
+    st.subheader("📌 Whale Positioning")
+    a,b,c,d,e = st.columns(5)
+    a.metric("Whale holdings", _near_fmt_near(whale_total))
+    b.metric("Netflow 24h", _near_fmt_near(d24) if np.isfinite(d24) else "N/A")
+    c.metric("Netflow 7D", _near_fmt_near(d7) if np.isfinite(d7) else "N/A")
+    d.metric("Netflow 30D", _near_fmt_near(d30) if np.isfinite(d30) else "N/A")
+    e.metric("Whale Score", f"{score:.0f}/100" if np.isfinite(score) else "N/A")
+
+    if np.isfinite(d24):
+        state = "🟢 TÍCH LŨY" if d24 > 0 else ("🔴 PHÂN PHỐI" if d24 < 0 else "🟡 TRUNG TÍNH")
+        st.info(f"**24H: {state}** — thay đổi {d24:+,.0f} NEAR. Đây là balance flow.")
+    else:
+        st.info("Cần snapshot ở ngày trước để tính netflow.")
+
+    ch1,ch2 = st.columns(2)
+    with ch1:
+        st.subheader("📈 Whale Holdings")
+        if not whale_df.empty:
+            fig=go.Figure(go.Scatter(x=whale_df["date"], y=whale_df["balance"], mode="lines+markers", name="Whale holdings"))
+            fig.update_layout(height=320, margin=dict(l=10,r=10,t=20,b=20), hovermode="x unified", yaxis_title="NEAR")
+            st.plotly_chart(fig, use_container_width=True)
+    with ch2:
+        st.subheader("📊 Whale Netflow")
+        if len(whale_df)>=2:
+            flow_df=whale_df.copy()
+            flow_df["netflow"]=flow_df["balance"].diff()
+            fig=go.Figure(go.Bar(x=flow_df["date"], y=flow_df["netflow"], name="Daily netflow"))
+            fig.update_layout(height=320, margin=dict(l=10,r=10,t=20,b=20), hovermode="x unified", yaxis_title="NEAR")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Cần thêm snapshot ngày tiếp theo để vẽ netflow.")
+
+    st.subheader("🏦 Exchange Balance Flow")
+    if not exchange_df.empty:
+        ex24=_whale_delta(exchange_df,1)
+        st.metric("Tracked exchange balance", _near_fmt_near(exchange_total), f"{ex24:+,.0f} NEAR" if np.isfinite(ex24) else None)
+        st.caption("Exchange balance tăng = NEAR nằm ở nhóm ví sàn được đánh dấu nhiều hơn; không tự động đồng nghĩa đã bán.")
+        fig=go.Figure(go.Scatter(x=exchange_df["date"], y=exchange_df["balance"], mode="lines+markers", name="Exchange balance"))
+        fig.update_layout(height=280, margin=dict(l=10,r=10,t=20,b=20), yaxis_title="NEAR")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Chưa có ví nào được đánh dấu `exchange`.")
+
+    st.subheader("👛 Ví đang theo dõi")
+    latest_rows=[{
+        "Ví":w.get("label") or w.get("account"), "Account":w.get("account"), "Loại":w.get("type"),
+        "Balance":_near_num(w.get("balance"),0.0), "Liquid":_near_num(w.get("liquid"),0.0),
+        "Locked":_near_num(w.get("locked"),0.0)
+    } for w in current_wallets]
+    if latest_rows:
+        st.dataframe(pd.DataFrame(latest_rows).sort_values("Balance",ascending=False), hide_index=True, use_container_width=True)
+
+    st.caption(
+        f"History hiện có {len(history)} snapshot. Snapshot mới nhất: {latest.get('date','N/A')}. "
+        "Nên tải JSON xuống để backup trước khi redeploy."
+    )
+
 def render_near_monitor():
     st.markdown("---")
     st.header("🟢 NEAR Monitor")
@@ -270,15 +569,23 @@ def render_near_monitor():
         "Các điểm Radar là công thức minh bạch của dashboard, không phải điểm AI từ bên thứ ba."
     )
 
+    market = near_market_data()
+    chart = near_market_chart(90)
+    defi = {"chain": {}, "history": pd.DataFrame(columns=["date", "tvl"])}
+    network = {"chain_id": "NEAR", "latest_block": None, "validator_count": 0, "total_stake_near": np.nan, "validators": []}
     try:
-        market = near_market_data()
-        chart = near_market_chart(90)
         defi = near_defillama_data()
-        network = near_network_data()
-        score = _near_score_components(market, chart, defi, network)
     except Exception as e:
-        st.warning(f"NEAR Monitor chưa lấy đủ dữ liệu: {e}")
-        return
+        st.warning(f"DeFiLlama tạm lỗi: {e}")
+    try:
+        network = near_network_data()
+    except Exception as e:
+        st.warning(f"NEAR RPC tạm lỗi: {e}")
+    score = _near_score_components(market, chart, defi, network)
+    if market.get("_source") == "Binance fallback":
+        st.warning("⚠️ CoinGecko đang 429. Dashboard vẫn chạy bằng Binance fallback; Market Cap/FDV có thể tạm N/A.")
+    elif market.get("_source") == "Unavailable":
+        st.warning("⚠️ Không lấy được giá NEAR từ CoinGecko hoặc Binance.")
 
     p = market.get("price", np.nan)
     chain = defi.get("chain", {})
@@ -298,7 +605,7 @@ def render_near_monitor():
     d.metric("Volume 24h", _near_fmt_usd(market.get("volume_24h")))
     e.metric("Circulating", _near_fmt_near(market.get("circulating_supply")))
     f.metric("TVL NEAR", _near_fmt_usd(tvl_now))
-    st.caption("Nguồn market: CoinGecko • TVL/stablecoin: DeFiLlama")
+    st.caption(f"Nguồn market: {market.get("_source", "N/A")} • TVL/stablecoin: DeFiLlama")
 
     # Radar
     st.subheader("🧠 NEAR Radar — điểm minh bạch")
@@ -366,6 +673,8 @@ def render_near_monitor():
         st.caption("NEARBLOCKS_API_KEY đã có trong Secrets; có thể mở rộng V2 sang holder history/native holder flow khi endpoint phù hợp được cấu hình.")
     else:
         st.caption("Nếu cần V2 holder flow thật, có thể thêm NEARBLOCKS_API_KEY vào Secrets; NearBlocks hiện có free tier nhưng giới hạn request và yêu cầu attribution.")
+
+    render_whale_monitor()
 
     # Final analysis
     st.subheader("🧭 Phân tích cuối")
