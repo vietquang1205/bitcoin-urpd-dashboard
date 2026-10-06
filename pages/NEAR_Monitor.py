@@ -261,6 +261,479 @@ def _near_holder_flow():
     return r.json()
 
 
+# =========================
+# NEAR WHALE MONITOR V2
+# =========================
+# Native NEAR không có endpoint "top holders" công khai tương đương FT holders.
+# Vì vậy V2 dùng danh sách ví cá voi do người dùng theo dõi + FastNear RPC.
+# Đây là cách an toàn hơn việc bịa một "whale flow" từ dữ liệu không đủ.
+WHALE_HISTORY_FILE = "near_whale_history.json"
+WHALE_WATCHLIST_FILE = "near_whale_watchlist.json"
+FASTNEAR_RPC_URL = "https://rpc.mainnet.fastnear.com"
+
+
+def _whale_load_json(path, default):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = __import__("json").load(f)
+        return data
+    except Exception:
+        return default
+
+
+def _whale_save_json(path, data):
+    import json
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    import os
+    os.replace(tmp, path)
+
+
+def _whale_default_watchlist():
+    return [
+        # account_id, label, category
+        # Để trống mặc định: không tự gán ví protocol/exchange thành whale.
+    ]
+
+
+def _whale_normalize_watchlist(rows):
+    out = []
+    seen = set()
+    for row in rows or []:
+        if isinstance(row, str):
+            parts = [x.strip() for x in row.split("|")]
+            account = parts[0] if parts else ""
+            label = parts[1] if len(parts) > 1 and parts[1] else account
+            category = parts[2].lower() if len(parts) > 2 and parts[2] else "whale"
+        elif isinstance(row, dict):
+            account = str(row.get("account", "")).strip()
+            label = str(row.get("label", "")).strip() or account
+            category = str(row.get("category", "whale")).strip().lower()
+        else:
+            continue
+
+        if not account or account in seen:
+            continue
+        if category not in {"whale", "exchange", "validator", "protocol", "unknown"}:
+            category = "unknown"
+        seen.add(account)
+        out.append({"account": account, "label": label, "category": category})
+    return out
+
+
+def _whale_rpc_account(account_id):
+    payload = {
+        "jsonrpc": "2.0",
+        "id": "near-whale-monitor",
+        "method": "query",
+        "params": {
+            "request_type": "view_account",
+            "finality": "final",
+            "account_id": account_id,
+        },
+    }
+    r = requests.post(
+        FASTNEAR_RPC_URL,
+        json=payload,
+        headers={"content-type": "application/json"},
+        timeout=20,
+    )
+    r.raise_for_status()
+    j = r.json()
+    if j.get("error"):
+        raise RuntimeError(j["error"])
+    result = j.get("result") or {}
+    # amount = liquid/unstaked balance; locked = validator stake.
+    amount = _near_num(result.get("amount"), 0.0) / 1e24
+    locked = _near_num(result.get("locked"), 0.0) / 1e24
+    return {
+        "balance_near": amount,
+        "locked_near": locked,
+        "total_near": amount + locked,
+        "block_height": result.get("block_height"),
+    }
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def near_whale_balances(accounts_tuple):
+    results = []
+    for account in accounts_tuple:
+        try:
+            state = _whale_rpc_account(account)
+            results.append({"account": account, **state, "error": ""})
+        except Exception as e:
+            results.append({
+                "account": account,
+                "balance_near": np.nan,
+                "locked_near": np.nan,
+                "total_near": np.nan,
+                "block_height": None,
+                "error": str(e),
+            })
+    return pd.DataFrame(results)
+
+
+def _whale_class_from_balance(balance):
+    if not np.isfinite(_near_num(balance)):
+        return "N/A"
+    b = float(balance)
+    if b >= 10_000_000:
+        return "Mega Whale"
+    if b >= 1_000_000:
+        return "Whale"
+    if b >= 100_000:
+        return "Large"
+    if b >= 10_000:
+        return "Medium"
+    return "Small"
+
+
+def _whale_read_history():
+    data = _whale_load_json(WHALE_HISTORY_FILE, [])
+    return data if isinstance(data, list) else []
+
+
+def _whale_write_snapshot(watchlist, balances_df):
+    import datetime as _dt
+    history = _whale_read_history()
+    now = _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+    snapshot = {
+        "timestamp": now,
+        "accounts": [],
+    }
+
+    balance_map = {}
+    for _, row in balances_df.iterrows():
+        account = str(row.get("account", ""))
+        total = _near_num(row.get("total_near"), np.nan)
+        item = next((x for x in watchlist if x["account"] == account), None)
+        if item is None:
+            continue
+        snapshot["accounts"].append({
+            "account": account,
+            "label": item["label"],
+            "category": item["category"],
+            "balance_near": None if not np.isfinite(total) else float(total),
+            "locked_near": None if not np.isfinite(_near_num(row.get("locked_near"), np.nan)) else float(row["locked_near"]),
+        })
+        if np.isfinite(total):
+            balance_map[account] = float(total)
+
+    # Keep only one snapshot per UTC day. A second manual update on the same
+    # day replaces the previous snapshot rather than creating fake daily flow.
+    day = now[:10]
+    history = [x for x in history if str(x.get("timestamp", ""))[:10] != day]
+    snapshot["timestamp"] = now
+    history.append(snapshot)
+    history = sorted(history, key=lambda x: x.get("timestamp", ""))[-400:]
+    _whale_save_json(WHALE_HISTORY_FILE, history)
+    return history
+
+
+def _whale_history_df(history, watchlist):
+    if not history:
+        return pd.DataFrame()
+
+    rows = []
+    label_map = {x["account"]: x for x in watchlist}
+    for snap in history:
+        date = str(snap.get("timestamp", ""))[:10]
+        for item in snap.get("accounts", []):
+            account = item.get("account")
+            if account not in label_map:
+                continue
+            bal = item.get("balance_near")
+            if bal is None:
+                continue
+            meta = label_map[account]
+            rows.append({
+                "date": date,
+                "account": account,
+                "label": meta["label"],
+                "category": meta["category"],
+                "balance_near": float(bal),
+            })
+    return pd.DataFrame(rows)
+
+
+def _whale_build_summary(watchlist, balances_df, history):
+    if balances_df is None or balances_df.empty:
+        return pd.DataFrame(), {}
+
+    current = balances_df.copy()
+    meta = {x["account"]: x for x in watchlist}
+    current["label"] = current["account"].map(lambda x: meta.get(x, {}).get("label", x))
+    current["category"] = current["account"].map(lambda x: meta.get(x, {}).get("category", "unknown"))
+    current["tier"] = current["total_near"].map(_whale_class_from_balance)
+
+    hist_df = _whale_history_df(history, watchlist)
+    prev_map = {}
+    if not hist_df.empty:
+        dates = sorted(hist_df["date"].dropna().unique())
+        if len(dates) >= 2:
+            prev_date = dates[-2]
+            prev = hist_df[hist_df["date"] == prev_date]
+            prev_map = dict(zip(prev["account"], prev["balance_near"]))
+
+    current["prev_near"] = current["account"].map(prev_map)
+    current["change_near"] = current["total_near"] - current["prev_near"]
+    current["change_pct"] = np.where(
+        current["prev_near"].notna() & (current["prev_near"] > 0),
+        current["change_near"] / current["prev_near"] * 100,
+        np.nan,
+    )
+
+    whale = current[current["category"] == "whale"].copy()
+    exchanges = current[current["category"] == "exchange"].copy()
+
+    whale_net = float(whale["change_near"].sum(min_count=1)) if not whale.empty else np.nan
+    exchange_net = float(exchanges["change_near"].sum(min_count=1)) if not exchanges.empty else np.nan
+
+    whale_total = float(whale["total_near"].sum()) if not whale.empty else np.nan
+    whale_pct = whale_net / whale_total * 100 if np.isfinite(whale_net) and whale_total > 0 else np.nan
+
+    positive = int((whale["change_near"] > 0).sum()) if not whale.empty else 0
+    negative = int((whale["change_near"] < 0).sum()) if not whale.empty else 0
+
+    # Transparent score: balance change only. It is NOT a buy/sell detector.
+    score = float(np.clip(50 + (whale_pct if np.isfinite(whale_pct) else 0) * 15, 0, 100))
+    if score >= 65:
+        state = "🟢 Tích lũy"
+    elif score >= 45:
+        state = "🟡 Trung tính"
+    else:
+        state = "🔴 Phân phối"
+
+    summary = {
+        "whale_net": whale_net,
+        "exchange_net": exchange_net,
+        "whale_total": whale_total,
+        "whale_pct": whale_pct,
+        "positive": positive,
+        "negative": negative,
+        "score": score,
+        "state": state,
+    }
+    return current, summary
+
+
+def _whale_flow_chart(history, watchlist):
+    hist_df = _whale_history_df(history, watchlist)
+    if hist_df.empty:
+        return pd.DataFrame()
+
+    whale_df = hist_df[hist_df["category"] == "whale"].copy()
+    if whale_df.empty:
+        return pd.DataFrame()
+
+    daily = whale_df.groupby("date", as_index=False)["balance_near"].sum()
+    daily = daily.sort_values("date")
+    daily["net_change"] = daily["balance_near"].diff()
+    return daily
+
+
+def render_near_whale_monitor():
+    st.markdown("---")
+    st.header("🐋 NEAR Whale Monitor V2")
+    st.caption(
+        "Theo dõi thay đổi số dư native NEAR của các ví ông đánh dấu là whale. "
+        "Dương = số dư tăng (tích lũy), âm = số dư giảm (phân phối). "
+        "Không đồng nhất với mua/bán spot."
+    )
+
+    saved = _whale_normalize_watchlist(
+        _whale_load_json(WHALE_WATCHLIST_FILE, _whale_default_watchlist())
+    )
+
+    with st.expander("⚙️ Cấu hình ví theo dõi", expanded=not bool(saved)):
+        st.write(
+            "Mỗi dòng: `account.near | tên hiển thị | loại`. "
+            "Loại hợp lệ: `whale`, `exchange`, `validator`, `protocol`, `unknown`."
+        )
+        st.caption(
+            "Ví `whale` mới được tính vào Whale Score. Ví `exchange` được tách riêng. "
+            "Không nên đánh dấu ví sàn/validator là whale."
+        )
+        default_text = "\n".join(
+            f"{x['account']} | {x['label']} | {x['category']}" for x in saved
+        )
+        watch_text = st.text_area(
+            "Danh sách ví",
+            value=default_text,
+            height=180,
+            placeholder="vi_du.near | Whale #1 | whale",
+        )
+        if st.button("💾 Lưu danh sách ví", key="save_whale_watchlist"):
+            rows = []
+            for line in watch_text.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    rows.append(line)
+            normalized = _whale_normalize_watchlist(rows)
+            _whale_save_json(WHALE_WATCHLIST_FILE, normalized)
+            st.success(f"Đã lưu {len(normalized)} ví.")
+            st.rerun()
+
+    watchlist = _whale_normalize_watchlist(
+        _whale_load_json(WHALE_WATCHLIST_FILE, saved)
+    )
+
+    if not watchlist:
+        st.info(
+            "Chưa có ví theo dõi. Ông nhập danh sách whale ở phần cấu hình rồi bấm Lưu. "
+            "Native NEAR hiện không có public free endpoint đáng tin cậy để tự lấy rich-list Top 100."
+        )
+        return
+
+    accounts = tuple(x["account"] for x in watchlist)
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        load_now = st.button(
+            "🔍 LẤY SỐ DƯ WHALE",
+            type="primary",
+            use_container_width=True,
+            key="load_whale_balances",
+        )
+    with c2:
+        if st.button(
+            "🧹 Xóa lịch sử whale",
+            use_container_width=True,
+            key="clear_whale_history",
+        ):
+            _whale_save_json(WHALE_HISTORY_FILE, [])
+            st.success("Đã xóa lịch sử whale.")
+            st.rerun()
+
+    # Reading balances is only performed after the explicit button.
+    if not load_now:
+        history = _whale_read_history()
+        if history:
+            st.info(
+                f"Đã có {len(history)} snapshot. Bấm **LẤY SỐ DƯ WHALE** để cập nhật snapshot hôm nay."
+            )
+        else:
+            st.info("Chưa gọi RPC. Bấm **LẤY SỐ DƯ WHALE** để bắt đầu.")
+        return
+
+    with st.spinner(f"Đang đọc {len(accounts)} ví từ FastNear RPC..."):
+        balances = near_whale_balances(accounts)
+
+    history = _whale_write_snapshot(watchlist, balances)
+    current, summary = _whale_build_summary(watchlist, balances, history)
+
+    if current.empty:
+        st.warning("Không đọc được số dư ví.")
+        return
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Whale netflow", _near_fmt_near(summary["whale_net"]))
+    m2.metric("Whale holdings", _near_fmt_near(summary["whale_total"]))
+    m3.metric("Whale score", f"{summary['score']:.0f}/100")
+    m4.metric("Đang tăng", f"{summary['positive']} ví")
+    m5.metric("Đang giảm", f"{summary['negative']} ví")
+
+    st.info(
+        f"**{summary['state']}** — Whale netflow: "
+        f"{_near_fmt_near(summary['whale_net'])}. "
+        "Đây là thay đổi số dư ví, chưa phải xác nhận cá voi mua/bán."
+    )
+
+    if np.isfinite(summary["exchange_net"]):
+        ex_state = (
+            "rút khỏi các ví exchange đã theo dõi"
+            if summary["exchange_net"] < 0
+            else "tăng số dư ở các ví exchange đã theo dõi"
+        )
+        st.caption(
+            f"Exchange netflow (chỉ các ví ông đánh dấu): "
+            f"{_near_fmt_near(summary['exchange_net'])} → {ex_state}."
+        )
+
+    # Current whale table
+    st.subheader("📋 Danh sách ví")
+    display = current[
+        ["label", "account", "category", "tier", "total_near", "change_near", "change_pct", "block_height", "error"]
+    ].copy()
+    display.columns = [
+        "Ví", "Account", "Loại", "Tier", "Số dư NEAR",
+        "Thay đổi NEAR", "Thay đổi %", "Block", "Lỗi"
+    ]
+    st.dataframe(
+        display.sort_values("Số dư NEAR", ascending=False),
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Số dư NEAR": st.column_config.NumberColumn(format="%,.0f"),
+            "Thay đổi NEAR": st.column_config.NumberColumn(format="%,.0f"),
+            "Thay đổi %": st.column_config.NumberColumn(format="%.2f%%"),
+        },
+    )
+
+    # Historical whale holdings and daily netflow
+    flow = _whale_flow_chart(history, watchlist)
+    if not flow.empty:
+        st.subheader("📈 Whale Holdings & Netflow")
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=flow["date"],
+                y=flow["balance_near"],
+                name="Whale holdings",
+                mode="lines+markers",
+            )
+        )
+        fig.update_layout(
+            height=360,
+            margin=dict(l=10, r=10, t=20, b=20),
+            hovermode="x unified",
+            yaxis_title="NEAR",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        fig2 = go.Figure()
+        fig2.add_trace(
+            go.Bar(
+                x=flow["date"],
+                y=flow["net_change"],
+                name="Daily netflow",
+            )
+        )
+        fig2.add_hline(y=0, line_width=1)
+        fig2.update_layout(
+            height=300,
+            margin=dict(l=10, r=10, t=20, b=20),
+            hovermode="x unified",
+            yaxis_title="NEAR / day",
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+        st.caption(
+            "Lịch sử chỉ có ý nghĩa từ ngày đầu tiên ông bắt đầu snapshot. "
+            "Nên lấy ít nhất 7–14 ngày để đọc xu hướng, tốt nhất 30–90 ngày."
+        )
+
+    st.subheader("🧠 Cách đọc tín hiệu")
+    read_rows = [
+        ["Whale holdings ↑", "Tích lũy số dư", "Tích cực", "Chưa đủ để kết luận mua spot"],
+        ["Whale holdings ↓", "Phân phối số dư", "Tiêu cực", "Có thể là chuyển ví/staking/chi tiêu"],
+        ["Whale ↑ + Exchange ↓", "Whale tăng, exchange giảm", "Thiên tích lũy", "Cần kiểm tra ví cụ thể"],
+        ["Whale ↓ + Exchange ↑", "Whale giảm, exchange tăng", "Thiên phân phối", "Không phải lúc nào cũng là bán"],
+    ]
+    st.dataframe(
+        pd.DataFrame(read_rows, columns=["Tín hiệu", "Ý nghĩa", "Bias", "Lưu ý"]),
+        hide_index=True,
+        use_container_width=True,
+    )
+
+    st.caption(
+        "Powered by FastNear RPC for native account state. "
+        "FastNear documents view_account as the canonical account-balance query. "
+        "Whale Monitor does not claim to reproduce Nansen's proprietary labeling."
+    )
+
+
 def render_near_monitor():
     st.markdown("---")
     st.header("🟢 NEAR Monitor")
@@ -403,3 +876,4 @@ else:
             st.session_state["near_loaded"] = False
             st.rerun()
     render_near_monitor()
+    render_near_whale_monitor()
