@@ -6106,7 +6106,9 @@
         "btc_amount": 1969.55720763
       }
     ],
-    "source": "Bitview /api/urpd/all (lin1000)"
+    "source": "Bitview historical API",
+    "url": "https://bitview.space/api/urpd/all/2026-09-08?agg=lin1000&weight=raw",
+    "bitview_total_supply": 20081410.50753455
   },
   "2026-09-09": {
     "date": "2026-09-09",
