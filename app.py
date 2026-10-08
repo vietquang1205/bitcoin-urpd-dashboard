@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V50", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V46", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -38,15 +38,6 @@ div[data-testid="stDataFrame"] {border-radius: 12px; overflow: hidden;}
 }
 </style>
 """, unsafe_allow_html=True)
-
-
-def safe_secret(name, default=""):
-    """Đọc Streamlit Secret an toàn; thiếu secrets.toml không làm app chết."""
-    try:
-        value = st.secrets.get(name, default)
-        return default if value is None else value
-    except Exception:
-        return default
 
 
 TOP_START = 85831.0
@@ -91,6 +82,15 @@ def normalize_urpd(raw):
         df,
         ["price_high", "high", "max_price", "priceto", "price_end"],
     )
-    btc = pick_col(df, ("btc_amount", "btc", "amount", "supply", "realized_supply", "quantity", "btcsupply"))
-
-    if low is None or btc is None:
+    btc = pick_col(
+        df,
+        [
+            "btc_amount",
+            "btc",
+            "amount",
+            "supply",
+            "realized_supply",
+            "quantity",
+            "btcsupply",
+        ],
+    )
