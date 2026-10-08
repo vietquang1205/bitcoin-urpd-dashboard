@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V47", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V48", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
