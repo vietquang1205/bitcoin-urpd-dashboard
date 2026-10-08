@@ -2648,6 +2648,82 @@ if selected_days > 0 and chart_urpd is not None and selected_date:
         })
         st.dataframe(history_df, hide_index=True, use_container_width=True)
 
+
+def build_urpd_flow_deltas(current_df, old_df):
+    """
+    Tính thay đổi BTC theo bucket trên cùng một hệ quy chiếu giá.
+
+    old BTC được phân bổ vào bucket hiện tại theo phần giao nhau về giá.
+    Kết quả chỉ cho biết bucket nào giảm/tăng; nó KHÔNG truy vết UTXO thực tế.
+    """
+    if current_df is None or old_df is None or current_df.empty or old_df.empty:
+        return pd.DataFrame()
+
+    old_df = old_df.copy()
+    old_df = old_df[old_df["price_high"] > old_df["price_low"]].copy()
+    if old_df.empty:
+        return pd.DataFrame()
+
+    old_lo = old_df["price_low"].to_numpy(float)
+    old_hi = old_df["price_high"].to_numpy(float)
+    old_amt = old_df["btc_amount"].to_numpy(float)
+    old_width = old_hi - old_lo
+
+    rows = []
+    for r in current_df.itertuples(index=False):
+        lo = float(r.price_low)
+        hi = float(r.price_high)
+        cur = float(r.btc_amount)
+        if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo or not np.isfinite(cur):
+            continue
+        # Bucket 0 là supply đặc biệt/static, không đưa vào flow tracker.
+        if hi <= 1:
+            continue
+
+        overlap = np.maximum(0.0, np.minimum(old_hi, hi) - np.maximum(old_lo, lo))
+        old_btc = float(np.sum(old_amt * overlap / old_width))
+        if not np.isfinite(old_btc):
+            continue
+
+        delta = cur - old_btc
+        rows.append({
+            "low": lo,
+            "high": hi,
+            "mid": (lo + hi) / 2.0,
+            "current": cur,
+            "old": old_btc,
+            "delta": delta,
+            "pct": (delta / old_btc * 100.0) if old_btc > 0 else np.nan,
+        })
+
+    return pd.DataFrame(rows)
+
+
+def estimate_urpd_flow_to_targets(flow_df, source_delta):
+    """
+    Phân bổ ƯỚC TÍNH một bucket giảm sang các bucket tăng theo tỷ trọng BTC tăng.
+    Đây là mô hình cân đối nguồn-cầu của URPD, không phải truy vết UTXO.
+    """
+    if flow_df is None or flow_df.empty or source_delta >= 0:
+        return pd.DataFrame(), 0.0, 0.0
+
+    increases = flow_df[flow_df["delta"] > 0].copy()
+    total_increase = float(increases["delta"].sum()) if not increases.empty else 0.0
+    source_outflow = abs(float(source_delta))
+    allocatable = min(source_outflow, total_increase)
+
+    if increases.empty or allocatable <= 0:
+        return pd.DataFrame(), source_outflow, total_increase
+
+    increases["estimated_from_source"] = (
+        increases["delta"] / total_increase * allocatable
+    )
+    increases["estimated_pct_of_source"] = (
+        increases["estimated_from_source"] / source_outflow * 100.0
+    )
+    increases = increases.sort_values("estimated_from_source", ascending=False)
+    return increases, source_outflow, total_increase
+
 st.subheader("Phân bố nguồn cung theo bucket URPD")
 st.caption("Cột xanh: giá vốn thấp hơn giá BTC hiện tại • Cột đỏ: giá vốn cao hơn giá BTC hiện tại")
 
@@ -3004,6 +3080,151 @@ else:
     # snapshot trước làm điểm bắt đầu cho animation.
     st.session_state["urpd_previous_fig_json"] = current_fig_json
     st.session_state["urpd_previous_animation_key"] = animation_key
+
+
+
+    # =========================================================
+    # BTC FLOW TRACKER — theo dõi bucket giảm đang được hấp thụ ở đâu
+    # =========================================================
+    st.markdown("---")
+    st.subheader("🔄 BTC Flow Tracker — BTC rút khỏi vùng này đang đi đâu?")
+    st.caption(
+        "Bảng này lấy chênh lệch URPD giữa snapshot đang xem và snapshot so sánh. "
+        "Nếu một vùng giảm 2.547 BTC, dashboard sẽ đối chiếu với các vùng tăng và "
+        "phân bổ ước tính 2.547 BTC theo tỷ trọng lượng BTC tăng ở các vùng đích. "
+        "⚠️ Đây là suy luận từ URPD, KHÔNG phải truy vết UTXO thực tế."
+    )
+
+    flow_base_df = chart_urpd.copy() if chart_urpd is not None else None
+    flow_old_df = comparison_urpd.copy() if comparison_urpd is not None else None
+    flow_df = build_urpd_flow_deltas(flow_base_df, flow_old_df)
+
+    if comparison_urpd is None or flow_df.empty:
+        st.info(
+            "Chọn một mốc **So với 1/3/7 ngày trước** và cần có snapshot lịch sử "
+            "để bật BTC Flow Tracker."
+        )
+    else:
+        decreases = flow_df[flow_df["delta"] < 0].copy().sort_values("delta")
+        increases = flow_df[flow_df["delta"] > 0].copy().sort_values("delta", ascending=False)
+
+        total_out = float(-decreases["delta"].sum()) if not decreases.empty else 0.0
+        total_in = float(increases["delta"].sum()) if not increases.empty else 0.0
+        net_flow = total_in - total_out
+
+        f1, f2, f3, f4 = st.columns(4)
+        with f1:
+            st.metric("Tổng bucket giảm", f"{total_out:,.0f} BTC")
+        with f2:
+            st.metric("Tổng bucket tăng", f"{total_in:,.0f} BTC")
+        with f3:
+            st.metric("Chênh lệch tăng − giảm", f"{net_flow:+,.0f} BTC")
+        with f4:
+            st.metric("Số vùng giảm / tăng", f"{len(decreases)} / {len(increases)}")
+
+        # Bảng nguồn: cho biết chính xác những vùng nào đang rút BTC nhiều nhất.
+        st.markdown("#### 1️⃣ Vùng nguồn — BTC đang giảm ở đâu?")
+        source_view = decreases.head(20).copy()
+        source_view["Vùng giá"] = source_view.apply(
+            lambda r: f"${r['low']:,.0f} – ${r['high']:,.0f}", axis=1
+        )
+        source_view["BTC giảm"] = -source_view["delta"]
+        source_view["% tổng BTC giảm"] = (
+            source_view["BTC giảm"] / total_out * 100.0 if total_out > 0 else 0.0
+        )
+        source_table = source_view[["Vùng giá", "BTC giảm", "% tổng BTC giảm"]].copy()
+        source_table["BTC giảm"] = source_table["BTC giảm"].map(lambda x: f"{x:,.2f}")
+        source_table["% tổng BTC giảm"] = source_table["% tổng BTC giảm"].map(lambda x: f"{x:.2f}%")
+        st.dataframe(source_table, hide_index=True, use_container_width=True)
+
+        if not decreases.empty and not increases.empty:
+            source_labels = [
+                f"${r.low:,.0f} – ${r.high:,.0f}  |  giảm {-r.delta:,.2f} BTC"
+                for r in decreases.itertuples(index=False)
+            ]
+            selected_source_label = st.selectbox(
+                "Chọn vùng nguồn để xem BTC được phân bổ ước tính sang đâu",
+                source_labels,
+                key="urpd_flow_source_select",
+            )
+            selected_idx = source_labels.index(selected_source_label)
+            selected_source = decreases.iloc[selected_idx]
+
+            targets, source_outflow, total_increase = estimate_urpd_flow_to_targets(
+                flow_df, float(selected_source["delta"])
+            )
+
+            st.markdown(
+                f"#### 2️⃣ Theo dõi vùng **${selected_source['low']:,.0f} – ${selected_source['high']:,.0f}** "
+                f"— giảm **{-selected_source['delta']:,.2f} BTC**"
+            )
+
+            if targets.empty:
+                st.warning("Chưa tìm thấy vùng tăng tương ứng trong snapshot so sánh.")
+            else:
+                allocated = float(targets["estimated_from_source"].sum())
+                unexplained = max(0.0, source_outflow - allocated)
+
+                target_view = targets.head(20).copy()
+                target_view["Vùng đích tăng"] = target_view.apply(
+                    lambda r: f"${r['low']:,.0f} – ${r['high']:,.0f}", axis=1
+                )
+                target_view["BTC vùng đích tăng"] = target_view["delta"]
+                target_view["BTC ước tính từ nguồn"] = target_view["estimated_from_source"]
+                target_view["% lượng nguồn"] = target_view["estimated_pct_of_source"]
+                target_view = target_view[[
+                    "Vùng đích tăng",
+                    "BTC vùng đích tăng",
+                    "BTC ước tính từ nguồn",
+                    "% lượng nguồn",
+                ]]
+                target_view["BTC vùng đích tăng"] = target_view["BTC vùng đích tăng"].map(lambda x: f"{x:,.2f}")
+                target_view["BTC ước tính từ nguồn"] = target_view["BTC ước tính từ nguồn"].map(lambda x: f"{x:,.2f}")
+                target_view["% lượng nguồn"] = target_view["% lượng nguồn"].map(lambda x: f"{x:.2f}%")
+                st.dataframe(target_view, hide_index=True, use_container_width=True)
+
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("BTC nguồn giảm", f"{source_outflow:,.2f} BTC")
+                with c2:
+                    st.metric("BTC phân bổ được", f"{allocated:,.2f} BTC")
+                with c3:
+                    st.metric("Chưa thấy vùng tăng tương ứng", f"{unexplained:,.2f} BTC")
+
+                st.caption(
+                    "Cách tính: lượng BTC tăng ở từng vùng đích / tổng BTC tăng của tất cả vùng đích × "
+                    "lượng BTC giảm của vùng nguồn. Vì vậy đây là **phân bổ ước tính**, không khẳng định "
+                    "BTC từ UTXO của vùng nguồn thực sự chuyển đúng sang các vùng đích này. "
+                    "Muốn biết chính xác UTXO nào được chuyển đi cần dữ liệu spent-output/on-chain transaction."
+                )
+
+        # Bảng tổng hợp các vùng đích tăng để nhìn nhanh BTC đang tập trung vào đâu.
+        st.markdown("#### 3️⃣ Vùng đích — BTC đang tăng ở đâu?")
+        dest_view = increases.head(20).copy()
+        dest_view["Vùng giá"] = dest_view.apply(
+            lambda r: f"${r['low']:,.0f} – ${r['high']:,.0f}", axis=1
+        )
+        dest_view["BTC tăng"] = dest_view["delta"]
+        dest_view["% tổng BTC tăng"] = (
+            dest_view["BTC tăng"] / total_in * 100.0 if total_in > 0 else 0.0
+        )
+        dest_table = dest_view[["Vùng giá", "BTC tăng", "% tổng BTC tăng"]].copy()
+        dest_table["BTC tăng"] = dest_table["BTC tăng"].map(lambda x: f"{x:,.2f}")
+        dest_table["% tổng BTC tăng"] = dest_table["% tổng BTC tăng"].map(lambda x: f"{x:.2f}%")
+        st.dataframe(dest_table, hide_index=True, use_container_width=True)
+
+        flow_export = flow_df.copy()
+        flow_export["vung_gia"] = flow_export.apply(
+            lambda r: f"${r['low']:,.0f}-${r['high']:,.0f}", axis=1
+        )
+        flow_export = flow_export[["vung_gia", "old", "current", "delta", "pct"]].copy()
+        st.download_button(
+            "⬇️ Tải CSV BTC Flow Tracker",
+            data=flow_export.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"btc_flow_tracker_{chart_date or 'snapshot'}.csv",
+            mime="text/csv",
+            key="download_urpd_flow_tracker",
+        )
 
     # =========================
     # NEWS / MACRO CONTEXT — dùng làm lớp 40% cho triển vọng cuối cùng.
