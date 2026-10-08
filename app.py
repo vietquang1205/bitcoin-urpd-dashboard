@@ -93,4 +93,4 @@ def normalize_urpd(raw):
     )
     btc = pick_col(
         df,
-        [
+        (
