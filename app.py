@@ -2318,6 +2318,7 @@ def build_urpd_change_heatmap(history_data, days=90, bin_size=1000):
         "edges": edges,
         "labels": labels,
         "deltas": deltas,
+        "distribution": np.vstack(distributions[1:]).T,
         "bin_size": bin_size,
         "snapshot_count": len(snapshots),
         "latest_day": latest_day,
@@ -2428,61 +2429,56 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
         st.info(heatmap_error or "Chưa đủ lịch sử URPD để dựng bản đồ nhiệt.")
         st.caption("Cần ít nhất 2 snapshot URPD khác ngày. Dữ liệu lịch sử phải được lưu trong urpd_history.json/GitHub.")
     else:
-        z = np.asarray(heatmap["deltas"], dtype=float)
-        # Robust color scaling: a few very large buckets should not wash out
-        # the rest of the heatmap. Clip only the displayed colors; hover keeps
-        # the true, unclipped delta values.
-        finite_abs = np.abs(z[np.isfinite(z)])
-        nonzero_abs = finite_abs[finite_abs > 0]
-        if nonzero_abs.size:
-            color_limit = float(np.nanpercentile(nonzero_abs, 97))
-            color_limit = max(color_limit, float(np.nanmax(nonzero_abs)) * 0.03, 1.0)
+        # Glassnode-inspired view: absolute URPD supply per price bucket, not daily deltas.
+        z_supply = np.asarray(heatmap["distribution"], dtype=float)
+        z_delta = np.asarray(heatmap["deltas"], dtype=float)
+        finite_supply = z_supply[np.isfinite(z_supply) & (z_supply > 0)]
+        if finite_supply.size:
+            supply_limit = float(np.nanpercentile(finite_supply, 99))
+            supply_limit = max(supply_limit, float(np.nanmax(finite_supply)) * 0.15, 1.0)
         else:
-            color_limit = 1.0
-        z_color = np.clip(z, -color_limit, color_limit)
-        # Use price-bin midpoints for a true numeric price axis.
+            supply_limit = 1.0
+        z_color = np.clip(z_supply, 0, supply_limit)
         y_mid = (heatmap["edges"][:-1] + heatmap["edges"][1:]) / 2.0
         date_labels = [d.strftime("%d/%m") for d in heatmap["dates"]]
-        # Diverging scale with a dark neutral zero instead of pale yellow,
-        # so small changes remain distinguishable on a dark dashboard.
-        heat_colors = [
-            [0.00, "#7f1d1d"],
-            [0.20, "#dc2626"],
-            [0.40, "#451a1a"],
-            [0.49, "#111827"],
-            [0.50, "#111827"],
-            [0.51, "#10251c"],
-            [0.60, "#166534"],
-            [0.80, "#22c55e"],
-            [1.00, "#bbf7d0"],
+        # Glassnode-like sequential palette: purple -> blue -> teal -> green -> yellow.
+        glassnode_colors = [
+            [0.00, "#170b2f"],
+            [0.12, "#35105a"],
+            [0.28, "#4146a5"],
+            [0.45, "#2f83b7"],
+            [0.62, "#28b78e"],
+            [0.80, "#8bd646"],
+            [1.00, "#fff36b"],
         ]
+        delta_for_hover = np.nan_to_num(z_delta, nan=0.0)
         fig_heat = go.Figure(data=go.Heatmap(
             x=date_labels,
             y=y_mid,
             z=z_color,
-            colorscale=heat_colors,
-            zmin=-color_limit,
-            zmax=color_limit,
-            zmid=0,
+            colorscale=glassnode_colors,
+            zmin=0,
+            zmax=supply_limit,
             colorbar=dict(
-                title=dict(text="Δ BTC", font=dict(color="#e5e7eb")),
+                title=dict(text="BTC trong vùng giá", font=dict(color="#e5e7eb")),
                 ticksuffix=" BTC",
                 tickfont=dict(color="#e5e7eb"),
             ),
             customdata=np.stack([
-                np.broadcast_to(np.array(heatmap["labels"], dtype=object)[:, None], z.shape),
-                z,
+                np.broadcast_to(np.array(heatmap["labels"], dtype=object)[:, None], z_supply.shape),
+                z_supply,
+                delta_for_hover,
             ], axis=-1),
             hovertemplate=(
-                "Ngày: %{x}<br>Vùng giá: %{customdata[0]}<br>"
-                "Thay đổi URPD: %{customdata[1]:+,.1f} BTC<extra></extra>"
+                "Ngày: %{x}<br>Vùng giá vốn: %{customdata[0]}<br>"
+                "Lượng BTC trong vùng: %{customdata[1]:,.1f} BTC<br>"
+                "Thay đổi so với snapshot trước: %{customdata[2]:+,.1f} BTC<extra></extra>"
             ),
             zsmooth=False,
-            xgap=1,
+            xgap=0,
             ygap=0,
         ))
-        # Overlay the historical BTC price as a white line, matching the reference chart.
-        # Historical prices come from each saved URPD snapshot; missing prices remain gaps.
+        # Historical BTC price as a clean white line, like the reference image.
         historical_prices = np.asarray(heatmap.get("prices", []), dtype=float)
         if len(historical_prices) == len(date_labels) and np.isfinite(historical_prices).any():
             price_line = historical_prices.copy()
@@ -2490,38 +2486,21 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
             fig_heat.add_trace(go.Scatter(
                 x=date_labels,
                 y=price_line,
-                mode="lines+markers",
+                mode="lines",
                 name="Giá BTC",
                 connectgaps=False,
-                line=dict(color="#ffffff", width=2.8, shape="linear"),
-                marker=dict(size=4, color="#ffffff", line=dict(width=0.5, color="#0b0f14")),
+                line=dict(color="#ffffff", width=2.4, shape="linear"),
                 hovertemplate="Ngày: %{x}<br>Giá BTC: $%{y:,.0f}<extra></extra>",
                 yaxis="y",
             ))
         if current_price is not None and np.isfinite(float(current_price)):
             fig_heat.add_hline(
-                y=float(current_price), line_dash="dash", line_color="#60a5fa", line_width=1.8,
+                y=float(current_price), line_dash="dash", line_color="#60a5fa", line_width=1.6,
                 annotation_text=f"BTC hiện tại ${float(current_price):,.0f}",
                 annotation_position="top left",
                 annotation_font=dict(color="#93c5fd", size=11),
             )
-        # Mark LTH/STH realized-price reference levels when they are valid.
-        for ref_name, ref_value, ref_color in [
-            ("LTH realized price", lth_value, "#f59e0b"),
-            ("STH realized price", sth_value, "#c084fc"),
-        ]:
-            try:
-                ref_value = float(ref_value)
-                if np.isfinite(ref_value) and ref_value > 0:
-                    fig_heat.add_hline(
-                        y=ref_value, line_dash="dot", line_color=ref_color, line_width=1.2,
-                        annotation_text=f"{ref_name}: ${ref_value:,.0f}",
-                        annotation_position="bottom right",
-                        annotation_font=dict(color=ref_color, size=10),
-                    )
-            except (TypeError, ValueError):
-                pass
-        # Default view zooms around spot price; the full-range option restores all buckets.
+        # Default view zooms around spot price; full-range option restores all buckets.
         price_min = float(np.nanmin(heatmap["edges"])) if len(heatmap["edges"]) else 0.0
         price_max = float(np.nanmax(heatmap["edges"])) if len(heatmap["edges"]) else 130000.0
         if price_view == "Quanh giá hiện tại" and current_price is not None:
@@ -2546,13 +2525,13 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
                 font=dict(color="#e5e7eb", size=11),
                 bgcolor="rgba(11,15,20,0.55)",
             ),
-            xaxis_title="Ngày snapshot URPD (so với snapshot trước)",
-            yaxis_title="Vùng giá BTC (USD)",
+            xaxis_title="Ngày snapshot URPD",
+            yaxis_title="Vùng giá vốn BTC (USD)",
             yaxis=dict(
                 tickformat="$,.0f",
                 dtick=5000 if price_view == "Quanh giá hiện tại" else 10000,
                 range=[price_min, price_max],
-                gridcolor="rgba(148,163,184,0.16)",
+                gridcolor="rgba(148,163,184,0.10)",
                 zeroline=False,
                 tickfont=dict(color="#e5e7eb"),
                 fixedrange=False,
@@ -2567,19 +2546,19 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
             ),
         )
         st.caption(
-            f"Thang màu được giới hạn theo phân vị 97% (±{color_limit:,.0f} BTC) để các biến động vừa/nhỏ dễ thấy hơn. "
-            "Đường trắng có chấm là giá BTC tại từng snapshot; xanh nét đứt là giá hiện tại; cam là LTH realized price; tím là STH realized price. "
-            "Rê chuột vào đường để xem giá, hoặc vào ô màu để xem chênh lệch BTC thực. Dùng lựa chọn phía trên để đổi giữa vùng giá gần thị trường và toàn bộ vùng giá."
+            f"Kiểu Glassnode: màu thể hiện lượng BTC đang nằm trong từng vùng giá vốn (thang màu giới hạn ở phân vị 99%, tối đa hiển thị khoảng {supply_limit:,.0f} BTC mỗi bucket). "
+            "Đường trắng là giá BTC lịch sử; xanh nét đứt là giá hiện tại. Rê chuột để xem lượng BTC thực và chênh lệch so với snapshot trước. "
+            "Đây là phân bổ URPD theo snapshot, không phải truy vết chính xác từng đồng BTC."
         )
         st.plotly_chart(fig_heat, use_container_width=True)
-        total_positive = float(np.clip(z, 0, None).sum())
-        total_negative = float(np.clip(z, None, 0).sum())
+        total_positive = float(np.clip(z_delta, 0, None).sum())
+        total_negative = float(np.clip(z_delta, None, 0).sum())
         h1, h2, h3 = st.columns(3)
         h1.metric("Tổng biến động tăng ở các bucket", f"+{total_positive:,.0f} BTC")
         h2.metric("Tổng biến động giảm ở các bucket", f"{total_negative:,.0f} BTC")
         h3.metric("Snapshot được dùng", f"{heatmap['snapshot_count']}")
         st.caption(
-            "Đỏ = lượng BTC ghi nhận trong bucket giảm; xanh = tăng; màu nhạt = ít thay đổi. "
+            "Các chỉ số bên dưới vẫn tính chênh lệch giữa các snapshot; màu trên heatmap thể hiện lượng BTC tuyệt đối trong bucket. "
             "Giá trị được quy đổi về bucket cố định $1.000 bằng nội suy theo độ rộng bucket nguồn. "
             "Đây là thay đổi phân bổ URPD, không phải truy vết chính xác coin nào đã chuyển từ vùng nào sang vùng nào."
         )
