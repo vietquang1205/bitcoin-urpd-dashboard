@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V54", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V62", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -2406,6 +2406,13 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
         f"Dùng history URPD đã lưu trong {days_choice} ngày gần nhất; mỗi hàng là một vùng giá rộng $1.000, "
         "mỗi cột là chênh lệch so với snapshot URPD trước đó. Đường trắng là giá BTC lịch sử theo từng snapshot; không gọi thêm API."
     )
+    price_view = st.radio(
+        "Phạm vi giá hiển thị",
+        ["Quanh giá hiện tại", "Toàn bộ vùng giá"],
+        horizontal=True,
+        key="urpd_heatmap_price_view_v62",
+        help="Quanh giá hiện tại giúp tập trung vào vùng giá vốn gần thị trường. Có thể chuyển sang toàn bộ vùng giá bất cứ lúc nào.",
+    )
     heatmap_history = dict(history) if isinstance(history, dict) else {}
     # Include today's in-memory snapshot so the first render can show the latest day
     # even though the persistent history write happens later in the script.
@@ -2483,19 +2490,48 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
             fig_heat.add_trace(go.Scatter(
                 x=date_labels,
                 y=price_line,
-                mode="lines",
+                mode="lines+markers",
                 name="Giá BTC",
                 connectgaps=False,
-                line=dict(color="#ffffff", width=2.2, shape="linear"),
+                line=dict(color="#ffffff", width=2.8, shape="linear"),
+                marker=dict(size=4, color="#ffffff", line=dict(width=0.5, color="#0b0f14")),
                 hovertemplate="Ngày: %{x}<br>Giá BTC: $%{y:,.0f}<extra></extra>",
                 yaxis="y",
             ))
         if current_price is not None and np.isfinite(float(current_price)):
             fig_heat.add_hline(
-                y=float(current_price), line_dash="dash", line_color="#60a5fa", line_width=1.5,
+                y=float(current_price), line_dash="dash", line_color="#60a5fa", line_width=1.8,
                 annotation_text=f"BTC hiện tại ${float(current_price):,.0f}",
                 annotation_position="top left",
+                annotation_font=dict(color="#93c5fd", size=11),
             )
+        # Mark LTH/STH realized-price reference levels when they are valid.
+        for ref_name, ref_value, ref_color in [
+            ("LTH realized price", lth_value, "#f59e0b"),
+            ("STH realized price", sth_value, "#c084fc"),
+        ]:
+            try:
+                ref_value = float(ref_value)
+                if np.isfinite(ref_value) and ref_value > 0:
+                    fig_heat.add_hline(
+                        y=ref_value, line_dash="dot", line_color=ref_color, line_width=1.2,
+                        annotation_text=f"{ref_name}: ${ref_value:,.0f}",
+                        annotation_position="bottom right",
+                        annotation_font=dict(color=ref_color, size=10),
+                    )
+            except (TypeError, ValueError):
+                pass
+        # Default view zooms around spot price; the full-range option restores all buckets.
+        price_min = float(np.nanmin(heatmap["edges"])) if len(heatmap["edges"]) else 0.0
+        price_max = float(np.nanmax(heatmap["edges"])) if len(heatmap["edges"]) else 130000.0
+        if price_view == "Quanh giá hiện tại" and current_price is not None:
+            try:
+                spot = float(current_price)
+                if np.isfinite(spot) and spot > 0:
+                    price_min = max(0.0, spot * 0.65)
+                    price_max = spot * 1.35
+            except (TypeError, ValueError):
+                pass
         fig_heat.update_layout(
             height=680,
             template="plotly_dark",
@@ -2514,10 +2550,12 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
             yaxis_title="Vùng giá BTC (USD)",
             yaxis=dict(
                 tickformat="$,.0f",
-                dtick=10000,
-                gridcolor="rgba(148,163,184,0.12)",
+                dtick=5000 if price_view == "Quanh giá hiện tại" else 10000,
+                range=[price_min, price_max],
+                gridcolor="rgba(148,163,184,0.16)",
                 zeroline=False,
                 tickfont=dict(color="#e5e7eb"),
+                fixedrange=False,
             ),
             xaxis=dict(
                 type="category",
@@ -2530,7 +2568,8 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
         )
         st.caption(
             f"Thang màu được giới hạn theo phân vị 97% (±{color_limit:,.0f} BTC) để các biến động vừa/nhỏ dễ thấy hơn. "
-            "Giá trị hover vẫn là số BTC chênh lệch thực, không bị giới hạn. Đường trắng thể hiện giá BTC lịch sử; ngày nào snapshot không có giá lưu thì đường sẽ bị ngắt tại ngày đó."
+            "Đường trắng có chấm là giá BTC tại từng snapshot; xanh nét đứt là giá hiện tại; cam là LTH realized price; tím là STH realized price. "
+            "Rê chuột vào đường để xem giá, hoặc vào ô màu để xem chênh lệch BTC thực. Dùng lựa chọn phía trên để đổi giữa vùng giá gần thị trường và toàn bộ vùng giá."
         )
         st.plotly_chart(fig_heat, use_container_width=True)
         total_positive = float(np.clip(z, 0, None).sum())
