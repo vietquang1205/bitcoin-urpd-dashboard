@@ -2444,7 +2444,7 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
 render_realized_profit_loss_chart(price)
 
 # LTH/STH realized-price chart: tải theo nút bấm để tránh gọi API ở mỗi lần render.
-render_lth_sth_realized_price_chart(price, token, urpd, data_date)
+render_lth_sth_realized_price_chart(price, token, urpd, urpd_date)
 
 if urpd is not None:
     urpd = urpd.copy()
