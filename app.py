@@ -2182,9 +2182,108 @@ if refresh_realized:
 
 
 # =========================
+# URPD CHANGE HEATMAP — BTC SUPPLY CHANGE BY PRICE RANGE
+# =========================
+def build_urpd_change_heatmap(history_data, days=90, bin_size=1000):
+    """Re-bin saved daily URPD snapshots to fixed price buckets and compute daily deltas.
+
+    Deltas are changes in the URPD distribution, not transaction-level UTXO tracing.
+    Supply inside a source bucket is prorated uniformly across overlapping fixed bins.
+    """
+    if not isinstance(history_data, dict) or len(history_data) < 2:
+        return None, "Cần ít nhất 2 snapshot URPD đã lưu để tính biến động."
+
+    snapshots = []
+    for day_key, snap in history_data.items():
+        if not isinstance(snap, dict) or not isinstance(snap.get("urpd"), list):
+            continue
+        try:
+            day = datetime.strptime(str(snap.get("date") or day_key), "%Y-%m-%d").date()
+            frame = records_to_urpd(snap["urpd"])
+            frame = frame[(frame["price_high"] > 1) & (frame["btc_amount"] >= 0)].copy()
+            if not frame.empty:
+                snapshots.append((day, frame))
+        except Exception:
+            continue
+
+    snapshots.sort(key=lambda item: item[0])
+    if len(snapshots) < 2:
+        return None, "History chưa có đủ 2 snapshot URPD hợp lệ."
+
+    latest_day = snapshots[-1][0]
+    cutoff = latest_day - timedelta(days=max(1, int(days)))
+    snapshots = [(d, f) for d, f in snapshots if d >= cutoff]
+    if len(snapshots) < 2:
+        # Include one snapshot immediately before the requested window so the first delta is valid.
+        all_snapshots = []
+        for day_key, snap in history_data.items():
+            if not isinstance(snap, dict) or not isinstance(snap.get("urpd"), list):
+                continue
+            try:
+                day = datetime.strptime(str(snap.get("date") or day_key), "%Y-%m-%d").date()
+                frame = records_to_urpd(snap["urpd"])
+                frame = frame[(frame["price_high"] > 1) & (frame["btc_amount"] >= 0)].copy()
+                if not frame.empty:
+                    all_snapshots.append((day, frame))
+            except Exception:
+                continue
+        all_snapshots.sort(key=lambda item: item[0])
+        before = [item for item in all_snapshots if item[0] < cutoff]
+        snapshots = ([before[-1]] if before else []) + [(d, f) for d, f in all_snapshots if d >= cutoff]
+    if len(snapshots) < 2:
+        return None, "Không đủ snapshot trong khoảng thời gian đã chọn để so sánh."
+
+    max_price = max(float(frame["price_high"].max()) for _, frame in snapshots)
+    max_price = min(max_price, 250000.0)
+    n_bins = max(1, int(np.ceil(max_price / float(bin_size))))
+    edges = np.arange(n_bins + 1, dtype=float) * float(bin_size)
+
+    def to_fixed_bins(frame):
+        amounts = np.zeros(n_bins, dtype=float)
+        lows = frame["price_low"].to_numpy(dtype=float)
+        highs = frame["price_high"].to_numpy(dtype=float)
+        btcs = frame["btc_amount"].to_numpy(dtype=float)
+        for low, high, btc in zip(lows, highs, btcs):
+            low = max(float(low), 0.0)
+            high = min(float(high), max_price)
+            width = high - low
+            if width <= 0 or not np.isfinite(btc) or btc < 0:
+                continue
+            first = max(0, int(low // bin_size))
+            last = min(n_bins - 1, int(np.nextafter(high, -np.inf) // bin_size))
+            for idx in range(first, last + 1):
+                overlap = max(0.0, min(high, edges[idx + 1]) - max(low, edges[idx]))
+                if overlap > 0:
+                    amounts[idx] += float(btc) * overlap / width
+        return amounts
+
+    dates = []
+    distributions = []
+    for day, frame in snapshots:
+        dates.append(day)
+        distributions.append(to_fixed_bins(frame))
+
+    # Each column is the difference between that day's distribution and the previous available snapshot.
+    deltas = np.diff(np.vstack(distributions), axis=0).T
+    delta_dates = dates[1:]
+    if deltas.size == 0:
+        return None, "Không tính được chênh lệch URPD."
+    labels = [f"${int(edges[i]):,}–${int(edges[i+1]):,}" for i in range(n_bins)]
+    return {
+        "dates": delta_dates,
+        "edges": edges,
+        "labels": labels,
+        "deltas": deltas,
+        "bin_size": bin_size,
+        "snapshot_count": len(snapshots),
+        "latest_day": latest_day,
+    }, None
+
+
+# =========================
 # LTH / STH REALIZED PRICE — DYNAMIC SUPPORT / RESISTANCE ZONES
 # =========================
-def render_lth_sth_realized_price_chart(current_price, api_token):
+def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=None, current_urpd_date=None):
     st.markdown("---")
     st.subheader("🧭 Long-Term Holder / Short-Term Holder — vùng giá vốn quan trọng")
     st.caption(
@@ -2257,6 +2356,75 @@ def render_lth_sth_realized_price_chart(current_price, api_token):
     if current_price is not None and float(current_price) > 0:
         c3.metric("BTC so với STH cost basis", f"{(float(current_price) / sth_value - 1) * 100:+.1f}%")
 
+    # Heatmap shares the LTH/STH date-range selector and uses already-saved URPD history.
+    st.markdown("### 🌡️ Bản đồ nhiệt: biến động lượng BTC theo vùng giá")
+    st.caption(
+        f"Dùng history URPD đã lưu trong {days_choice} ngày gần nhất; mỗi hàng là một vùng giá rộng $1.000, "
+        "mỗi cột là chênh lệch so với snapshot URPD trước đó. Không gọi thêm API."
+    )
+    heatmap_history = dict(history) if isinstance(history, dict) else {}
+    # Include today's in-memory snapshot so the first render can show the latest day
+    # even though the persistent history write happens later in the script.
+    if current_urpd is not None and not current_urpd.empty and current_urpd_date:
+        if current_urpd_date not in heatmap_history:
+            heatmap_history[current_urpd_date] = {
+                "date": current_urpd_date,
+                "urpd": current_urpd[["price_low", "price_high", "btc_amount"]].to_dict("records"),
+            }
+    heatmap, heatmap_error = build_urpd_change_heatmap(heatmap_history, days=days_choice, bin_size=1000)
+    if heatmap is None:
+        st.info(heatmap_error or "Chưa đủ lịch sử URPD để dựng bản đồ nhiệt.")
+        st.caption("Cần ít nhất 2 snapshot URPD khác ngày. Dữ liệu lịch sử phải được lưu trong urpd_history.json/GitHub.")
+    else:
+        z = heatmap["deltas"]
+        max_abs = float(np.nanmax(np.abs(z))) if z.size else 0.0
+        if not np.isfinite(max_abs) or max_abs <= 0:
+            max_abs = 1.0
+        # Use price-bin midpoints for a true numeric price axis.
+        y_mid = (heatmap["edges"][:-1] + heatmap["edges"][1:]) / 2.0
+        fig_heat = go.Figure(data=go.Heatmap(
+            x=[d.strftime("%Y-%m-%d") for d in heatmap["dates"]],
+            y=y_mid,
+            z=z,
+            colorscale="RdYlGn",
+            zmin=-max_abs,
+            zmax=max_abs,
+            zmid=0,
+            colorbar=dict(title="Δ BTC", ticksuffix=" BTC"),
+            customdata=np.broadcast_to(
+                np.array(heatmap["labels"], dtype=object)[:, None], z.shape
+            ),
+            hovertemplate=(
+                "Ngày: %{x}<br>Vùng giá: %{customdata}<br>"
+                "Thay đổi URPD: %{z:+,.1f} BTC<extra></extra>"
+            ),
+        ))
+        if current_price is not None and np.isfinite(float(current_price)):
+            fig_heat.add_hline(
+                y=float(current_price), line_dash="dash", line_color="#60a5fa", line_width=1.5,
+                annotation_text=f"BTC hiện tại ${float(current_price):,.0f}",
+                annotation_position="top left",
+            )
+        fig_heat.update_layout(
+            height=620, template="plotly_dark", margin=dict(l=20, r=20, t=35, b=25),
+            xaxis_title="Ngày snapshot URPD (so với snapshot trước)",
+            yaxis_title="Vùng giá BTC (USD)",
+            yaxis=dict(tickformat="$,.0f", dtick=10000),
+            xaxis=dict(type="category", tickangle=-35),
+        )
+        st.plotly_chart(fig_heat, use_container_width=True)
+        total_positive = float(np.clip(z, 0, None).sum())
+        total_negative = float(np.clip(z, None, 0).sum())
+        h1, h2, h3 = st.columns(3)
+        h1.metric("Tổng biến động tăng ở các bucket", f"+{total_positive:,.0f} BTC")
+        h2.metric("Tổng biến động giảm ở các bucket", f"{total_negative:,.0f} BTC")
+        h3.metric("Snapshot được dùng", f"{heatmap['snapshot_count']}")
+        st.caption(
+            "Đỏ = lượng BTC ghi nhận trong bucket giảm; xanh = tăng; màu nhạt = ít thay đổi. "
+            "Giá trị được quy đổi về bucket cố định $1.000 bằng nội suy theo độ rộng bucket nguồn. "
+            "Đây là thay đổi phân bổ URPD, không phải truy vết chính xác coin nào đã chuyển từ vùng nào sang vùng nào."
+        )
+
     st.markdown("**Cách đọc để tìm vùng có khả năng phản ứng:**")
     st.write(
         f"- **LTH cost basis:** khoảng ${lth_value:,.0f}. Theo dõi xem giá có giữ được vùng này khi điều chỉnh hay không. "
@@ -2276,7 +2444,7 @@ def render_lth_sth_realized_price_chart(current_price, api_token):
 render_realized_profit_loss_chart(price)
 
 # LTH/STH realized-price chart: tải theo nút bấm để tránh gọi API ở mỗi lần render.
-render_lth_sth_realized_price_chart(price, token)
+render_lth_sth_realized_price_chart(price, token, urpd, data_date)
 
 if urpd is not None:
     urpd = urpd.copy()
