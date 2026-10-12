@@ -95,19 +95,15 @@
       "supply_in_loss": 6086541.5326981,
       "supply_in_loss_percent": 0.302875323381691,
       "btc_price": 82811.06
+    },
+    "2026-10-11": {
+      "realized_profit": 448418574.88512117
     }
   },
-  "last_attempt_date": "2026-10-11",
+  "last_attempt_date": "2026-10-12",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=price, updated=1, quota_before=54957.0, quota_after=54956.0",
+  "last_attempt_status": "metric=realizedprofit, updated=1, quota_before=54956.0, quota_after=54955.0",
   "attempts_by_date": {
-    "2026-09-28": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
     "2026-09-29": [
       "price",
       "realizedloss",
@@ -198,6 +194,9 @@
       "realizedprofit",
       "supply_in_loss",
       "supply_in_loss_percent"
+    ],
+    "2026-10-12": [
+      "realizedprofit"
     ]
   },
   "last_manual_batch_date": "2026-09-28",
