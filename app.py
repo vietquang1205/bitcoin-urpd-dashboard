@@ -2221,6 +2221,7 @@ def build_urpd_change_heatmap(history_data, days=90, bin_size=1000):
         return None, "Cần ít nhất 2 snapshot URPD đã lưu để tính biến động."
 
     snapshots = []
+    snapshot_prices = {}
     for day_key, snap in history_data.items():
         if not isinstance(snap, dict) or not isinstance(snap.get("urpd"), list):
             continue
@@ -2230,6 +2231,12 @@ def build_urpd_change_heatmap(history_data, days=90, bin_size=1000):
             frame = frame[(frame["price_high"] > 1) & (frame["btc_amount"] >= 0)].copy()
             if not frame.empty:
                 snapshots.append((day, frame))
+                try:
+                    saved_price = float(snap.get("price"))
+                    if np.isfinite(saved_price) and saved_price > 0:
+                        snapshot_prices[day] = saved_price
+                except (TypeError, ValueError):
+                    pass
         except Exception:
             continue
 
@@ -2255,6 +2262,12 @@ def build_urpd_change_heatmap(history_data, days=90, bin_size=1000):
                 frame = frame[(frame["price_high"] > 1) & (frame["btc_amount"] >= 0)].copy()
                 if not frame.empty:
                     all_snapshots.append((day, frame))
+                    try:
+                        saved_price = float(snap.get("price"))
+                        if np.isfinite(saved_price) and saved_price > 0:
+                            snapshot_prices[day] = saved_price
+                    except (TypeError, ValueError):
+                        pass
             except Exception:
                 continue
         all_snapshots.sort(key=lambda item: item[0])
@@ -2301,6 +2314,7 @@ def build_urpd_change_heatmap(history_data, days=90, bin_size=1000):
     labels = [f"${int(edges[i]):,}–${int(edges[i+1]):,}" for i in range(n_bins)]
     return {
         "dates": delta_dates,
+        "prices": [snapshot_prices.get(day, np.nan) for day in delta_dates],
         "edges": edges,
         "labels": labels,
         "deltas": deltas,
@@ -2390,7 +2404,7 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
     st.markdown("### 🌡️ Bản đồ nhiệt: biến động lượng BTC theo vùng giá")
     st.caption(
         f"Dùng history URPD đã lưu trong {days_choice} ngày gần nhất; mỗi hàng là một vùng giá rộng $1.000, "
-        "mỗi cột là chênh lệch so với snapshot URPD trước đó. Không gọi thêm API."
+        "mỗi cột là chênh lệch so với snapshot URPD trước đó. Đường trắng là giá BTC lịch sử theo từng snapshot; không gọi thêm API."
     )
     heatmap_history = dict(history) if isinstance(history, dict) else {}
     # Include today's in-memory snapshot so the first render can show the latest day
@@ -2399,6 +2413,7 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
         if current_urpd_date not in heatmap_history:
             heatmap_history[current_urpd_date] = {
                 "date": current_urpd_date,
+                "price": float(current_price) if current_price is not None and np.isfinite(float(current_price)) else None,
                 "urpd": current_urpd[["price_low", "price_high", "btc_amount"]].to_dict("records"),
             }
     heatmap, heatmap_error = build_urpd_change_heatmap(heatmap_history, days=days_choice, bin_size=1000)
@@ -2459,6 +2474,22 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
             xgap=1,
             ygap=0,
         ))
+        # Overlay the historical BTC price as a white line, matching the reference chart.
+        # Historical prices come from each saved URPD snapshot; missing prices remain gaps.
+        historical_prices = np.asarray(heatmap.get("prices", []), dtype=float)
+        if len(historical_prices) == len(date_labels) and np.isfinite(historical_prices).any():
+            price_line = historical_prices.copy()
+            price_line[~np.isfinite(price_line)] = np.nan
+            fig_heat.add_trace(go.Scatter(
+                x=date_labels,
+                y=price_line,
+                mode="lines",
+                name="Giá BTC",
+                connectgaps=False,
+                line=dict(color="#ffffff", width=2.2, shape="linear"),
+                hovertemplate="Ngày: %{x}<br>Giá BTC: $%{y:,.0f}<extra></extra>",
+                yaxis="y",
+            ))
         if current_price is not None and np.isfinite(float(current_price)):
             fig_heat.add_hline(
                 y=float(current_price), line_dash="dash", line_color="#60a5fa", line_width=1.5,
@@ -2466,12 +2497,19 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
                 annotation_position="top left",
             )
         fig_heat.update_layout(
-            height=650,
+            height=680,
             template="plotly_dark",
             paper_bgcolor="#0b0f14",
             plot_bgcolor="#0b0f14",
             margin=dict(l=65, r=35, t=45, b=80),
             hovermode="closest",
+            showlegend=True,
+            legend=dict(
+                orientation="h", yanchor="bottom", y=1.02,
+                xanchor="left", x=0.0,
+                font=dict(color="#e5e7eb", size=11),
+                bgcolor="rgba(11,15,20,0.55)",
+            ),
             xaxis_title="Ngày snapshot URPD (so với snapshot trước)",
             yaxis_title="Vùng giá BTC (USD)",
             yaxis=dict(
@@ -2492,7 +2530,7 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
         )
         st.caption(
             f"Thang màu được giới hạn theo phân vị 97% (±{color_limit:,.0f} BTC) để các biến động vừa/nhỏ dễ thấy hơn. "
-            "Giá trị hover vẫn là số BTC chênh lệch thực, không bị giới hạn."
+            "Giá trị hover vẫn là số BTC chênh lệch thực, không bị giới hạn. Đường trắng thể hiện giá BTC lịch sử; ngày nào snapshot không có giá lưu thì đường sẽ bị ngắt tại ngày đó."
         )
         st.plotly_chart(fig_heat, use_container_width=True)
         total_positive = float(np.clip(z, 0, None).sum())
