@@ -98,12 +98,13 @@
     },
     "2026-10-11": {
       "realized_profit": 448418574.88512117,
-      "realized_loss": 186178847.32582244
+      "realized_loss": 186178847.32582244,
+      "supply_in_loss": 5891939.33823184
     }
   },
   "last_attempt_date": "2026-10-12",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=realizedloss, updated=1, quota_before=54955.0, quota_after=54954.0",
+  "last_attempt_status": "metric=supply_in_loss, updated=1, quota_before=54954.0, quota_after=54953.0",
   "attempts_by_date": {
     "2026-09-29": [
       "price",
@@ -198,7 +199,8 @@
     ],
     "2026-10-12": [
       "realizedloss",
-      "realizedprofit"
+      "realizedprofit",
+      "supply_in_loss"
     ]
   },
   "last_manual_batch_date": "2026-09-28",
