@@ -1650,9 +1650,36 @@ def github_history_get():
             return {}, None
         r.raise_for_status()
         payload = r.json()
-        content = base64.b64decode(payload.get("content", "")).decode("utf-8")
+        # GitHub Contents API đôi khi trả content rỗng/không có content cho file lớn.
+        # Khi đó đọc trực tiếp raw file, tránh biến history có sẵn thành {}.
+        encoded_content = payload.get("content")
+        content = ""
+        if encoded_content:
+            try:
+                content = base64.b64decode(encoded_content).decode("utf-8").strip()
+            except Exception:
+                content = ""
+
+        if not content:
+            download_url = payload.get("download_url")
+            raw_url = download_url or (
+                f"https://raw.githubusercontent.com/{github_repo}/"
+                f"{github_branch}/{history_file}"
+            )
+            raw_response = requests.get(
+                raw_url,
+                headers={"Accept": "text/plain", "User-Agent": "BTC-URPD-Dashboard"},
+                timeout=30,
+            )
+            raw_response.raise_for_status()
+            content = raw_response.text.strip()
+
+        if not content:
+            raise ValueError("GitHub trả nội dung history rỗng.")
         data = json.loads(content)
-        return (data if isinstance(data, dict) else {}), payload.get("sha")
+        if not isinstance(data, dict):
+            raise ValueError("urpd_history.json không có cấu trúc object JSON.")
+        return data, payload.get("sha")
     except Exception as e:
         st.warning(f"Không đọc được history từ GitHub: {e}")
         # Fallback sang file local nếu có.
@@ -2208,7 +2235,10 @@ def build_urpd_change_heatmap(history_data, days=90, bin_size=1000):
 
     snapshots.sort(key=lambda item: item[0])
     if len(snapshots) < 2:
-        return None, "History chưa có đủ 2 snapshot URPD hợp lệ."
+        return None, (
+            f"Đọc được {len(snapshots)} snapshot URPD hợp lệ từ history, cần ít nhất 2 ngày khác nhau. "
+            "Nếu GitHub có nhiều ngày, hãy kiểm tra cảnh báo đọc history ở đầu dashboard."
+        )
 
     latest_day = snapshots[-1][0]
     cutoff = latest_day - timedelta(days=max(1, int(days)))
