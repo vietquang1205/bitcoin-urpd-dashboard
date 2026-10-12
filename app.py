@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V46", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V54", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -646,6 +646,8 @@ def _research_endpoint(metric_slug):
         "price": ("price", "price"),
         "supply_in_loss": ("supply_in_profitloss", "supply_in_loss"),
         "supply_in_loss_percent": ("supply_in_profitloss", "supply_in_loss_percent"),
+        "realized_price_lth": ("realizedprice", "realized_price_lth"),
+        "realized_price_sth": ("realizedprice", "realized_price_sth"),
     }
     return endpoint_map.get(metric_slug, (metric_slug, metric_slug))
 
@@ -2177,8 +2179,104 @@ if refresh_realized:
     except Exception as e:
         st.error(f"🔴 Cập nhật Realized P/L lỗi: {e}")
 
+
+
+# =========================
+# LTH / STH REALIZED PRICE — DYNAMIC SUPPORT / RESISTANCE ZONES
+# =========================
+def render_lth_sth_realized_price_chart(current_price, api_token):
+    st.markdown("---")
+    st.subheader("🧭 Long-Term Holder / Short-Term Holder — vùng giá vốn quan trọng")
+    st.caption(
+        "LTH = holder nắm giữ khoảng từ 155 ngày trở lên; STH = dưới 155 ngày. "
+        "Đường realized price là giá vốn trung bình on-chain của từng nhóm, có thể đóng vai trò vùng hỗ trợ/kháng cự động; "
+        "không phải tín hiệu đảo chiều chắc chắn."
+    )
+    days_choice = st.selectbox(
+        "Khoảng dữ liệu LTH/STH",
+        options=[30, 90, 180],
+        index=1,
+        format_func=lambda x: f"{x} ngày gần nhất",
+        key="lth_sth_days_choice",
+    )
+    cache_key = f"lth_sth_realized_price_{days_choice}"
+    if st.button("📥 Tải / cập nhật dữ liệu LTH-STH", key="load_lth_sth_prices", use_container_width=True):
+        if not api_token:
+            st.warning("Cần ResearchBitcoin API token để lấy giá vốn LTH/STH.")
+        else:
+            to_date = datetime.now(timezone.utc).date() - timedelta(days=1)
+            from_date = to_date - timedelta(days=int(days_choice) - 1)
+            try:
+                with st.spinner(f"Đang tải {days_choice} ngày dữ liệu LTH/STH từ ResearchBitcoin…"):
+                    lth = researchbitcoin_fetch_series(api_token, "realized_price_lth", from_date, to_date)
+                    sth = researchbitcoin_fetch_series(api_token, "realized_price_sth", from_date, to_date)
+                merged = lth.rename(columns={"value": "LTH realized price"}).merge(
+                    sth.rename(columns={"value": "STH realized price"}), on="date", how="inner"
+                )
+                if merged.empty:
+                    raise ValueError("Hai chuỗi LTH/STH không có ngày dữ liệu trùng nhau.")
+                st.session_state[cache_key] = merged
+                st.success(f"Đã tải {len(merged)} ngày dữ liệu LTH/STH.")
+            except Exception as e:
+                st.error(f"Không tải được dữ liệu LTH/STH: {e}")
+
+    data = st.session_state.get(cache_key)
+    if data is None or data.empty:
+        st.info("Nhấn **Tải / cập nhật dữ liệu LTH-STH** để lấy dữ liệu. Chỉ gọi API khi ông chủ động bấm nút.")
+        return
+
+    chart = data.copy()
+    chart["date"] = pd.to_datetime(chart["date"])
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=chart["date"], y=chart["LTH realized price"], mode="lines",
+        name="LTH realized price (giá vốn holder dài hạn)", line=dict(width=2, color="#10b981")
+    ))
+    fig.add_trace(go.Scatter(
+        x=chart["date"], y=chart["STH realized price"], mode="lines",
+        name="STH realized price (giá vốn holder ngắn hạn)", line=dict(width=2, color="#f59e0b")
+    ))
+    if current_price is not None and np.isfinite(float(current_price)):
+        fig.add_hline(y=float(current_price), line_dash="dash", line_color="#60a5fa",
+                      annotation_text=f"Giá BTC hiện tại: ${float(current_price):,.0f}",
+                      annotation_position="top left")
+    fig.update_layout(
+        height=520, template="plotly_dark", hovermode="x unified",
+        xaxis_title="Ngày", yaxis_title="USD / BTC",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        margin=dict(l=20, r=20, t=70, b=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    latest = chart.sort_values("date").iloc[-1]
+    lth_value = float(latest["LTH realized price"])
+    sth_value = float(latest["STH realized price"])
+    c1, c2, c3 = st.columns(3)
+    c1.metric("LTH realized price", f"${lth_value:,.0f}")
+    c2.metric("STH realized price", f"${sth_value:,.0f}")
+    if current_price is not None and float(current_price) > 0:
+        c3.metric("BTC so với STH cost basis", f"{(float(current_price) / sth_value - 1) * 100:+.1f}%")
+
+    st.markdown("**Cách đọc để tìm vùng có khả năng phản ứng:**")
+    st.write(
+        f"- **LTH cost basis:** khoảng ${lth_value:,.0f}. Theo dõi xem giá có giữ được vùng này khi điều chỉnh hay không. "
+        f"Nếu giá nằm dưới vùng này kéo dài, cấu trúc holder dài hạn có thể yếu đi."
+    )
+    st.write(
+        f"- **STH cost basis:** khoảng ${sth_value:,.0f}. Đây là vùng giá vốn của holder mới hơn; giá chạm lại vùng này "
+        "có thể tạo phản ứng do hòa vốn/lỗ/lãi, nhưng hướng đi còn phụ thuộc xu hướng và thanh khoản."
+    )
+    st.caption(
+        "Lưu ý: đây là giá vốn trung bình của cả nhóm, không phải phân bố BTC theo từng mức giá. "
+        "Muốn thấy vùng giá vốn dày nhất riêng của LTH/STH cần dữ liệu cohort URPD dạng binned; các đường này chỉ cung cấp mốc tham chiếu động."
+    )
+
+
 # Realized P/L thật — tách khỏi URPD proxy để có thể đối chiếu kiểu Glassnode.
 render_realized_profit_loss_chart(price)
+
+# LTH/STH realized-price chart: tải theo nút bấm để tránh gọi API ở mỗi lần render.
+render_lth_sth_realized_price_chart(price, token)
 
 if urpd is not None:
     urpd = urpd.copy()
@@ -2650,41 +2748,65 @@ if selected_days > 0 and chart_urpd is not None and selected_date:
 
 
 def build_urpd_flow_deltas(current_df, old_df):
-    """
-    Tính thay đổi BTC theo bucket trên cùng một hệ quy chiếu giá.
+    """Compare URPD buckets using interval overlap, without an N×M matrix.
 
-    old BTC được phân bổ vào bucket hiện tại theo phần giao nhau về giá.
-    Kết quả chỉ cho biết bucket nào giảm/tăng; nó KHÔNG truy vết UTXO thực tế.
+    Old supply is prorated into current price buckets by price-range overlap.
+    This reports bucket-level URPD changes only; it does not trace individual UTXOs.
+    Assumes URPD buckets are non-overlapping within each snapshot, as returned by
+    the normalizer. Runtime is approximately O(N + M + K), where K is the number
+    of actual interval overlaps.
     """
-    if current_df is None or old_df is None or current_df.empty or old_df.empty:
+    required = {"price_low", "price_high", "btc_amount"}
+    if (
+        current_df is None or old_df is None
+        or current_df.empty or old_df.empty
+        or not required.issubset(current_df.columns)
+        or not required.issubset(old_df.columns)
+    ):
         return pd.DataFrame()
 
-    old_df = old_df.copy()
-    old_df = old_df[old_df["price_high"] > old_df["price_low"]].copy()
-    if old_df.empty:
+    def prepare(frame):
+        x = frame[["price_low", "price_high", "btc_amount"]].copy()
+        for col in ("price_low", "price_high", "btc_amount"):
+            x[col] = pd.to_numeric(x[col], errors="coerce")
+        x = x.replace([np.inf, -np.inf], np.nan).dropna()
+        x = x[(x["price_high"] > x["price_low"]) & (x["price_high"] > 1)]
+        x = x.sort_values(["price_low", "price_high"]).reset_index(drop=True)
+        return x
+
+    cur_df = prepare(current_df)
+    old_df = prepare(old_df)
+    if cur_df.empty or old_df.empty:
         return pd.DataFrame()
 
-    old_lo = old_df["price_low"].to_numpy(float)
-    old_hi = old_df["price_high"].to_numpy(float)
-    old_amt = old_df["btc_amount"].to_numpy(float)
+    old_lo = old_df["price_low"].to_numpy(dtype=float)
+    old_hi = old_df["price_high"].to_numpy(dtype=float)
+    old_amt = old_df["btc_amount"].to_numpy(dtype=float)
     old_width = old_hi - old_lo
 
     rows = []
-    for r in current_df.itertuples(index=False):
+    i = 0
+    old_n = len(old_df)
+    for r in cur_df.itertuples(index=False):
         lo = float(r.price_low)
         hi = float(r.price_high)
         cur = float(r.btc_amount)
         if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo or not np.isfinite(cur):
             continue
-        # Bucket 0 là supply đặc biệt/static, không đưa vào flow tracker.
-        if hi <= 1:
-            continue
 
-        overlap = np.maximum(0.0, np.minimum(old_hi, hi) - np.maximum(old_lo, lo))
-        old_btc = float(np.sum(old_amt * overlap / old_width))
+        while i < old_n and old_hi[i] <= lo:
+            i += 1
+
+        old_btc = 0.0
+        j = i
+        while j < old_n and old_lo[j] < hi:
+            overlap = min(old_hi[j], hi) - max(old_lo[j], lo)
+            if overlap > 0 and old_width[j] > 0:
+                old_btc += old_amt[j] * overlap / old_width[j]
+            j += 1
+
         if not np.isfinite(old_btc):
             continue
-
         delta = cur - old_btc
         rows.append({
             "low": lo,
@@ -2696,8 +2818,11 @@ def build_urpd_flow_deltas(current_df, old_df):
             "pct": (delta / old_btc * 100.0) if old_btc > 0 else np.nan,
         })
 
-    return pd.DataFrame(rows)
+        # Advance only past old buckets that cannot overlap a later current bucket.
+        while i < old_n and old_hi[i] <= hi:
+            i += 1
 
+    return pd.DataFrame(rows)
 
 def estimate_urpd_flow_to_targets(flow_df, source_delta):
     """
@@ -3089,15 +3214,77 @@ else:
     st.markdown("---")
     st.subheader("🔄 BTC Flow Tracker — BTC rút khỏi vùng này đang đi đâu?")
     st.caption(
-        "Bảng này lấy chênh lệch URPD giữa snapshot đang xem và snapshot so sánh. "
-        "Nếu một vùng giảm 2.547 BTC, dashboard sẽ đối chiếu với các vùng tăng và "
-        "phân bổ ước tính 2.547 BTC theo tỷ trọng lượng BTC tăng ở các vùng đích. "
-        "⚠️ Đây là suy luận từ URPD, KHÔNG phải truy vết UTXO thực tế."
+        "Lớp dữ liệu gốc: chênh lệch BTC theo bucket URPD giữa hai snapshot. "
+        "Lớp phân tích: phân bổ giả định lượng giảm theo tỷ trọng các bucket tăng. "
+        "⚠️ Phân bổ này KHÔNG xác định BTC/UTXO thực sự đã chuyển sang vùng đích nào."
     )
 
     flow_base_df = chart_urpd.copy() if chart_urpd is not None else None
     flow_old_df = comparison_urpd.copy() if comparison_urpd is not None else None
     flow_df = build_urpd_flow_deltas(flow_base_df, flow_old_df)
+
+    # Horizon table: compare the selected snapshot against 1D/3D/7D history
+    # already available in memory/GitHub history. This performs no extra API calls.
+    st.markdown("#### 📊 Đối chiếu biến động theo khung thời gian")
+    horizon_rows = []
+    horizon_base_date = chart_date or data_date
+    if horizon_base_date and flow_base_df is not None and not flow_base_df.empty:
+        try:
+            horizon_base_day = datetime.strptime(horizon_base_date, "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            horizon_base_day = None
+        if horizon_base_day:
+            for days_back in (1, 3, 7):
+                target_day = (horizon_base_day - timedelta(days=days_back)).strftime("%Y-%m-%d")
+                if days_back == comparison_days and comparison_urpd is not None:
+                    old_horizon_df = comparison_urpd
+                else:
+                    saved_horizon = history.get(target_day)
+                    old_horizon_df = (
+                        records_to_urpd(saved_horizon["urpd"])
+                        if saved_horizon and saved_horizon.get("urpd") else None
+                    )
+                if old_horizon_df is None or old_horizon_df.empty:
+                    horizon_rows.append({
+                        "Khung so sánh": f"{days_back}D",
+                        "Snapshot đối chiếu": target_day,
+                        "Tổng bucket giảm (BTC)": "Chưa có snapshot",
+                        "Tổng bucket tăng (BTC)": "Chưa có snapshot",
+                        "Chênh lệch ròng (BTC)": "N/A",
+                        "Số vùng giảm / tăng": "N/A",
+                    })
+                    continue
+                horizon_df = build_urpd_flow_deltas(flow_base_df, old_horizon_df)
+                if horizon_df.empty:
+                    horizon_rows.append({
+                        "Khung so sánh": f"{days_back}D",
+                        "Snapshot đối chiếu": target_day,
+                        "Tổng bucket giảm (BTC)": "Không đủ dữ liệu",
+                        "Tổng bucket tăng (BTC)": "Không đủ dữ liệu",
+                        "Chênh lệch ròng (BTC)": "N/A",
+                        "Số vùng giảm / tăng": "N/A",
+                    })
+                    continue
+                down = float(-horizon_df.loc[horizon_df["delta"] < 0, "delta"].sum())
+                up = float(horizon_df.loc[horizon_df["delta"] > 0, "delta"].sum())
+                n_down = int((horizon_df["delta"] < 0).sum())
+                n_up = int((horizon_df["delta"] > 0).sum())
+                horizon_rows.append({
+                    "Khung so sánh": f"{days_back}D",
+                    "Snapshot đối chiếu": target_day,
+                    "Tổng bucket giảm (BTC)": f"{down:,.2f}",
+                    "Tổng bucket tăng (BTC)": f"{up:,.2f}",
+                    "Chênh lệch ròng (BTC)": f"{up - down:+,.2f}",
+                    "Số vùng giảm / tăng": f"{n_down} / {n_up}",
+                })
+    if horizon_rows:
+        st.dataframe(pd.DataFrame(horizon_rows), hide_index=True, use_container_width=True)
+        st.caption(
+            "Mỗi khung thời gian dùng snapshot đúng ngày nếu có sẵn trong history. "
+            "Nếu thiếu snapshot, bảng ghi rõ thay vì tự tạo dữ liệu. Các số liệu là thay đổi URPD, không phải giao dịch BTC đã truy vết."
+        )
+    else:
+        st.info("Chưa đủ ngày dữ liệu để lập bảng đối chiếu 1D / 3D / 7D.")
 
     if comparison_urpd is None or flow_df.empty:
         st.info(
@@ -3192,10 +3379,10 @@ else:
                     st.metric("Chưa thấy vùng tăng tương ứng", f"{unexplained:,.2f} BTC")
 
                 st.caption(
-                    "Cách tính: lượng BTC tăng ở từng vùng đích / tổng BTC tăng của tất cả vùng đích × "
-                    "lượng BTC giảm của vùng nguồn. Vì vậy đây là **phân bổ ước tính**, không khẳng định "
-                    "BTC từ UTXO của vùng nguồn thực sự chuyển đúng sang các vùng đích này. "
-                    "Muốn biết chính xác UTXO nào được chuyển đi cần dữ liệu spent-output/on-chain transaction."
+                    "Công thức mô hình: BTC tăng ở vùng đích / tổng BTC tăng của các vùng đích × "
+                    "min(BTC nguồn giảm, tổng BTC tăng). Đây là **phân bổ giả định theo tỷ trọng**, "
+                    "không phải ghép cặp giao dịch hay truy vết UTXO. Muốn xác định nơi đến thực tế "
+                    "cần dữ liệu spent-output/transaction on-chain."
                 )
 
         # Bảng tổng hợp các vùng đích tăng để nhìn nhanh BTC đang tập trung vào đâu.
