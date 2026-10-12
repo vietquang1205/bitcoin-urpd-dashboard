@@ -2501,17 +2501,45 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
                 annotation_font=dict(color="#93c5fd", size=11),
             )
         # Default view zooms around spot price; full-range option restores all buckets.
-        price_min = float(np.nanmin(heatmap["edges"])) if len(heatmap["edges"]) else 0.0
-        price_max = float(np.nanmax(heatmap["edges"])) if len(heatmap["edges"]) else 130000.0
+        data_price_min = float(np.nanmin(heatmap["edges"])) if len(heatmap["edges"]) else 0.0
+        data_price_max = float(np.nanmax(heatmap["edges"])) if len(heatmap["edges"]) else 130000.0
+        default_price_min, default_price_max = data_price_min, data_price_max
         if price_view == "Quanh giá hiện tại" and current_price is not None:
             try:
                 spot = float(current_price)
                 if np.isfinite(spot) and spot > 0:
-                    price_min = max(0.0, spot * 0.65)
-                    price_max = spot * 1.35
+                    default_price_min = max(data_price_min, spot * 0.65)
+                    default_price_max = min(data_price_max, spot * 1.35)
             except (TypeError, ValueError):
                 pass
+        # Interactive price-range control: drag the two handles to stretch/zoom
+        # the vertical price axis without changing the underlying URPD data.
+        slider_min = int(max(0, np.floor(data_price_min / 1000) * 1000))
+        slider_max = int(np.ceil(data_price_max / 1000) * 1000)
+        if slider_max <= slider_min:
+            slider_max = slider_min + 1000
+        default_lo = int(np.clip(np.floor(default_price_min / 1000) * 1000, slider_min, slider_max - 1000))
+        default_hi = int(np.clip(np.ceil(default_price_max / 1000) * 1000, default_lo + 1000, slider_max))
+        range_col, reset_col = st.columns([8, 1])
+        with range_col:
+            selected_price_range = st.slider(
+                "Kéo hai đầu thanh để phóng to/thu nhỏ vùng giá (USD)",
+                min_value=slider_min,
+                max_value=slider_max,
+                value=(default_lo, default_hi),
+                step=1000,
+                key=f"urpd_heatmap_price_range_{price_view.replace(' ', '_')}",
+                help="Kéo đầu trái/phải để giới hạn dải giá đang xem. Biểu đồ và đường giá BTC sẽ tự cập nhật theo dải này.",
+                format="$%d",
+            )
+        with reset_col:
+            st.write("")
+            if st.button("Đặt lại", key=f"urpd_heatmap_price_reset_{price_view.replace(' ', '_')}", help="Trả về phạm vi giá mặc định"):
+                st.session_state.pop(f"urpd_heatmap_price_range_{price_view.replace(' ', '_')}", None)
+                st.rerun()
+        price_min, price_max = map(float, selected_price_range)
         fig_heat.update_layout(
+            dragmode="zoom",
             height=680,
             template="plotly_dark",
             paper_bgcolor="#0b0f14",
