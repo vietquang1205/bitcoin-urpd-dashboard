@@ -108,6 +108,200 @@ def _binance_near_chart(days=90):
     return pd.DataFrame(rows).drop_duplicates("date").sort_values("date")
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def _near_heatmap_candles(days=30):
+    """Lấy nến NEARUSDT công khai từ Binance; không cần API key."""
+    days = int(days)
+    if days <= 30:
+        interval = "1h"
+        limit = min(1000, days * 24)
+    else:
+        interval = "4h"
+        limit = min(1000, days * 6)
+
+    endpoints = [
+        "https://data-api.binance.vision/api/v3/klines",
+        "https://api.binance.com/api/v3/klines",
+    ]
+    params = {"symbol": "NEARUSDT", "interval": interval, "limit": limit}
+    last_error = None
+    for url in endpoints:
+        try:
+            response = requests.get(url, params=params, timeout=20)
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, list) or not payload:
+                raise ValueError("Binance không trả dữ liệu nến NEARUSDT.")
+            rows = []
+            for row in payload:
+                try:
+                    rows.append({
+                        "time": pd.to_datetime(row[0], unit="ms", utc=True),
+                        "open": float(row[1]),
+                        "high": float(row[2]),
+                        "low": float(row[3]),
+                        "close": float(row[4]),
+                        "base_volume": float(row[5]),
+                        "quote_volume": float(row[7]),
+                        "trades": int(row[8]),
+                    })
+                except (TypeError, ValueError, IndexError):
+                    continue
+            df = pd.DataFrame(rows)
+            if df.empty:
+                raise ValueError("Không có nến hợp lệ.")
+            return df.sort_values("time").drop_duplicates("time").reset_index(drop=True)
+        except Exception as exc:
+            last_error = exc
+    raise RuntimeError(f"Không lấy được nến NEARUSDT từ Binance: {last_error}")
+
+
+def render_near_heatmap():
+    """Glassnode-style heatmap: thời gian × vùng giá, màu = khối lượng ước tính."""
+    st.markdown("---")
+    st.subheader("🌡️ NEAR Heatmap — Khối lượng theo vùng giá")
+    st.caption(
+        "Nến giao dịch NEARUSDT từ Binance. Màu sắc biểu thị khối lượng USDT ước tính "
+        "phân bổ theo vùng giá của từng nến; không phải dữ liệu khớp lệnh chính xác từng mức giá."
+    )
+
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c1:
+        days = st.selectbox(
+            "Khoảng thời gian",
+            [7, 30, 60, 90],
+            index=1,
+            format_func=lambda d: f"{d} ngày",
+            key="near_heatmap_days",
+        )
+    with c2:
+        scope = st.radio(
+            "Phạm vi giá",
+            ["Quanh giá hiện tại", "Toàn bộ vùng giá"],
+            index=0,
+            key="near_heatmap_scope",
+        )
+    with c3:
+        bins = st.select_slider(
+            "Độ chi tiết vùng giá",
+            options=[40, 60, 80, 100],
+            value=60,
+            key="near_heatmap_bins",
+        )
+
+    try:
+        with st.spinner("Đang tải dữ liệu giao dịch NEAR..."):
+            candles = _near_heatmap_candles(int(days))
+    except Exception as exc:
+        st.warning(f"NEAR Heatmap chưa tải được dữ liệu: {exc}")
+        return
+
+    latest_price = float(candles["close"].iloc[-1])
+    if scope == "Quanh giá hiện tại":
+        price_min = max(float(candles["low"].min()), latest_price * 0.70)
+        price_max = min(float(candles["high"].max()), latest_price * 1.30)
+    else:
+        price_min = float(candles["low"].min())
+        price_max = float(candles["high"].max())
+
+    if not np.isfinite(price_min) or not np.isfinite(price_max) or price_max <= price_min:
+        price_min, price_max = max(0.0, latest_price * 0.7), latest_price * 1.3
+
+    edges = np.linspace(price_min, price_max, int(bins) + 1)
+    centers = (edges[:-1] + edges[1:]) / 2
+    z = np.zeros((int(bins), len(candles)), dtype=float)
+
+    lows = candles["low"].to_numpy(dtype=float)
+    highs = candles["high"].to_numpy(dtype=float)
+    volumes = candles["quote_volume"].to_numpy(dtype=float)
+
+    # Ước tính phân bổ quote volume theo phần giao giữa biên nến và các vùng giá.
+    for j, (lo, hi, volume) in enumerate(zip(lows, highs, volumes)):
+        if volume <= 0 or hi < price_min or lo > price_max:
+            continue
+        clipped_lo = max(lo, price_min)
+        clipped_hi = min(hi, price_max)
+        if hi <= lo:
+            idx = int(np.clip(np.searchsorted(edges, lo, side="right") - 1, 0, len(centers) - 1))
+            z[idx, j] += volume
+            continue
+        first = max(0, int(np.searchsorted(edges, clipped_lo, side="right") - 1))
+        last = min(len(centers) - 1, int(np.searchsorted(edges, clipped_hi, side="left")))
+        idxs = np.arange(first, last + 1)
+        overlap = np.maximum(
+            0.0,
+            np.minimum(edges[idxs + 1], clipped_hi) - np.maximum(edges[idxs], clipped_lo),
+        )
+        total_overlap = float(overlap.sum())
+        if total_overlap > 0:
+            z[idxs, j] += volume * overlap / total_overlap
+
+    # Ẩn các ô 0 để nền tối trông giống heatmap Glassnode hơn.
+    z_plot = np.where(z > 0, z, np.nan)
+    fig = go.Figure()
+    fig.add_trace(go.Heatmap(
+        x=candles["time"],
+        y=centers,
+        z=z_plot,
+        colorscale=[
+            [0.00, "#160d2b"],
+            [0.20, "#39216d"],
+            [0.42, "#3f5ab5"],
+            [0.62, "#19a7a1"],
+            [0.82, "#63d66a"],
+            [1.00, "#f5f66e"],
+        ],
+        colorbar={"title": "Khối lượng<br>USDT", "thickness": 14},
+        hovertemplate=(
+            "Thời gian: %{x|%d/%m/%Y %H:%M UTC}<br>"
+            "Vùng giá NEAR: $%{y:.4f}<br>"
+            "Khối lượng ước tính: %{z:,.0f} USDT<extra></extra>"
+        ),
+        name="Khối lượng ước tính",
+        zsmooth=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=candles["time"],
+        y=candles["close"],
+        mode="lines",
+        line={"color": "#ffffff", "width": 1.5},
+        name="Giá đóng cửa",
+        hovertemplate="Thời gian: %{x|%d/%m/%Y %H:%M UTC}<br>Giá: $%{y:.4f}<extra></extra>",
+    ))
+    fig.add_hline(
+        y=latest_price,
+        line_dash="dash",
+        line_color="#ff4d6d",
+        line_width=1.3,
+        annotation_text=f"NEAR mới nhất ~ ${latest_price:.4f}",
+        annotation_position="top left",
+    )
+    fig.update_layout(
+        template="plotly_dark",
+        height=610,
+        margin=dict(l=15, r=15, t=30, b=25),
+        xaxis_title="Thời gian (UTC)",
+        yaxis_title="Giá NEAR (USDT)",
+        hovermode="closest",
+        paper_bgcolor="#0e1117",
+        plot_bgcolor="#0e1117",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+    )
+    fig.update_yaxes(range=[price_min, price_max], tickprefix="$", gridcolor="rgba(150,150,150,.12)")
+    fig.update_xaxes(gridcolor="rgba(150,150,150,.12)")
+    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False, "scrollZoom": True})
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Giá NEAR mới nhất", f"${latest_price:.4f}")
+    m2.metric("Khối lượng USDT trong khoảng", f"${candles['quote_volume'].sum():,.0f}")
+    m3.metric("Số nến", f"{len(candles):,}")
+    st.caption(
+        "Cách đọc: vùng sáng hơn = khối lượng ước tính cao hơn. Do Binance klines chỉ cung cấp OHLCV, "
+        "khối lượng được phân bổ theo phần vùng giá mà nến đi qua; đây không phải volume chính xác từng mức giá "
+        "và không tự nó xác nhận cá voi mua hay bán."
+    )
+
+
 def near_market_data():
     """CoinGecko first, Binance fallback. A 429 must not kill the dashboard."""
     try:
@@ -605,7 +799,7 @@ def render_near_monitor():
     d.metric("Volume 24h", _near_fmt_usd(market.get("volume_24h")))
     e.metric("Circulating", _near_fmt_near(market.get("circulating_supply")))
     f.metric("TVL NEAR", _near_fmt_usd(tvl_now))
-    st.caption(f"Nguồn market: {market.get("_source", "N/A")} • TVL/stablecoin: DeFiLlama")
+    st.caption(f"Nguồn market: {market.get('_source', 'N/A')} • TVL/stablecoin: DeFiLlama")
 
     # Radar
     st.subheader("🧠 NEAR Radar — điểm minh bạch")
@@ -635,6 +829,9 @@ def render_near_monitor():
         q1.metric("EMA20", f"${score['ema20']:.4f}" if np.isfinite(score['ema20']) else "N/A")
         q2.metric("EMA50", f"${score['ema50']:.4f}" if np.isfinite(score['ema50']) else "N/A")
         q3.metric("EMA200", f"${score['ema200']:.4f}" if np.isfinite(score['ema200']) else "N/A")
+
+    # NEAR volume heatmap — isolated to this page, BTC app.py remains untouched.
+    render_near_heatmap()
 
     # Flow + ecosystem
     f1, f2 = st.columns(2)
