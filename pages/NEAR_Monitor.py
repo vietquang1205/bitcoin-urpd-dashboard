@@ -157,36 +157,31 @@ def _near_heatmap_candles(days=30):
 
 
 def render_near_heatmap():
-    """Glassnode-style heatmap: thời gian × vùng giá, màu = khối lượng ước tính."""
+    """Glassnode-style NEAR heatmap with a volume profile and estimated S/R zones."""
+    from plotly.subplots import make_subplots
+
     st.markdown("---")
-    st.subheader("🌡️ NEAR Heatmap — Khối lượng theo vùng giá")
+    st.subheader("🌡️ NEAR Heatmap — Volume Profile & vùng hỗ trợ/kháng cự")
     st.caption(
-        "Nến giao dịch NEARUSDT từ Binance. Màu sắc biểu thị khối lượng USDT ước tính "
-        "phân bổ theo vùng giá của từng nến; không phải dữ liệu khớp lệnh chính xác từng mức giá."
+        "Bản đồ nhiệt theo thời gian × vùng giá; thanh bên phải cộng dồn khối lượng USDT ước tính theo giá. "
+        "Hỗ trợ/kháng cự được gợi ý từ các đỉnh volume profile, không phải mức giá chắc chắn đảo chiều."
     )
 
     c1, c2, c3 = st.columns([1, 1, 1])
     with c1:
         days = st.selectbox(
-            "Khoảng thời gian",
-            [7, 30, 60, 90],
-            index=1,
-            format_func=lambda d: f"{d} ngày",
-            key="near_heatmap_days",
+            "Khoảng thời gian", [7, 30, 60, 90], index=2,
+            format_func=lambda d: f"{d} ngày", key="near_heatmap_days",
         )
     with c2:
         scope = st.radio(
-            "Phạm vi giá",
-            ["Quanh giá hiện tại", "Toàn bộ vùng giá"],
-            index=0,
-            key="near_heatmap_scope",
+            "Phạm vi giá", ["Quanh giá hiện tại", "Toàn bộ vùng giá"],
+            index=0, key="near_heatmap_scope",
         )
     with c3:
         bins = st.select_slider(
-            "Độ chi tiết vùng giá",
-            options=[40, 60, 80, 100],
-            value=60,
-            key="near_heatmap_bins",
+            "Độ chi tiết vùng giá", options=[40, 60, 80, 100],
+            value=60, key="near_heatmap_bins",
         )
 
     try:
@@ -196,6 +191,7 @@ def render_near_heatmap():
         st.warning(f"NEAR Heatmap chưa tải được dữ liệu: {exc}")
         return
 
+    candles = candles.sort_values("time").reset_index(drop=True)
     latest_price = float(candles["close"].iloc[-1])
     if scope == "Quanh giá hiện tại":
         price_min = max(float(candles["low"].min()), latest_price * 0.70)
@@ -203,24 +199,21 @@ def render_near_heatmap():
     else:
         price_min = float(candles["low"].min())
         price_max = float(candles["high"].max())
-
     if not np.isfinite(price_min) or not np.isfinite(price_max) or price_max <= price_min:
         price_min, price_max = max(0.0, latest_price * 0.7), latest_price * 1.3
 
     edges = np.linspace(price_min, price_max, int(bins) + 1)
     centers = (edges[:-1] + edges[1:]) / 2
     z = np.zeros((int(bins), len(candles)), dtype=float)
-
     lows = candles["low"].to_numpy(dtype=float)
     highs = candles["high"].to_numpy(dtype=float)
     volumes = candles["quote_volume"].to_numpy(dtype=float)
 
-    # Ước tính phân bổ quote volume theo phần giao giữa biên nến và các vùng giá.
+    # Allocate quote volume proportionally over the visible price span of each candle.
     for j, (lo, hi, volume) in enumerate(zip(lows, highs, volumes)):
         if volume <= 0 or hi < price_min or lo > price_max:
             continue
-        clipped_lo = max(lo, price_min)
-        clipped_hi = min(hi, price_max)
+        clipped_lo, clipped_hi = max(lo, price_min), min(hi, price_max)
         if hi <= lo:
             idx = int(np.clip(np.searchsorted(edges, lo, side="right") - 1, 0, len(centers) - 1))
             z[idx, j] += volume
@@ -228,77 +221,114 @@ def render_near_heatmap():
         first = max(0, int(np.searchsorted(edges, clipped_lo, side="right") - 1))
         last = min(len(centers) - 1, int(np.searchsorted(edges, clipped_hi, side="left")))
         idxs = np.arange(first, last + 1)
-        overlap = np.maximum(
-            0.0,
-            np.minimum(edges[idxs + 1], clipped_hi) - np.maximum(edges[idxs], clipped_lo),
-        )
-        total_overlap = float(overlap.sum())
-        if total_overlap > 0:
-            z[idxs, j] += volume * overlap / total_overlap
+        overlap = np.maximum(0.0, np.minimum(edges[idxs + 1], clipped_hi) - np.maximum(edges[idxs], clipped_lo))
+        denom = float(overlap.sum())
+        if denom > 0:
+            z[idxs, j] += volume * overlap / denom
 
-    # Ẩn các ô 0 để nền tối trông giống heatmap Glassnode hơn.
+    # Volume profile by price, smoothing only for peak detection (not for displayed bars).
+    profile = np.nansum(z, axis=1)
+    smooth = np.convolve(profile, np.ones(5) / 5, mode="same") if len(profile) >= 5 else profile.copy()
+    peak_idxs = []
+    for i in range(1, len(smooth) - 1):
+        if smooth[i] >= smooth[i - 1] and smooth[i] >= smooth[i + 1] and smooth[i] > 0:
+            peak_idxs.append(i)
+    peak_idxs = sorted(peak_idxs, key=lambda i: smooth[i], reverse=True)
+    selected_peaks = []
+    min_gap = max(2, int(bins) // 18)
+    for idx in peak_idxs:
+        if all(abs(idx - other) >= min_gap for other in selected_peaks):
+            selected_peaks.append(idx)
+        if len(selected_peaks) >= 8:
+            break
+
+    supports = sorted([i for i in selected_peaks if centers[i] < latest_price], key=lambda i: latest_price - centers[i])[:2]
+    resistances = sorted([i for i in selected_peaks if centers[i] > latest_price], key=lambda i: centers[i] - latest_price)[:2]
+
+    fig = make_subplots(
+        rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.018,
+        column_widths=[0.83, 0.17],
+        subplot_titles=("Khối lượng ước tính theo thời gian và giá", "Volume Profile"),
+    )
     z_plot = np.where(z > 0, z, np.nan)
-    fig = go.Figure()
+    positive = z[z > 0]
+    zmax = float(np.percentile(positive, 98)) if len(positive) else 1.0
+    zmax = max(zmax, 1.0)
     fig.add_trace(go.Heatmap(
-        x=candles["time"],
-        y=centers,
-        z=z_plot,
+        x=candles["time"], y=centers, z=z_plot,
         colorscale=[
-            [0.00, "#160d2b"],
-            [0.20, "#39216d"],
-            [0.42, "#3f5ab5"],
-            [0.62, "#19a7a1"],
-            [0.82, "#63d66a"],
-            [1.00, "#f5f66e"],
-        ],
-        colorbar={"title": "Khối lượng<br>USDT", "thickness": 14},
+            [0.00, "#160d2b"], [0.18, "#35205f"], [0.36, "#433e9a"],
+            [0.54, "#2879b9"], [0.70, "#18b4a1"], [0.85, "#73d65b"], [1.00, "#f5f66e"],
+        ], zmin=0, zmax=zmax,
+        colorbar={"title": "Volume<br>USDT", "thickness": 13, "len": 0.82, "y": 0.52},
+        customdata=np.repeat(profile[:, None], len(candles), axis=1),
         hovertemplate=(
-            "Thời gian: %{x|%d/%m/%Y %H:%M UTC}<br>"
-            "Vùng giá NEAR: $%{y:.4f}<br>"
-            "Khối lượng ước tính: %{z:,.0f} USDT<extra></extra>"
-        ),
-        name="Khối lượng ước tính",
-        zsmooth=False,
-    ))
+            "Thời gian: %{x|%d/%m/%Y %H:%M UTC}<br>Vùng giá: $%{y:.4f}<br>"
+            "Volume nến phân bổ: %{z:,.0f} USDT<extra></extra>"
+        ), name="Volume heatmap", zsmooth=False,
+    ), row=1, col=1)
     fig.add_trace(go.Scatter(
-        x=candles["time"],
-        y=candles["close"],
-        mode="lines",
-        line={"color": "#ffffff", "width": 1.5},
-        name="Giá đóng cửa",
-        hovertemplate="Thời gian: %{x|%d/%m/%Y %H:%M UTC}<br>Giá: $%{y:.4f}<extra></extra>",
-    ))
-    fig.add_hline(
-        y=latest_price,
-        line_dash="dash",
-        line_color="#ff4d6d",
-        line_width=1.3,
-        annotation_text=f"NEAR mới nhất ~ ${latest_price:.4f}",
-        annotation_position="top left",
-    )
+        x=candles["time"], y=candles["close"], mode="lines",
+        line={"color": "#ffffff", "width": 1.7}, name="Giá NEAR",
+        hovertemplate="%{x|%d/%m/%Y %H:%M UTC}<br>NEAR: $%{y:.4f}<extra></extra>",
+    ), row=1, col=1)
+    fig.add_trace(go.Bar(
+        x=profile, y=centers, orientation="h", name="Volume Profile",
+        marker={"color": ["#ff657a" if y > latest_price else "#39c995" for y in centers], "opacity": 0.88},
+        customdata=profile,
+        hovertemplate="Vùng giá: $%{y:.4f}<br>Volume cộng dồn: $%{x:,.0f}<extra></extra>",
+    ), row=1, col=2)
+
+    # Support/resistance bands based on local volume-profile peaks.
+    band_half = (edges[1] - edges[0]) * 1.35
+    for idx in supports:
+        y0, y1 = max(price_min, centers[idx] - band_half), min(price_max, centers[idx] + band_half)
+        fig.add_hrect(y0=y0, y1=y1, fillcolor="#23c98b", opacity=0.17, line_width=0, row=1, col=1)
+        fig.add_hline(y=centers[idx], line_color="#39d6a0", line_dash="dot", line_width=1.2, row=1, col=1,
+                      annotation_text=f"Hỗ trợ ~ ${centers[idx]:.4f}", annotation_position="bottom left")
+    for idx in resistances:
+        y0, y1 = max(price_min, centers[idx] - band_half), min(price_max, centers[idx] + band_half)
+        fig.add_hrect(y0=y0, y1=y1, fillcolor="#ff526d", opacity=0.16, line_width=0, row=1, col=1)
+        fig.add_hline(y=centers[idx], line_color="#ff6c80", line_dash="dot", line_width=1.2, row=1, col=1,
+                      annotation_text=f"Cản ~ ${centers[idx]:.4f}", annotation_position="top left")
+
+    fig.add_hline(y=latest_price, line_dash="dash", line_color="#ffffff", line_width=1.4, row=1, col=1,
+                  annotation_text=f"NEAR ${latest_price:.4f}", annotation_position="top right")
     fig.update_layout(
-        template="plotly_dark",
-        height=610,
-        margin=dict(l=15, r=15, t=30, b=25),
-        xaxis_title="Thời gian (UTC)",
-        yaxis_title="Giá NEAR (USDT)",
-        hovermode="closest",
-        paper_bgcolor="#0e1117",
-        plot_bgcolor="#0e1117",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        template="plotly_dark", height=650,
+        margin=dict(l=15, r=15, t=55, b=25), hovermode="closest",
+        paper_bgcolor="#0e1117", plot_bgcolor="#0e1117",
+        legend=dict(orientation="h", yanchor="bottom", y=1.03, x=0),
+        bargap=0.08,
     )
-    fig.update_yaxes(range=[price_min, price_max], tickprefix="$", gridcolor="rgba(150,150,150,.12)")
-    fig.update_xaxes(gridcolor="rgba(150,150,150,.12)")
+    fig.update_yaxes(range=[price_min, price_max], tickprefix="$", gridcolor="rgba(150,150,150,.12)", row=1, col=1)
+    fig.update_yaxes(range=[price_min, price_max], showticklabels=False, row=1, col=2)
+    fig.update_xaxes(title_text="Thời gian (UTC)", gridcolor="rgba(150,150,150,.10)", row=1, col=1)
+    fig.update_xaxes(title_text="USDT", tickformat="~s", gridcolor="rgba(150,150,150,.10)", row=1, col=2)
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False, "scrollZoom": True})
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Giá NEAR mới nhất", f"${latest_price:.4f}")
-    m2.metric("Khối lượng USDT trong khoảng", f"${candles['quote_volume'].sum():,.0f}")
-    m3.metric("Số nến", f"{len(candles):,}")
+    # Clear support/resistance summary cards.
+    a, b, c = st.columns(3)
+    a.metric("Giá NEAR mới nhất", f"${latest_price:.4f}")
+    a.caption("Đường trắng nét đứt")
+    if supports:
+        near_support = centers[supports[0]]
+        b.metric("Hỗ trợ gần nhất (ước tính)", f"${near_support:.4f}", f"{(near_support/latest_price-1)*100:+.2f}% so với giá")
+    else:
+        b.metric("Hỗ trợ gần nhất", "Chưa xác định")
+    if resistances:
+        near_resistance = centers[resistances[0]]
+        c.metric("Kháng cự gần nhất (ước tính)", f"${near_resistance:.4f}", f"{(near_resistance/latest_price-1)*100:+.2f}% so với giá")
+    else:
+        c.metric("Kháng cự gần nhất", "Chưa xác định")
+
+    d, e = st.columns(2)
+    d.metric("Khối lượng USDT trong khoảng", f"${candles['quote_volume'].sum():,.0f}")
+    e.metric("Số nến", f"{len(candles):,}")
     st.caption(
-        "Cách đọc: vùng sáng hơn = khối lượng ước tính cao hơn. Do Binance klines chỉ cung cấp OHLCV, "
-        "khối lượng được phân bổ theo phần vùng giá mà nến đi qua; đây không phải volume chính xác từng mức giá "
-        "và không tự nó xác nhận cá voi mua hay bán."
+        "Cách đọc: vùng xanh là hỗ trợ tiềm năng bên dưới giá; vùng đỏ là kháng cự tiềm năng bên trên giá; "
+        "thanh bên phải là volume profile cộng dồn. Đây là vùng tham khảo được suy ra từ khối lượng nến OHLCV, "
+        "không phải dữ liệu khớp lệnh chính xác theo từng mức giá và không đảm bảo giá sẽ bật/đảo chiều."
     )
 
 
