@@ -2406,28 +2406,58 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
         st.info(heatmap_error or "Chưa đủ lịch sử URPD để dựng bản đồ nhiệt.")
         st.caption("Cần ít nhất 2 snapshot URPD khác ngày. Dữ liệu lịch sử phải được lưu trong urpd_history.json/GitHub.")
     else:
-        z = heatmap["deltas"]
-        max_abs = float(np.nanmax(np.abs(z))) if z.size else 0.0
-        if not np.isfinite(max_abs) or max_abs <= 0:
-            max_abs = 1.0
+        z = np.asarray(heatmap["deltas"], dtype=float)
+        # Robust color scaling: a few very large buckets should not wash out
+        # the rest of the heatmap. Clip only the displayed colors; hover keeps
+        # the true, unclipped delta values.
+        finite_abs = np.abs(z[np.isfinite(z)])
+        nonzero_abs = finite_abs[finite_abs > 0]
+        if nonzero_abs.size:
+            color_limit = float(np.nanpercentile(nonzero_abs, 97))
+            color_limit = max(color_limit, float(np.nanmax(nonzero_abs)) * 0.03, 1.0)
+        else:
+            color_limit = 1.0
+        z_color = np.clip(z, -color_limit, color_limit)
         # Use price-bin midpoints for a true numeric price axis.
         y_mid = (heatmap["edges"][:-1] + heatmap["edges"][1:]) / 2.0
+        date_labels = [d.strftime("%d/%m") for d in heatmap["dates"]]
+        # Diverging scale with a dark neutral zero instead of pale yellow,
+        # so small changes remain distinguishable on a dark dashboard.
+        heat_colors = [
+            [0.00, "#7f1d1d"],
+            [0.20, "#dc2626"],
+            [0.40, "#451a1a"],
+            [0.49, "#111827"],
+            [0.50, "#111827"],
+            [0.51, "#10251c"],
+            [0.60, "#166534"],
+            [0.80, "#22c55e"],
+            [1.00, "#bbf7d0"],
+        ]
         fig_heat = go.Figure(data=go.Heatmap(
-            x=[d.strftime("%Y-%m-%d") for d in heatmap["dates"]],
+            x=date_labels,
             y=y_mid,
-            z=z,
-            colorscale="RdYlGn",
-            zmin=-max_abs,
-            zmax=max_abs,
+            z=z_color,
+            colorscale=heat_colors,
+            zmin=-color_limit,
+            zmax=color_limit,
             zmid=0,
-            colorbar=dict(title="Δ BTC", ticksuffix=" BTC"),
-            customdata=np.broadcast_to(
-                np.array(heatmap["labels"], dtype=object)[:, None], z.shape
+            colorbar=dict(
+                title=dict(text="Δ BTC", font=dict(color="#e5e7eb")),
+                ticksuffix=" BTC",
+                tickfont=dict(color="#e5e7eb"),
             ),
+            customdata=np.stack([
+                np.broadcast_to(np.array(heatmap["labels"], dtype=object)[:, None], z.shape),
+                z,
+            ], axis=-1),
             hovertemplate=(
-                "Ngày: %{x}<br>Vùng giá: %{customdata}<br>"
-                "Thay đổi URPD: %{z:+,.1f} BTC<extra></extra>"
+                "Ngày: %{x}<br>Vùng giá: %{customdata[0]}<br>"
+                "Thay đổi URPD: %{customdata[1]:+,.1f} BTC<extra></extra>"
             ),
+            zsmooth=False,
+            xgap=1,
+            ygap=0,
         ))
         if current_price is not None and np.isfinite(float(current_price)):
             fig_heat.add_hline(
@@ -2436,11 +2466,33 @@ def render_lth_sth_realized_price_chart(current_price, api_token, current_urpd=N
                 annotation_position="top left",
             )
         fig_heat.update_layout(
-            height=620, template="plotly_dark", margin=dict(l=20, r=20, t=35, b=25),
+            height=650,
+            template="plotly_dark",
+            paper_bgcolor="#0b0f14",
+            plot_bgcolor="#0b0f14",
+            margin=dict(l=65, r=35, t=45, b=80),
+            hovermode="closest",
             xaxis_title="Ngày snapshot URPD (so với snapshot trước)",
             yaxis_title="Vùng giá BTC (USD)",
-            yaxis=dict(tickformat="$,.0f", dtick=10000),
-            xaxis=dict(type="category", tickangle=-35),
+            yaxis=dict(
+                tickformat="$,.0f",
+                dtick=10000,
+                gridcolor="rgba(148,163,184,0.12)",
+                zeroline=False,
+                tickfont=dict(color="#e5e7eb"),
+            ),
+            xaxis=dict(
+                type="category",
+                tickangle=-40,
+                nticks=min(16, max(5, len(date_labels))),
+                tickfont=dict(color="#cbd5e1", size=10),
+                showgrid=False,
+                automargin=True,
+            ),
+        )
+        st.caption(
+            f"Thang màu được giới hạn theo phân vị 97% (±{color_limit:,.0f} BTC) để các biến động vừa/nhỏ dễ thấy hơn. "
+            "Giá trị hover vẫn là số BTC chênh lệch thực, không bị giới hạn."
         )
         st.plotly_chart(fig_heat, use_container_width=True)
         total_positive = float(np.clip(z, 0, None).sum())
