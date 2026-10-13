@@ -784,6 +784,187 @@ def render_whale_monitor():
         "Nên tải JSON xuống để backup trước khi redeploy."
     )
 
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _nearblocks_account_balance_history(account_id, api_key):
+    """Fetch indexed historical native-NEAR balance data for one account."""
+    account_id = str(account_id).strip()
+    if not account_id:
+        raise ValueError("Account ID đang trống.")
+    url = f"https://api.nearblocks.io/v3/accounts/{account_id}/stats/balance"
+    response = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {api_key}", "accept": "application/json"},
+        timeout=25,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    date_keys = ("timestamp", "date", "time", "block_timestamp", "datetime", "created_at")
+    balance_keys = ("balance", "near_balance", "amount", "total_balance", "value")
+    found = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            date_value = next((node.get(k) for k in date_keys if node.get(k) is not None), None)
+            balance_value = next((node.get(k) for k in balance_keys if node.get(k) is not None), None)
+            if date_value is not None and balance_value is not None:
+                try:
+                    if isinstance(date_value, (int, float)) or str(date_value).strip().isdigit():
+                        stamp = float(date_value)
+                        if stamp > 1e12:
+                            stamp /= 1000.0
+                        dt = pd.to_datetime(stamp, unit="s", utc=True, errors="coerce")
+                    else:
+                        dt = pd.to_datetime(date_value, utc=True, errors="coerce")
+                    balance = float(balance_value)
+                    if pd.notna(dt) and np.isfinite(balance):
+                        if abs(balance) >= 1e18:
+                            balance /= 1e24
+                        found.append({"date": dt, "balance": balance})
+                except (TypeError, ValueError, OverflowError):
+                    pass
+            for value in node.values():
+                if isinstance(value, (dict, list)):
+                    walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(payload)
+    if not found:
+        raise ValueError(
+            "API phản hồi nhưng không nhận diện được chuỗi ngày/số dư. "
+            "Schema có thể đã đổi hoặc endpoint không trả lịch sử cho tài khoản này."
+        )
+    df = pd.DataFrame(found).drop_duplicates("date").sort_values("date").reset_index(drop=True)
+    if df.empty:
+        raise ValueError("Không có điểm lịch sử hợp lệ.")
+    return df
+
+
+def render_near_holder_history():
+    """Historical balances for user-configured accounts; does not infer cost basis."""
+    st.markdown("---")
+    st.subheader("🐋 Holder Flow & Investor Positioning — lịch sử số dư ví")
+    st.caption(
+        "Nguồn: NearBlocks API. Theo dõi lịch sử native NEAR của các ví được chọn; "
+        "không đại diện toàn bộ holder NEAR và không phải dữ liệu giá vốn."
+    )
+    if not NEARBLOCKS_API_KEY:
+        st.warning(
+            "Chưa cấu hình API key. Thêm `NEARBLOCKS_API_KEY` vào Streamlit Secrets rồi tải lại app. "
+            "Không dán API key trực tiếp vào mã nguồn hoặc GitHub."
+        )
+        st.markdown("[Tài liệu NearBlocks API](https://api.nearblocks.io/api-docs/)")
+        st.info("Nhập các địa chỉ cá voi/sàn/protocol đã xác minh sau khi cấu hình key. Dashboard không tự đoán ví thuộc sàn.")
+        return
+
+    default_accounts = st.session_state.get(
+        "holder_history_accounts",
+        "# Mỗi dòng: account.near | tên hiển thị | loại\n"
+        "# Thay các dòng ví dụ bằng địa chỉ đã xác minh:\n"
+        "# account.near | Whale A | whale\n"
+        "# exchange.near | Exchange A | exchange\n"
+        "# Loại: whale, exchange, validator, protocol, unknown",
+    )
+    accounts_text = st.text_area(
+        "Danh sách tài khoản cần truy vấn",
+        value=default_accounts,
+        height=140,
+        key="holder_history_accounts_editor",
+        help="Nhập tối đa 10 tài khoản để hạn chế số lần gọi API.",
+    )
+    st.session_state["holder_history_accounts"] = accounts_text
+    config_rows = _parse_whale_config(accounts_text)[:10]
+    period_days = st.selectbox(
+        "Hiển thị lịch sử", [30, 90, 180, 365], index=1,
+        format_func=lambda d: f"{d} ngày gần nhất", key="holder_history_period",
+    )
+
+    if st.button("📥 Lấy lịch sử balance từ NearBlocks", type="primary", key="load_holder_history"):
+        if not config_rows:
+            st.warning("Nhập ít nhất một tài khoản theo đúng định dạng rồi thử lại.")
+        else:
+            results, errors = [], []
+            with st.spinner(f"Đang truy vấn lịch sử cho {len(config_rows)} tài khoản..."):
+                for item in config_rows:
+                    try:
+                        hist_df = _nearblocks_account_balance_history(item["account"], NEARBLOCKS_API_KEY)
+                        hist_df["account"] = item["account"]
+                        hist_df["label"] = item["label"]
+                        hist_df["type"] = item["type"]
+                        results.append(hist_df)
+                    except Exception as exc:
+                        errors.append(f'{item["account"]}: {exc}')
+            st.session_state["holder_history_results"] = results
+            st.session_state["holder_history_errors"] = errors
+
+    results = st.session_state.get("holder_history_results", [])
+    errors = st.session_state.get("holder_history_errors", [])
+    if errors:
+        with st.expander(f"Chi tiết lỗi ({len(errors)})", expanded=not results):
+            for error in errors:
+                st.write(f"- {error}")
+    if not results:
+        st.info(
+            "Chưa có dữ liệu lịch sử được tải. Bấm nút truy vấn. Nếu API không trả series lịch sử, "
+            "dashboard sẽ báo lỗi thay vì tự tạo dữ liệu."
+        )
+        st.markdown("[NearBlocks API docs](https://api.nearblocks.io/api-docs/) · [NearBlocks Explorer](https://nearblocks.io/)")
+        return
+
+    combined = pd.concat(results, ignore_index=True)
+    cutoff = combined["date"].max() - pd.Timedelta(days=int(period_days))
+    view = combined[combined["date"] >= cutoff].copy()
+    if view.empty:
+        view = combined.copy()
+
+    fig = go.Figure()
+    for account in view["account"].drop_duplicates():
+        sub = view[view["account"] == account].sort_values("date")
+        fig.add_trace(go.Scatter(
+            x=sub["date"], y=sub["balance"], mode="lines", name=str(sub["label"].iloc[0]),
+            line={"width": 2},
+            customdata=np.column_stack([sub["account"].astype(str), sub["type"].astype(str)]),
+            hovertemplate=(
+                "%{x|%d/%m/%Y %H:%M UTC}<br>Ví: %{customdata[0]}<br>Loại: %{customdata[1]}"
+                "<br>Số dư: %{y:,.2f} NEAR<extra></extra>"
+            ),
+        ))
+    fig.update_layout(
+        template="plotly_dark", height=420, margin=dict(l=10, r=10, t=25, b=15),
+        hovermode="x unified", yaxis_title="Số dư native NEAR", xaxis_title="Thời gian (UTC)",
+        paper_bgcolor="#0e1117", plot_bgcolor="#0e1117",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+
+    summary_rows = []
+    for account in view["account"].drop_duplicates():
+        sub = view[view["account"] == account].sort_values("date")
+        first_balance, last_balance = float(sub["balance"].iloc[0]), float(sub["balance"].iloc[-1])
+        delta = last_balance - first_balance
+        summary_rows.append({
+            "Ví": sub["label"].iloc[0], "Account": account, "Loại": sub["type"].iloc[0],
+            "Số dư đầu kỳ (NEAR)": first_balance, "Số dư mới nhất (NEAR)": last_balance,
+            "Thay đổi (NEAR)": delta,
+            "Thay đổi (%)": delta / first_balance * 100.0 if first_balance else np.nan,
+            "Số điểm lịch sử": len(sub), "Mốc mới nhất (UTC)": sub["date"].max(),
+        })
+    summary = pd.DataFrame(summary_rows).sort_values("Thay đổi (NEAR)", ascending=False)
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Số ví có lịch sử", f"{len(summary):,}")
+    k2.metric("Tổng thay đổi balance theo dõi", f"{summary['Thay đổi (NEAR)'].sum():+,.2f} NEAR")
+    k3.metric("Số điểm dữ liệu", f"{len(view):,}")
+    st.dataframe(summary, hide_index=True, use_container_width=True)
+    st.caption(
+        "Số dư tăng/giảm không khẳng định đã mua/bán. Ví sàn phải được xác minh từ nguồn đáng tin cậy. "
+        "Lịch sử balance không cho biết giá vốn; Break-even/All-in Cost vẫn chưa được tính."
+    )
+    st.markdown("[Nguồn dữ liệu: NearBlocks](https://nearblocks.io/) · [Tài liệu API](https://api.nearblocks.io/api-docs/)")
+
+
 def render_near_monitor():
     st.markdown("---")
     st.header("🟢 NEAR Monitor")
@@ -888,18 +1069,8 @@ def render_near_monitor():
             st.write(f"**MCap / TVL:** {market['market_cap']/tvl_now:.2f}x")
         st.caption(f"Block mới nhất: {network.get('latest_block', 'N/A')}")
 
-    # Holder / positioning
-    st.subheader("🐋 Holder Flow & Investor Positioning")
-    st.info(
-        "V1 **không giả lập** cost-basis cohort, Break-even, All-in Cost hay whale accumulation. "
-        "Các chỉ số đó cần lịch sử holder/balance đủ dài và cách gán giá vốn cho từng holder. "
-        "Nguồn free hiện dùng cho V1 chưa đủ để tính đáng tin cậy cho native NEAR. "
-        "Vì vậy phần này chỉ giữ trạng thái dữ liệu thay vì bịa số liệu."
-    )
-    if NEARBLOCKS_API_KEY:
-        st.caption("NEARBLOCKS_API_KEY đã có trong Secrets; có thể mở rộng V2 sang holder history/native holder flow khi endpoint phù hợp được cấu hình.")
-    else:
-        st.caption("Nếu cần V2 holder flow thật, có thể thêm NEARBLOCKS_API_KEY vào Secrets; NearBlocks hiện có free tier nhưng giới hạn request và yêu cầu attribution.")
+    # Holder / positioning: indexed historical balance for configured accounts.
+    render_near_holder_history()
 
     render_whale_monitor()
 
