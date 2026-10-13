@@ -843,6 +843,58 @@ def _nearblocks_account_balance_history(account_id, api_key):
     return df
 
 
+def _near_holder_suggested_accounts(max_accounts=10):
+    """Build a conservative starter list from live validator data and public ecosystem accounts.
+    This is NOT a network-wide richest-holder ranking.
+    """
+    candidates = []
+    seen = set()
+
+    # Public ecosystem accounts are candidates, not assumed whales or exchange wallets.
+    public_accounts = [
+        ("foundation.near", "NEAR Foundation treasury", "protocol"),
+        ("wrap.near", "Wrapped NEAR contract", "protocol"),
+        ("v2.ref-finance.near", "Ref Finance", "protocol"),
+        ("meta-pool.near", "Meta Pool", "protocol"),
+    ]
+    for account, label, kind in public_accounts:
+        try:
+            _whale_rpc_account(account)  # verify the account exists before suggesting it
+            if account not in seen:
+                candidates.append({"account": account, "label": label, "type": kind})
+                seen.add(account)
+        except Exception:
+            # Endpoint may be unavailable or the public account may have changed.
+            continue
+
+    # The public RPC provides current validators and their delegated stake.
+    try:
+        result = _near_rpc("validators", [None])
+        validators = result.get("current_validators", []) or []
+        validators = sorted(
+            validators,
+            key=lambda row: _near_num(row.get("stake"), 0.0),
+            reverse=True,
+        )
+        for row in validators:
+            account = str(row.get("account_id") or "").strip()
+            if not account or account in seen:
+                continue
+            candidates.append({
+                "account": account,
+                "label": f"Validator pool — {account}",
+                "type": "validator",
+            })
+            seen.add(account)
+            if len(candidates) >= int(max_accounts):
+                break
+    except Exception as exc:
+        if not candidates:
+            raise RuntimeError(f"Không lấy được danh sách validator từ NEAR RPC: {exc}") from exc
+
+    return candidates[:int(max_accounts)]
+
+
 def render_near_holder_history():
     """Historical balances for user-configured accounts; does not infer cost basis."""
     st.markdown("---")
@@ -857,15 +909,36 @@ def render_near_holder_history():
             "Không dán API key trực tiếp vào mã nguồn hoặc GitHub."
         )
         st.markdown("[Tài liệu NearBlocks API](https://api.nearblocks.io/api-docs/)")
-        st.info("Nhập các địa chỉ cá voi/sàn/protocol đã xác minh sau khi cấu hình key. Dashboard không tự đoán ví thuộc sàn.")
+        st.info("Khi cấu hình API key, ông có thể tự nạp danh sách tài khoản công khai gợi ý hoặc nhập địa chỉ đã xác minh.")
         return
+
+    # One-click helper: only makes network calls after the user presses the button.
+    if st.button("🔎 Tự nạp danh sách ví công khai gợi ý", key="suggest_holder_accounts"):
+        try:
+            with st.spinner("Đang lấy validator hiện hoạt và xác minh một số tài khoản hệ sinh thái..."):
+                suggested = _near_holder_suggested_accounts(10)
+            if not suggested:
+                st.warning("Không lấy được tài khoản gợi ý. Có thể NEAR RPC đang tạm lỗi.")
+            else:
+                suggested_text = "# Tài khoản gợi ý; không phải Top 10 holder toàn mạng\n" + "\n".join(
+                    f'{item["account"]} | {item["label"]} | {item["type"]}'
+                    for item in suggested
+                )
+                st.session_state["holder_history_accounts"] = suggested_text
+                st.session_state["holder_history_accounts_editor"] = suggested_text
+                st.success(f"Đã nạp {len(suggested)} tài khoản gợi ý. Ông có thể sửa danh sách trước khi truy vấn lịch sử.")
+        except Exception as exc:
+            st.error(f"Không tạo được danh sách gợi ý: {exc}")
+
+    st.caption(
+        "Danh sách tự nạp gồm tài khoản hệ sinh thái công khai đã kiểm tra qua RPC và validator đang hoạt động. "
+        "Validator stake lớn không đồng nghĩa ví cá voi đang mua; dashboard không tự gắn nhãn ví sàn nếu chưa xác minh."
+    )
 
     default_accounts = st.session_state.get(
         "holder_history_accounts",
+        "# Bấm nút 'Tự nạp danh sách ví công khai gợi ý' ở phía trên, hoặc nhập địa chỉ đã xác minh.\n"
         "# Mỗi dòng: account.near | tên hiển thị | loại\n"
-        "# Thay các dòng ví dụ bằng địa chỉ đã xác minh:\n"
-        "# account.near | Whale A | whale\n"
-        "# exchange.near | Exchange A | exchange\n"
         "# Loại: whale, exchange, validator, protocol, unknown",
     )
     accounts_text = st.text_area(
