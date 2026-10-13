@@ -113,7 +113,7 @@
   },
   "last_attempt_date": "2026-10-13",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=price, updated=1, quota_before=53873.0, quota_after=53872.0",
+  "last_attempt_status": "metric=price, updated=1, quota_before=53872.0, quota_after=53870.0",
   "attempts_by_date": {
     "2026-09-30": [
       "price",
