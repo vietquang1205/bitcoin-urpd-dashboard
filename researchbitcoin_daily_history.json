@@ -120,7 +120,7 @@
   },
   "last_attempt_date": "2026-10-15",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=realizedprofit, updated=0, quota_before=54636.0, quota_after=None",
+  "last_attempt_status": "metric=realizedloss, updated=0, quota_before=54635.0, quota_after=None",
   "attempts_by_date": {
     "2026-10-02": [
       "price",
@@ -214,6 +214,7 @@
       "supply_in_loss_percent"
     ],
     "2026-10-15": [
+      "realizedloss",
       "realizedprofit"
     ]
   },
