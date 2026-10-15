@@ -118,17 +118,10 @@
       "btc_price": 83143.12
     }
   },
-  "last_attempt_date": "2026-10-14",
+  "last_attempt_date": "2026-10-15",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=price, updated=1, quota_before=54815.0, quota_after=54814.0",
+  "last_attempt_status": "metric=realizedprofit, updated=0, quota_before=54636.0, quota_after=None",
   "attempts_by_date": {
-    "2026-10-01": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
     "2026-10-02": [
       "price",
       "realizedloss",
@@ -219,6 +212,9 @@
       "realizedprofit",
       "supply_in_loss",
       "supply_in_loss_percent"
+    ],
+    "2026-10-15": [
+      "realizedprofit"
     ]
   },
   "last_manual_batch_date": "2026-09-28",
