@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V62", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor + NEAR Scenario Lab", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -1594,6 +1594,226 @@ def render_realized_profit_loss_chart(current_price):
 
 st.title("Phân bố Nguồn cung Bitcoin theo Giá vốn (URPD)")
 st.caption("URPD thực tế từ Bitview • BGeometrics dự phòng • Supply in Loss trực tiếp • News Radar • Không mô phỏng")
+
+
+# =========================
+# ALTCOIN SCENARIO LAB — NEAR first
+# =========================
+@st.cache_data(ttl=900, show_spinner=False)
+def fetch_near_projection_inputs():
+    """Fetch current NEAR price/market cap/circulating supply from CoinGecko."""
+    url = "https://api.coingecko.com/api/v3/coins/near"
+    params = {
+        "localization": "false", "tickers": "false", "market_data": "true",
+        "community_data": "false", "developer_data": "false", "sparkline": "false",
+    }
+    headers = {"Accept": "application/json", "User-Agent": "BTC-URPD-Dashboard/NEAR-Scenario-Lab"}
+    r = requests.get(url, params=params, headers=headers, timeout=20)
+    r.raise_for_status()
+    payload = r.json()
+    market = payload.get("market_data", {})
+    price = market.get("current_price", {}).get("usd")
+    market_cap = market.get("market_cap", {}).get("usd")
+    circ = market.get("circulating_supply")
+    total_supply = market.get("total_supply")
+    if not all(v is not None and float(v) > 0 for v in (price, market_cap, circ)):
+        raise ValueError("CoinGecko không trả đủ giá, vốn hóa và cung lưu hành của NEAR.")
+    return {
+        "price": float(price), "market_cap": float(market_cap),
+        "circulating_supply": float(circ),
+        "total_supply": float(total_supply) if total_supply is not None else None,
+        "last_updated": market.get("last_updated") or payload.get("last_updated"),
+        "source": "CoinGecko API",
+    }
+
+
+def render_near_scenario_lab():
+    """Scenario model: NEAR share of non-stablecoin altcoin cap, not BTC capital transfers."""
+    st.markdown("## 🧮 Altcoin Scenario Lab — dự phóng giá NEAR theo các mốc BTC")
+    st.caption(
+        "Mốc nền = tỷ trọng vốn hóa NEAR trong vốn hóa altcoin (loại BTC, USDT và USDC). "
+        "Mỗi kịch bản đặt BTC.D tương lai và mức NEAR mạnh/yếu hơn thị trường altcoin; "
+        "không giả định tiền vốn hóa BTC tự động chảy sang altcoin."
+    )
+    with st.expander("Mở bảng dự phóng NEAR", expanded=False):
+        live = None
+        market = None
+        errors = []
+        try:
+            live = fetch_near_projection_inputs()
+        except Exception as exc:
+            errors.append(f"CoinGecko NEAR: {exc}")
+        try:
+            market = market_overview()
+        except Exception as exc:
+            errors.append(f"CoinGecko market overview: {exc}")
+
+        if live:
+            p1, p2, p3, p4 = st.columns(4)
+            p1.metric("NEAR hiện tại", f"${live['price']:,.4f}")
+            p2.metric("Vốn hóa NEAR", f"${live['market_cap']/1e9:,.3f}B")
+            p3.metric("Cung lưu hành", f"{live['circulating_supply']/1e9:,.3f}B NEAR")
+            if market and market.get("alt_ex_stables"):
+                share_now = live["market_cap"] / float(market["alt_ex_stables"])
+                p4.metric("Tỷ trọng NEAR / altcoin", f"{share_now*100:.4f}%")
+            else:
+                share_now = None
+                p4.metric("Tỷ trọng NEAR / altcoin", "N/A")
+            if live.get("last_updated"):
+                st.caption(f"Nguồn dữ liệu: CoinGecko API · cập nhật nguồn: {live['last_updated']}")
+        else:
+            share_now = None
+            st.error("Chưa lấy được dữ liệu NEAR trực tiếp. Bảng sẽ không tự điền số giả; thử tải lại sau hoặc kiểm tra giới hạn API.")
+            for err in errors:
+                st.caption(err)
+
+        if not market:
+            st.warning("Không lấy được vốn hóa thị trường/BTC dominance từ CoinGecko. Không thể tính kịch bản theo thị phần altcoin một cách đáng tin cậy.")
+            st.markdown("[Mở dữ liệu NEAR trên CoinGecko](https://www.coingecko.com/en/coins/near) · [Lịch cung/mở khóa trên DefiLlama](https://defillama.com/unlocks/near-protocol) · [Tokenomics NEAR chính thức](https://www.near.org/blog/evolving-near-tokenomics)")
+            return
+        if not live:
+            st.markdown("[Mở dữ liệu NEAR trên CoinGecko](https://www.coingecko.com/en/coins/near) · [Lịch cung/mở khóa trên DefiLlama](https://defillama.com/unlocks/near-protocol)")
+            return
+        if not market.get("alt_ex_stables") or float(market["alt_ex_stables"]) <= 0:
+            st.warning("Vốn hóa altcoin loại stablecoin không hợp lệ; chưa thể tính dự phóng.")
+            return
+
+        st.markdown("### 1. Giả định đầu vào")
+        a, b, c = st.columns(3)
+        with a:
+            btc_now = btc_price()
+            btc_now_value = float(btc_now) if btc_now and btc_now > 0 else 0.0
+            btc_now_input = st.number_input(
+                "Giá BTC hiện tại (USD)", min_value=0.0, value=btc_now_value,
+                step=1000.0, format="%.2f", key="near_scenario_btc_now"
+            )
+            btc_targets_text = st.text_input(
+                "Các mốc BTC tương lai (USD, cách nhau bằng dấu phẩy)",
+                value="100000,150000,200000,250000,300000", key="near_scenario_btc_targets"
+            )
+        with b:
+            current_dom = market.get("adjusted_btc_dom")
+            dom_default = float(current_dom) if current_dom is not None else 60.0
+            st.metric("BTC dominance hiện tại (đã loại USDT/USDC)", f"{dom_default:.2f}%")
+            years = st.number_input(
+                "Thời gian dự phóng (năm)", min_value=0.0, max_value=10.0,
+                value=1.0, step=0.25, format="%.2f", key="near_scenario_years"
+            )
+        with c:
+            annual_supply_growth = st.number_input(
+                "Tăng cung NEAR giả định (%/năm)", min_value=0.0, max_value=20.0,
+                value=2.4, step=0.1, format="%.2f", key="near_scenario_supply_growth"
+            )
+            st.caption("Dùng để ước tính cung lưu hành tương lai. Có thể chỉnh theo tokenomics/issuance thực tế; không coi là lịch unlock cố định.")
+
+        st.markdown("### 2. Ba kịch bản thị trường")
+        st.caption("BTC.D tương lai là tỷ trọng BTC trong vốn hóa crypto loại stablecoin. Hệ số NEAR cho biết NEAR chiếm thị phần altcoin cao/thấp hơn mốc hiện tại.")
+        h = st.columns([1.2, 1, 1, 1])
+        h[0].markdown("**Giả định**")
+        h[1].markdown("**Thận trọng**")
+        h[2].markdown("**Cơ sở**")
+        h[3].markdown("**Tăng mạnh**")
+        d = st.columns([1.2, 1, 1, 1])
+        d[0].markdown("BTC.D tương lai (%)")
+        dom_cons = d[1].number_input("BTC.D thận trọng", min_value=1.0, max_value=99.0, value=62.0, step=1.0, key="near_dom_cons", label_visibility="collapsed")
+        dom_base = d[2].number_input("BTC.D cơ sở", min_value=1.0, max_value=99.0, value=55.0, step=1.0, key="near_dom_base", label_visibility="collapsed")
+        dom_bull = d[3].number_input("BTC.D tăng mạnh", min_value=1.0, max_value=99.0, value=45.0, step=1.0, key="near_dom_bull", label_visibility="collapsed")
+        m = st.columns([1.2, 1, 1, 1])
+        m[0].markdown("NEAR relative share multiplier")
+        mult_cons = m[1].number_input("NEAR thận trọng", min_value=0.1, max_value=5.0, value=0.70, step=0.05, key="near_mult_cons", label_visibility="collapsed")
+        mult_base = m[2].number_input("NEAR cơ sở", min_value=0.1, max_value=5.0, value=1.00, step=0.05, key="near_mult_base", label_visibility="collapsed")
+        mult_bull = m[3].number_input("NEAR tăng mạnh", min_value=0.1, max_value=5.0, value=1.50, step=0.05, key="near_mult_bull", label_visibility="collapsed")
+        st.caption("Ví dụ hệ số 0,70 = thị phần NEAR bằng 70% mốc hiện tại; 1,50 = thị phần NEAR cao hơn mốc hiện tại 50%. Đây là giả định kịch bản, không phải dự báo chắc chắn.")
+
+        try:
+            targets = sorted({float(x.strip()) for x in btc_targets_text.split(",") if x.strip() and float(x.strip()) > 0})
+        except Exception:
+            targets = []
+        if not targets:
+            st.error("Nhập ít nhất một mốc BTC dương, ví dụ: 100000,150000,200000.")
+            return
+        if btc_now_input <= 0:
+            st.error("Không có giá BTC hiện tại hợp lệ để tính. Thử tải lại dữ liệu hoặc nhập thủ công.")
+            return
+        if share_now is None or share_now <= 0:
+            st.error("Không tính được tỷ trọng vốn hóa NEAR trong altcoin hiện tại.")
+            return
+
+        alt_cap_now = float(market["alt_ex_stables"])
+        btc_cap_now = float(market["btc_mcap"])
+        # Keep BTC circulating market cap proportional to its price; infer future altcoin cap
+        # from the user-specified BTC dominance ratio, not by transferring BTC cap into alts.
+        btc_supply_proxy = btc_cap_now / btc_now_input if btc_now_input > 0 else None
+        future_near_supply = live["circulating_supply"] * ((1 + annual_supply_growth / 100.0) ** years)
+        scenarios = [
+            ("Thận trọng", dom_cons, mult_cons),
+            ("Cơ sở", dom_base, mult_base),
+            ("Tăng mạnh", dom_bull, mult_bull),
+        ]
+        price_rows = []
+        cap_rows = []
+        for btc_target in targets:
+            btc_cap_target = btc_target * btc_supply_proxy if btc_supply_proxy else btc_cap_now * btc_target / btc_now_input
+            price_row = {"BTC mục tiêu (USD)": btc_target}
+            cap_row = {"BTC mục tiêu (USD)": btc_target}
+            for name, future_dom, near_mult in scenarios:
+                if not 0 < future_dom < 100:
+                    projected_alt_cap = float("nan")
+                else:
+                    projected_alt_cap = btc_cap_target * (100.0 - future_dom) / future_dom
+                projected_near_cap = projected_alt_cap * share_now * near_mult
+                projected_near_price = projected_near_cap / future_near_supply
+                price_row[name + " — NEAR (USD)"] = projected_near_price
+                cap_row[name + " — vốn hóa NEAR (B USD)"] = projected_near_cap / 1e9
+            price_rows.append(price_row)
+            cap_rows.append(cap_row)
+
+        st.markdown("### 3. Bảng giá NEAR theo mốc BTC")
+        price_df = pd.DataFrame(price_rows)
+        price_display = price_df.copy()
+        price_display["BTC mục tiêu (USD)"] = price_display["BTC mục tiêu (USD)"].map(lambda x: f"${x:,.0f}")
+        for col in price_display.columns[1:]:
+            price_display[col] = price_display[col].map(lambda x: f"${x:,.3f}" if pd.notna(x) else "N/A")
+        st.dataframe(price_display, hide_index=True, use_container_width=True)
+
+        st.markdown("### 4. Vốn hóa NEAR tương ứng")
+        cap_df = pd.DataFrame(cap_rows)
+        cap_display = cap_df.copy()
+        cap_display["BTC mục tiêu (USD)"] = cap_display["BTC mục tiêu (USD)"].map(lambda x: f"${x:,.0f}")
+        for col in cap_display.columns[1:]:
+            cap_display[col] = cap_display[col].map(lambda x: f"${x:,.2f}B" if pd.notna(x) else "N/A")
+        st.dataframe(cap_display, hide_index=True, use_container_width=True)
+
+        st.markdown("### 5. Nguồn cung và lịch mở khóa")
+        supply_a, supply_b, supply_c = st.columns(3)
+        supply_a.metric("Cung lưu hành hiện tại", f"{live['circulating_supply']/1e9:,.3f}B NEAR")
+        supply_b.metric("Cung dự phóng", f"{future_near_supply/1e9:,.3f}B NEAR")
+        supply_c.metric("Tăng cung trong kỳ", f"{(future_near_supply/live['circulating_supply']-1)*100:+.2f}%")
+        st.info(
+            "Theo trang theo dõi token unlock, NEAR được mô tả là đã mở khóa phần vesting ban đầu; nguồn cung vẫn có thể tăng do phát hành/reward staking. "
+            "Vì vậy mô hình không cộng thêm một cliff unlock cố định, mà dùng giả định tăng cung có thể chỉnh ở trên. "
+            "Kiểm tra nguồn trước khi ra quyết định: "
+            "[DefiLlama Unlocks](https://defillama.com/unlocks/near-protocol) · "
+            "[TokenRadar](https://tokenradar.ai/tokens/near-protocol/tokenomics) · "
+            "[Tokenomics NEAR chính thức](https://www.near.org/blog/evolving-near-tokenomics)."
+        )
+        st.markdown("### Cách tính và giới hạn")
+        st.latex(r"M_{alt,target}=M_{BTC,target}\times\frac{1-D_{BTC,target}}{D_{BTC,target}}")
+        st.latex(r"P_{NEAR,target}=\frac{M_{alt,target}\times s_{NEAR,current}\times k_{NEAR}}{S_{NEAR,future}}")
+        st.caption(
+            f"Mốc hiện tại: NEAR chiếm khoảng {share_now*100:.5f}% vốn hóa altcoin loại BTC/USDT/USDC. "
+            "Mô hình giữ tỷ trọng này làm nền rồi nhân hệ số riêng cho sức mạnh tương đối của NEAR. "
+            "Đây là kịch bản định giá chứ không phải dự báo chắc chắn; kết quả rất nhạy với BTC.D, thị phần NEAR và phát hành cung."
+        )
+        if errors:
+            with st.expander("Chi tiết lỗi nguồn dữ liệu"):
+                for err in errors:
+                    st.write("- " + err)
+
+        st.markdown("**Nguồn dữ liệu:** [CoinGecko NEAR](https://www.coingecko.com/en/coins/near) · [CoinGecko Global](https://www.coingecko.com/en/global-charts) · [DefiLlama Unlocks](https://defillama.com/unlocks/near-protocol)")
+
+
+render_near_scenario_lab()
 
 with st.sidebar:
     st.header("Thiết lập")
