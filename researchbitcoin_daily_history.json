@@ -189,7 +189,7 @@
   },
   "last_attempt_date": "2026-10-26",
   "bootstrap_done": false,
-  "last_attempt_status": "metric=supply_in_loss_percent, updated=1, quota_before=54598.0, quota_after=54597.0",
+  "last_attempt_status": "metric=supply_in_loss_percent, updated=1, quota_before=54597.0, quota_after=54596.0",
   "attempts_by_date": {
     "2026-10-13": [
       "price",
