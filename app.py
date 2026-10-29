@@ -1,5 +1,5 @@
-import os
 import json
+import re
 import base64
 from datetime import datetime, timedelta, timezone
 
@@ -10,7 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 
-st.set_page_config(layout="wide", page_title="BTC URPD Monitor V62", page_icon="🪙")
+st.set_page_config(layout="wide", page_title="BTC URPD Monitor V63", page_icon="🪙")
 
 # Giao diện dashboard gọn và dễ đọc
 st.markdown("""
@@ -76,11 +76,11 @@ def normalize_urpd(raw):
 
     low = pick_col(
         df,
-        ["price_low", "low", "min_price", "pricefrom", "price_start", "price"],
+        ["price_low", "pricelower", "price_lower", "low", "min_price", "pricefrom", "price_start", "price"],
     )
     high = pick_col(
         df,
-        ["price_high", "high", "max_price", "priceto", "price_end"],
+        ["price_high", "priceupper", "price_upper", "high", "upper", "max_price", "priceto", "price_end"],
     )
     btc = pick_col(
         df,
@@ -117,8 +117,9 @@ def normalize_urpd(raw):
     # Bucket này chỉ được ẩn khi vẽ biểu đồ để tránh kéo lệch khung nhìn.
     # Tổng URPD và các phép tính nguồn cung vẫn dùng đủ dữ liệu gốc.
 
-    # Một số API trả satoshi thay vì BTC.
-    if not out.empty and out.btc_amount.max() > 2.1e15:
+    # Một số API trả satoshi thay vì BTC. Tổng cung BTC luôn < 21 triệu,
+    # nên nếu TỔNG > 22 triệu thì chắc chắn đơn vị là satoshi.
+    if not out.empty and out.btc_amount.sum() > 2.2e7:
         out.btc_amount /= 100_000_000
 
     # Nếu API chỉ trả một mức giá cho mỗi bucket, dựng biên bucket.
@@ -144,6 +145,40 @@ def btc_in_range(df, low, high):
     width = df.price_high.to_numpy(float) - df.price_low.to_numpy(float)
     overlap = np.maximum(0, hi - lo)
     return float(np.sum(df.btc_amount.to_numpy(float) * overlap / width))
+
+
+def urpd_to_records(df):
+    return df[["price_low", "price_high", "btc_amount"]].to_dict("records")
+
+
+def records_to_urpd(records):
+    return normalize_urpd(pd.DataFrame(records))
+
+
+def _snapshot_changed(old, new):
+    """Chỉ so sánh dữ liệu gốc (bucket URPD + giá). Các số phụ như top/bottom
+    phụ thuộc thiết lập sidebar nên không dùng để quyết định có ghi GitHub hay không."""
+    if not isinstance(old, dict) or not old.get("urpd"):
+        return True
+    try:
+        old_price = float(old.get("price")) if old.get("price") is not None else None
+        new_price = float(new.get("price")) if new.get("price") is not None else None
+    except (TypeError, ValueError):
+        return True
+    if old_price is None or new_price is None:
+        if old_price != new_price:
+            return True
+    elif abs(old_price - new_price) > 1e-6:
+        return True
+    old_df = records_to_urpd(old["urpd"])
+    new_df = records_to_urpd(new["urpd"])
+    if len(old_df) != len(new_df):
+        return True
+    return not np.allclose(
+        old_df[["price_low", "price_high", "btc_amount"]].to_numpy(float),
+        new_df[["price_low", "price_high", "btc_amount"]].to_numpy(float),
+        rtol=0, atol=1e-6,
+    )
 
 
 @st.cache_data(ttl=300)
@@ -349,7 +384,6 @@ def bitview_urpd(day, agg="lin1000"):
 
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
 def bitview_period_snapshots(start_date, end_date, mode_days, ath_value, bottom_start_value, bottom_end_value):
     """Lấy chuỗi snapshot cho báo cáo xu hướng.
 
@@ -379,10 +413,20 @@ def bitview_period_snapshots(start_date, end_date, mode_days, ath_value, bottom_
 
     snapshots = {}
     rows = []
+    hist = globals().get("history") or {}
     for d in dates:
         day = d.strftime("%Y-%m-%d")
         try:
-            frame, url, close, total_supply = bitview_urpd(day)
+            # Ưu tiên snapshot đã lưu trong history (không tốn request);
+            # chỉ gọi Bitview cho những ngày history chưa có.
+            saved = hist.get(day) if isinstance(hist, dict) else None
+            if isinstance(saved, dict) and saved.get("urpd") and saved.get("price"):
+                frame = records_to_urpd(saved["urpd"])
+                close = saved.get("price")
+                url = saved.get("url") or "urpd_history.json"
+                total_supply = saved.get("bitview_total_supply")
+            else:
+                frame, url, close, total_supply = bitview_urpd(day)
             px = float(close) if close is not None else None
             if px is None or px <= 0:
                 continue
@@ -393,7 +437,7 @@ def bitview_period_snapshots(start_date, end_date, mode_days, ath_value, bottom_
             near_high = px * 1.10
             support = btc_in_range(frame, near_low, px)
             resistance = btc_in_range(frame, px, near_high)
-            below = float(frame.loc[frame.price_high <= px, "btc_amount"].sum())
+            below = btc_in_range(frame, 0.0, px)
             snapshots[day] = frame
             rows.append({
                 "date": day,
@@ -414,39 +458,6 @@ def bitview_period_snapshots(start_date, end_date, mode_days, ath_value, bottom_
     df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True) if rows else pd.DataFrame()
     return df, snapshots
 
-def extract_scalar(payload):
-    if isinstance(payload, (int, float)):
-        return float(payload)
-
-    if isinstance(payload, list):
-        if not payload:
-            raise ValueError("API trả về danh sách rỗng.")
-        return extract_scalar(payload[-1])
-
-    if isinstance(payload, dict):
-        for key in ("data", "result", "rows", "values", "results"):
-            if key in payload:
-                return extract_scalar(payload[key])
-
-        for key in (
-            "value",
-            "val",
-            "supply_in_loss",
-            "supply_in_loss_percent",
-            "metric_value",
-        ):
-            if key in payload and payload[key] is not None:
-                return float(payload[key])
-
-        for value in reversed(list(payload.values())):
-            try:
-                return extract_scalar(value)
-            except (TypeError, ValueError, KeyError):
-                continue
-
-    raise ValueError(f"Không đọc được giá trị từ phản hồi API: {payload}")
-
-
 # =========================
 # RESEARCHBITCOIN DAILY CACHE — V35
 # =========================
@@ -456,20 +467,17 @@ def extract_scalar(payload):
 # Dữ liệu được lưu bền vững vào GitHub (nếu đã cấu hình GITHUB_TOKEN/GITHUB_REPO).
 RESEARCH_DAILY_FILE = "researchbitcoin_daily_history.json"
 RESEARCH_DAILY_MAX_DAYS = 365
+# V63: chỉ lấy 2 metric thật sự được dùng trên dashboard (thẻ "Cung đang lỗ").
+# Realized Profit/Loss đã lấy miễn phí từ BGeometrics nên không tốn quota ở đây.
 RESEARCH_DAILY_METRICS = (
-    "realizedprofit",
-    "realizedloss",
     "supply_in_loss",
     "supply_in_loss_percent",
-    "price",
 )
 RESEARCH_DAILY_REQUIRED_KEYS = (
-    "realized_profit",
-    "realized_loss",
     "supply_in_loss",
     "supply_in_loss_percent",
-    "btc_price",
 )
+RESEARCH_RETRY_AFTER_SECONDS = 60 * 60
 
 
 def github_json_get(filename):
@@ -507,6 +515,25 @@ def github_json_get(filename):
             return {}, None
 
 
+def _merge_daily_payload(fresh, data):
+    """Gộp dict 'daily' của bản trên GitHub với bản đang có, ưu tiên giá trị mới của phiên này."""
+    if not isinstance(fresh, dict) or not isinstance(data, dict):
+        return data
+    merged = dict(fresh)
+    merged.update(data)
+    if isinstance(fresh.get("daily"), dict) and isinstance(data.get("daily"), dict):
+        daily = dict(fresh["daily"])
+        for day, rec in data["daily"].items():
+            if isinstance(rec, dict) and isinstance(daily.get(day), dict):
+                merged_rec = dict(daily[day])
+                merged_rec.update(rec)
+                daily[day] = merged_rec
+            else:
+                daily[day] = rec
+        merged["daily"] = dict(sorted(daily.items())[-365:])
+    return merged
+
+
 def github_json_save(filename, data, sha=None, commit_message="Update ResearchBitcoin daily history"):
     """Lưu JSON nhỏ lên GitHub, có xử lý conflict 409 một lần."""
     if not github_token or not github_repo:
@@ -532,8 +559,12 @@ def github_json_save(filename, data, sha=None, commit_message="Update ResearchBi
     try:
         r = requests.put(url, headers=headers, json=payload, timeout=30)
         if r.status_code == 409:
-            _, fresh_sha = github_json_get(filename)
+            # File vừa bị phiên khác cập nhật: gộp dữ liệu rồi ghi lại 1 lần.
+            fresh_data, fresh_sha = github_json_get(filename)
             if fresh_sha:
+                data = _merge_daily_payload(fresh_data, data)
+                body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+                payload["content"] = base64.b64encode(body).decode("ascii")
                 payload["sha"] = fresh_sha
                 r = requests.put(url, headers=headers, json=payload, timeout=30)
         r.raise_for_status()
@@ -807,6 +838,12 @@ def ensure_researchbitcoin_daily_cache(token):
     if _research_daily_target_complete(state, target_key):
         return state, False, f"Đã có đủ dữ liệu ngày {target_key}; không gọi lại ResearchBitcoin."
 
+    last_fail = st.session_state.get("research_last_fail_utc")
+    if last_fail and (datetime.now(timezone.utc) - last_fail).total_seconds() < RESEARCH_RETRY_AFTER_SECONDS:
+        return state, False, st.session_state.get(
+            "research_last_fail_msg", "ResearchBitcoin vừa lỗi; tạm dừng gọi lại trong 60 phút."
+        )
+
     # V40: batch thủ công tổng hợp toàn bộ metric, từng request vẫn kiểm tra quota.
     attempt_map = state.setdefault("attempts_by_date", {})
     today_key = today_utc.isoformat()
@@ -866,6 +903,18 @@ def ensure_researchbitcoin_daily_cache(token):
             # Không thử metric kế tiếp trong cùng lượt nếu request vừa lỗi.
             break
 
+    if errors:
+        st.session_state["research_last_fail_utc"] = datetime.now(timezone.utc)
+        st.session_state["research_last_fail_msg"] = (
+            "ResearchBitcoin lỗi gần đây, tạm dừng gọi lại 60 phút: " + " | ".join(errors[:2])
+        )
+
+    if attempted_metric is None:
+        # Không có request dữ liệu nào được gửi → KHÔNG ghi GitHub (tránh commit rác).
+        if errors:
+            return state, False, " | ".join(errors[:2])
+        return state, False, f"Không có metric nào cần gọi cho ngày {target_key}."
+
     attempt_map[today_key] = sorted(attempted_today)
     state["attempts_by_date"] = dict(sorted(attempt_map.items())[-14:])
     state["last_attempt_date"] = today_key
@@ -883,9 +932,6 @@ def ensure_researchbitcoin_daily_cache(token):
             f"sau={quota_after if quota_after is not None else 'N/A'} DP."
         )
 
-    if attempted_metric is None:
-        return state, False, f"Không có metric nào cần gọi cho ngày {target_key}."
-
     quota_text = (
         f"Quota {quota_before:.0f} → {quota_after:.0f} DP"
         if quota_before is not None and quota_after is not None
@@ -894,76 +940,6 @@ def ensure_researchbitcoin_daily_cache(token):
     return state, True, (
         f"Đã gọi 1 metric nhỏ: {attempted_metric} cho ngày {target_key}. "
         f"{quota_text}."
-    )
-
-
-def researchbitcoin_manual_one_metric(token, metric_slug=None):
-    """Manual V40: một lần bấm gọi batch toàn bộ metric cho ngày gần nhất, đo quota trước/sau từng request."""
-    if not token:
-        raise RuntimeError("Chưa có RESEARCHBITCOIN_API_TOKEN trong Secrets.")
-
-    state = _research_daily_state()
-    today_utc = datetime.now(timezone.utc).date()
-    latest_complete_date = today_utc - timedelta(days=1)
-    target_key = latest_complete_date.isoformat()
-    daily = state.setdefault("daily", {})
-
-    aliases = {
-        "realizedprofit": "realized_profit",
-        "realizedloss": "realized_loss",
-        "supply_in_loss": "supply_in_loss",
-        "supply_in_loss_percent": "supply_in_loss_percent",
-        "price": "btc_price",
-    }
-
-    if metric_slug is None:
-        for candidate in RESEARCH_DAILY_METRICS:
-            if daily.get(target_key, {}).get(aliases[candidate]) is None:
-                metric_slug = candidate
-                break
-        if metric_slug is None:
-            metric_slug = "realizedprofit"
-
-    if metric_slug not in RESEARCH_DAILY_METRICS:
-        raise ValueError(f"Metric không hợp lệ: {metric_slug}")
-
-    key = aliases[metric_slug]
-    if daily.get(target_key, {}).get(key) is not None:
-        return state, False, (
-            f"{metric_slug} ngày {target_key} đã có cache; không gọi API để tránh tốn quota.",
-            None,
-            None,
-        )
-
-    info_before = researchbitcoin_user_info(token)
-    quota_before = _research_quota_remaining(info_before)
-    if quota_before is not None and quota_before < 1:
-        return state, False, (
-            f"Quota chỉ còn {quota_before:.0f} DP; chưa gọi {metric_slug}.",
-            quota_before,
-            quota_before,
-        )
-
-    frame = researchbitcoin_fetch_series(token, metric_slug, latest_complete_date, today_utc)
-    added = _merge_series_into_daily(state, metric_slug, frame)
-
-    try:
-        info_after = researchbitcoin_user_info(token)
-        quota_after = _research_quota_remaining(info_after)
-    except Exception:
-        quota_after = None
-
-    state["daily"] = dict(sorted(daily.items())[-RESEARCH_DAILY_MAX_DAYS:])
-    state["last_manual_metric"] = metric_slug
-    state["last_manual_date"] = today_utc.isoformat()
-    _save_research_daily_state(state)
-
-    return state, added > 0, (
-        f"Đã gọi {metric_slug} cho ngày {target_key}; thêm {added} giá trị. "
-        f"Quota: {quota_before if quota_before is not None else 'N/A'} → "
-        f"{quota_after if quota_after is not None else 'N/A'} DP.",
-        quota_before,
-        quota_after,
     )
 
 
@@ -980,32 +956,6 @@ def researchbitcoin_metric(token, metric="supply_in_loss", resolution="d1"):
     day = candidates[0]
     value = float(daily[day][metric])
     return value, f"ResearchBitcoin daily cache • {day}"
-
-
-def researchbitcoin_timeseries(token, metric_slug, resolution="d1"):
-    """Trả time-series từ cache bền vững; không gọi API dữ liệu lúc render chart."""
-    state, _, _ = ensure_researchbitcoin_daily_cache(token)
-    key_map = {
-        "realizedprofit": "realized_profit",
-        "realizedloss": "realized_loss",
-        "price": "btc_price",
-        "supply_in_loss": "supply_in_loss",
-        "supply_in_loss_percent": "supply_in_loss_percent",
-    }
-    key = key_map.get(metric_slug, metric_slug)
-    rows = []
-    for day, rec in state.get("daily", {}).items():
-        if not isinstance(rec, dict) or rec.get(key) is None:
-            continue
-        try:
-            rows.append({"date": pd.to_datetime(day).date(), "value": float(rec[key])})
-        except Exception:
-            continue
-    if not rows:
-        raise ValueError(f"Cache ResearchBitcoin chưa có time-series {metric_slug}.")
-    return pd.DataFrame(rows).drop_duplicates("date", keep="last").sort_values("date").reset_index(drop=True)
-
-
 
 
 def github_json_get_named(filename):
@@ -1075,8 +1025,11 @@ def github_json_save_named(filename, data, sha=None, commit_message="Update JSON
     try:
         r = requests.put(url, headers=headers, json=payload, timeout=30)
         if r.status_code == 409:
-            _, fresh_sha = github_json_get_named(filename)
+            fresh_data, fresh_sha = github_json_get_named(filename)
             if fresh_sha:
+                data = _merge_daily_payload(fresh_data, data)
+                body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+                payload["content"] = base64.b64encode(body).decode("ascii")
                 payload["sha"] = fresh_sha
                 r = requests.put(url, headers=headers, json=payload, timeout=30)
         r.raise_for_status()
@@ -1260,6 +1213,12 @@ def _bgeometrics_realized_cache_load():
     return {"version": 1, "daily": {}}, None
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def _bgeometrics_realized_cache_load_cached():
+    """Bản có cache 10 phút cho phần vẽ biểu đồ, tránh gọi GitHub mỗi lần rerun."""
+    return _bgeometrics_realized_cache_load()
+
+
 def _bgeometrics_realized_cache_save(data, sha=None):
     return github_json_save_named(
         BGEOM_REALIZED_FILE,
@@ -1354,14 +1313,14 @@ def bgeometrics_update_realized_history(force=False):
 
     if existing_dates and not force:
         latest_cached = max(existing_dates)
-        start_date = latest_cached + timedelta(days=1)
+        if latest_cached >= latest_complete:
+            return data, sha, False, (
+                f"Cache đã đủ đến {latest_complete.isoformat()}; không gọi BGeometrics."
+            )
+        # Lấy chồng lại 2 ngày cuối: nguồn đôi khi bổ sung/sửa số liệu ngày gần nhất.
+        start_date = latest_cached - timedelta(days=2)
     else:
         start_date = latest_complete - timedelta(days=BGEOM_REALIZED_INITIAL_DAYS - 1)
-
-    if start_date > latest_complete:
-        return data, sha, False, (
-            f"Cache đã đủ đến {latest_complete.isoformat()}; không gọi BGeometrics."
-        )
 
     # Nếu bấm cập nhật thủ công, vẫn chỉ lấy phần thiếu; không tải lại 180 ngày.
     end_date = latest_complete
@@ -1391,7 +1350,13 @@ def bgeometrics_update_realized_history(force=False):
         price_df = pd.DataFrame(columns=["date", "value"])
 
     added = _merge_bgeometrics_realized(data, profit_df, loss_df, price_df)
+    if added == 0:
+        return data, sha, False, (
+            f"BGeometrics không có số liệu mới ({start_date.isoformat()} → {end_date.isoformat()}); "
+            "không ghi GitHub. " + " | ".join(results)
+        )
     ok, new_sha = _bgeometrics_realized_cache_save(data, sha)
+    _bgeometrics_realized_cache_load_cached.clear()
 
     if new_sha:
         sha = new_sha
@@ -1417,7 +1382,7 @@ def render_realized_profit_loss_chart(current_price):
     )
 
     try:
-        data, sha = _bgeometrics_realized_cache_load()
+        data, sha = _bgeometrics_realized_cache_load_cached()
         df = _bgeometrics_realized_frame(data)
 
         if df.empty:
@@ -1495,7 +1460,7 @@ def render_realized_profit_loss_chart(current_price):
                 y=plot_df["net_ema7"],
                 name="Net Realized P/L (7D EMA)",
                 mode="lines",
-                line=dict(color="#111827", width=2.2),
+                line=dict(color="#facc15", width=2.2),
                 hovertemplate=(
                     "Ngày: %{x|%d/%m/%Y}<br>"
                     "Net P/L 7D EMA: $%{y:,.0f}<extra></extra>"
@@ -1623,15 +1588,15 @@ github_token = st.secrets.get("GITHUB_TOKEN", "")
 github_repo = st.secrets.get("GITHUB_REPO", "")
 github_branch = st.secrets.get("GITHUB_BRANCH", "main")
 
-def github_history_get():
-    """Đọc urpd_history.json từ GitHub. Nếu chưa cấu hình GitHub thì đọc file local."""
+def _github_history_fetch():
+    """Đọc urpd_history.json. Trả (data, sha, lỗi). Không gọi st.* để dùng được trong cache."""
     if not github_token or not github_repo:
         try:
             with open(history_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return data if isinstance(data, dict) else {}, None
+                return (data if isinstance(data, dict) else {}), None, None
         except Exception:
-            return {}, None
+            return {}, None, None
 
     url = f"https://api.github.com/repos/{github_repo}/contents/{history_file}"
     headers = {
@@ -1640,17 +1605,12 @@ def github_history_get():
         "X-GitHub-Api-Version": "2022-11-28",
     }
     try:
-        r = requests.get(
-            url,
-            headers=headers,
-            params={"ref": github_branch},
-            timeout=20,
-        )
+        r = requests.get(url, headers=headers, params={"ref": github_branch}, timeout=20)
         if r.status_code == 404:
-            return {}, None
+            return {}, None, None
         r.raise_for_status()
         payload = r.json()
-        # GitHub Contents API đôi khi trả content rỗng/không có content cho file lớn.
+        # GitHub Contents API trả content rỗng cho file > 1MB.
         # Khi đó đọc trực tiếp raw file, tránh biến history có sẵn thành {}.
         encoded_content = payload.get("content")
         content = ""
@@ -1661,14 +1621,16 @@ def github_history_get():
                 content = ""
 
         if not content:
-            download_url = payload.get("download_url")
-            raw_url = download_url or (
-                f"https://raw.githubusercontent.com/{github_repo}/"
-                f"{github_branch}/{history_file}"
+            raw_url = payload.get("download_url") or (
+                f"https://raw.githubusercontent.com/{github_repo}/{github_branch}/{history_file}"
             )
             raw_response = requests.get(
                 raw_url,
-                headers={"Accept": "text/plain", "User-Agent": "BTC-URPD-Dashboard"},
+                headers={
+                    "Accept": "text/plain",
+                    "User-Agent": "BTC-URPD-Dashboard",
+                    "Authorization": f"Bearer {github_token.strip()}",
+                },
                 timeout=30,
             )
             raw_response.raise_for_status()
@@ -1679,23 +1641,64 @@ def github_history_get():
         data = json.loads(content)
         if not isinstance(data, dict):
             raise ValueError("urpd_history.json không có cấu trúc object JSON.")
-        return data, payload.get("sha")
+        return data, payload.get("sha"), None
     except Exception as e:
-        st.warning(f"Không đọc được history từ GitHub: {e}")
-        # Fallback sang file local nếu có.
+        err = f"Không đọc được history từ GitHub: {e}"
         try:
             with open(history_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return (data if isinstance(data, dict) else {}), None
+                return (data if isinstance(data, dict) else {}), None, err
         except Exception:
-            return {}, None
+            return {}, None, err
 
-def github_history_save(data, sha=None):
-    """Lưu toàn bộ history lên GitHub, giữ nguyên các ngày cũ."""
+
+def github_history_get():
+    """Đọc history trực tiếp (không cache); hiện cảnh báo nếu lỗi."""
+    data, sha, err = _github_history_fetch()
+    if err:
+        st.warning(err)
+    return data, sha
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _github_history_cached_ok():
+    data, sha, err = _github_history_fetch()
+    if err:
+        # Không cache kết quả lỗi.
+        raise RuntimeError(err)
+    return data, sha
+
+
+def github_history_get_cached():
+    """Đọc history có cache 10 phút để rerun không gọi GitHub liên tục."""
+    try:
+        return _github_history_cached_ok()
+    except Exception:
+        return github_history_get()
+
+
+def _merge_history(fresh, data, changed_keys=None):
+    """Gộp history: giữ các ngày phiên khác vừa lưu, ghi đè đúng các ngày phiên này thay đổi."""
+    merged = dict(fresh) if isinstance(fresh, dict) else {}
+    if changed_keys is None:
+        changed_keys = [k for k in data if k not in merged]
+    for k in changed_keys:
+        if k in data:
+            merged[k] = data[k]
+    return dict(sorted(merged.items())[-365:])
+
+
+def github_history_save(data, sha=None, changed_keys=None):
+    """Lưu history lên GitHub. Luôn đọc bản mới nhất và GỘP trước khi ghi để không
+    xoá snapshot do phiên/tab khác vừa lưu. Trả (ok, history_sau_khi_gộp)."""
     if not github_token or not github_repo:
-        with open(history_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
+        try:
+            with open(history_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return True, data
+        except Exception as e:
+            st.warning(f"Không lưu được lịch sử URPD: {e}")
+            return False, data
 
     url = f"https://api.github.com/repos/{github_repo}/contents/{history_file}"
     headers = {
@@ -1703,38 +1706,47 @@ def github_history_save(data, sha=None):
         "Authorization": f"Bearer {github_token.strip()}",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
-    payload = {
-        "message": "Update URPD history",
-        "content": base64.b64encode(body).decode("ascii"),
-        "branch": github_branch,
-    }
-    if sha:
-        payload["sha"] = sha
+
+    def build_payload(content_data, content_sha):
+        body = json.dumps(content_data, ensure_ascii=False, indent=2).encode("utf-8")
+        p = {
+            "message": "Update URPD history",
+            "content": base64.b64encode(body).decode("ascii"),
+            "branch": github_branch,
+        }
+        if content_sha:
+            p["sha"] = content_sha
+        return p
 
     try:
-        r = requests.put(url, headers=headers, json=payload, timeout=30)
+        fresh, fresh_sha, err = _github_history_fetch()
+        if err is None:
+            data = _merge_history(fresh, data, changed_keys)
+            sha = fresh_sha
+        r = requests.put(url, headers=headers, json=build_payload(data, sha), timeout=60)
         if r.status_code == 409:
-            # File đã đổi trên GitHub: đọc lại SHA rồi thử đúng 1 lần.
-            fresh_data, fresh_sha = github_history_get()
-            if fresh_sha:
-                payload["sha"] = fresh_sha
-                r = requests.put(url, headers=headers, json=payload, timeout=30)
+            # File vừa đổi trên GitHub: đọc lại, gộp lần nữa rồi thử đúng 1 lần.
+            fresh, fresh_sha, err = _github_history_fetch()
+            if err is None and fresh_sha:
+                data = _merge_history(fresh, data, changed_keys)
+                r = requests.put(url, headers=headers, json=build_payload(data, fresh_sha), timeout=60)
         r.raise_for_status()
 
-        # Ghi local luôn để local chạy cũng giữ được bản mới.
-        with open(history_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        st.warning(f"Không lưu được history lên GitHub: {e}")
-        # Vẫn lưu local để không mất snapshot trong phiên chạy.
         try:
             with open(history_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
-        return False
+        _github_history_cached_ok.clear()
+        return True, data
+    except Exception as e:
+        st.warning(f"Không lưu được history lên GitHub: {e}")
+        try:
+            with open(history_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return False, data
 
 
 # =========================
@@ -1746,7 +1758,6 @@ from urllib.parse import quote_plus
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from html import unescape
-import re
 
 NEWS_QUERIES = [
     ("Bitcoin", 'Bitcoin BTC'),
@@ -1812,12 +1823,35 @@ def fetch_news_radar(days=7, max_items=30):
     return rows[:max_items]
 
 
+def _clean_news_text(text, limit=None):
+    cleaned = unescape(re.sub(r"<[^>]+>", " ", str(text or "")))
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if limit and len(cleaned) > limit:
+        cleaned = cleaned[:limit].rsplit(" ", 1)[0] + "…"
+    return cleaned
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def translate_batch(texts):
+    """Dịch nhiều đoạn cùng lúc (song song) — nhanh hơn nhiều so với dịch lần lượt.
+    Trả dict {văn bản gốc: bản dịch}. Cache 24h."""
+    from concurrent.futures import ThreadPoolExecutor
+    texts = [t for t in dict.fromkeys(texts) if t]
+    if not texts:
+        return {}
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        results = list(ex.map(_translate_raw, texts))
+    return dict(zip(texts, results))
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def translate_to_vietnamese(text):
-    """Dịch tiêu đề/mô tả tiếng Anh sang tiếng Việt bằng endpoint Google Translate công khai.
-    Có cache 24h để cùng một tin không bị dịch lại mỗi 15 phút.
-    Nếu dịch lỗi, giữ nguyên văn bản gốc.
-    """
+    """Dịch một đoạn (có cache 24h). Nếu dịch lỗi, giữ nguyên văn bản gốc."""
+    return _translate_raw(text)
+
+
+def _translate_raw(text):
+    """Gọi endpoint Google Translate công khai. Không dùng st.* để chạy được trong thread."""
     text = unescape(re.sub(r"<[^>]+>", " ", str(text or "")))
     text = re.sub(r"\s+", " ", text).strip()
     if not text:
@@ -1847,22 +1881,14 @@ def translate_to_vietnamese(text):
         return text
 
 
-def news_title_vi(item):
-    """Tiêu đề tiếng Việt hiển thị chính; luôn có fallback tiếng Anh."""
-    title = item.get("title", "")
-    return translate_to_vietnamese(title) or title
+def news_summary_source(item):
+    """Mô tả RSS đã làm sạch (tối đa 420 ký tự) — dùng làm khóa dịch."""
+    return _clean_news_text(item.get("description", ""), limit=420)
 
 
-def news_summary_vi(item):
-    """Dịch mô tả RSS thành tóm tắt ngắn; nếu không có thì bỏ qua."""
-    desc = item.get("description", "")
-    if not desc:
-        return ""
-    cleaned = unescape(re.sub(r"<[^>]+>", " ", desc))
-    cleaned = re.sub(r"\s+", " ", cleaned).strip()
-    if len(cleaned) > 420:
-        cleaned = cleaned[:420].rsplit(" ", 1)[0] + "…"
-    return translate_to_vietnamese(cleaned)
+def _contains_term(text, term):
+    """Khớp NGUYÊN TỪ/CỤM TỪ, tránh nhầm 'war' trong 'Warsh', 'ban' trong 'bank'."""
+    return re.search(r"(?<![a-z0-9])" + re.escape(term) + r"(?![a-z0-9])", text) is not None
 
 def news_impact(title, category):
     """Gắn nhãn định hướng đơn giản, minh bạch; không coi đây là dự báo giá."""
@@ -1871,7 +1897,7 @@ def news_impact(title, category):
         "rate hike", "hike rates", "higher rates", "hawkish", "hot inflation",
         "inflation rises", "cpi rises", "ppi rises", "yield rises", "yields rise",
         "strong jobs", "oil surges", "oil rises", "risk-off", "selloff", "sell-off",
-        "war", "iran", "outflows", "outflow", "crackdown", "ban", "lawsuit",
+        "war", "wars", "iran", "outflows", "outflow", "crackdown", "ban", "bans", "banned", "lawsuit",
     )
     positive_terms = (
         "rate cut", "cut rates", "lower rates", "dovish", "cooling inflation",
@@ -1879,9 +1905,9 @@ def news_impact(title, category):
         "etf inflow", "inflows", "institutional demand", "approval", "clarity",
         "regulatory clarity", "bullish", "buying",
     )
-    if any(x in t for x in negative_terms):
+    if any(_contains_term(t, x) for x in negative_terms):
         direction = "🔴 Bất lợi ngắn hạn"
-    elif any(x in t for x in positive_terms):
+    elif any(_contains_term(t, x) for x in positive_terms):
         direction = "🟢 Có lợi ngắn hạn"
     else:
         direction = "🟡 Chưa rõ"
@@ -1891,30 +1917,125 @@ def news_impact(title, category):
     return impact, direction
 
 
+VN_TZ = timezone(timedelta(hours=7))
+
+# Lịch dự phòng (cập nhật tay). Chỉ dùng khi không lấy được lịch tự động.
+STATIC_EVENTS = [
+    {"date": "2026-11-10", "time": "08:30 ET", "event": "CPI Mỹ tháng 10", "impact": "🔴🔴 Rất cao",
+     "why": "Quyết định kỳ vọng Fed; CPI nóng thường gây áp lực lên BTC qua lợi suất/USD."},
+    {"date": "2026-12-09", "time": "14:00 ET", "event": "FOMC — quyết định lãi suất", "impact": "🔴🔴 Rất cao",
+     "why": "Catalyst vĩ mô lớn; thay đổi lãi suất và thông điệp Fed có thể làm BTC biến động mạnh."},
+    {"date": "2026-12-09", "time": "14:30 ET", "event": "Họp báo Chủ tịch Fed", "impact": "🔴🔴 Rất cao",
+     "why": "Giọng điệu về lạm phát và đường đi lãi suất thường quan trọng không kém quyết định lãi suất."},
+]
+
+_VERY_HIGH_KEYS = ("cpi", "fomc", "federal funds", "fed chair", "non-farm", "nonfarm", "pce", "interest rate")
+
+
+def _event_why(title):
+    t = title.lower()
+    if "cpi" in t or "pce" in t or "ppi" in t or "inflation" in t:
+        return "Tín hiệu lạm phát → kỳ vọng lãi suất Fed → lợi suất/USD → BTC."
+    if "fomc" in t or "federal funds" in t or "fed" in t or "interest rate" in t:
+        return "Quyết định/thông điệp Fed tác động trực tiếp tới thanh khoản và khẩu vị rủi ro."
+    if "payroll" in t or "employment" in t or "jobless" in t or "unemployment" in t:
+        return "Sức khỏe thị trường lao động ảnh hưởng kỳ vọng chính sách Fed."
+    if "gdp" in t or "retail" in t or "pmi" in t or "ism" in t:
+        return "Tín hiệu tăng trưởng kinh tế Mỹ; ảnh hưởng gián tiếp qua lợi suất và USD."
+    return "Dữ liệu vĩ mô Mỹ có thể làm USD/lợi suất biến động, gián tiếp tác động BTC."
+
+
+@st.cache_data(ttl=6 * 60 * 60, show_spinner=False)
+def fetch_economic_calendar():
+    """Lịch kinh tế tuần này/tuần sau (ForexFactory JSON công khai). Lỗi thì trả []."""
+    rows = []
+    for url in (
+        "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+        "https://nfs.faireconomy.media/ff_calendar_nextweek.json",
+    ):
+        try:
+            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 BTC-URPD-Dashboard"}, timeout=15)
+            if r.status_code != 200:
+                continue
+            data = r.json()
+            if isinstance(data, list):
+                rows.extend(x for x in data if isinstance(x, dict))
+        except Exception:
+            continue
+    return rows
+
+
 def upcoming_btc_events(days=7):
-    """Lịch sự kiện trọng yếu có sẵn từ lịch chính thức năm 2026, lọc 7 ngày tới."""
-    today = datetime.now(timezone.utc).date()
+    """Sự kiện vĩ mô Mỹ quan trọng trong N ngày tới.
+    Ưu tiên lịch tự động; nếu nguồn lỗi thì dùng STATIC_EVENTS (cần cập nhật tay)."""
+    now = datetime.now(timezone.utc)
+    today = now.date()
     end = today + timedelta(days=days)
-    events = [
-        {"date": "2026-09-11", "time": "08:30 ET", "event": "CPI Mỹ tháng 8", "impact": "🔴🔴 Rất cao", "why": "Quyết định kỳ vọng Fed; CPI nóng thường gây áp lực lên BTC qua lợi suất/USD."},
-        {"date": "2026-09-16", "time": "08:30 ET", "event": "Retail Sales Mỹ tháng 8", "impact": "🟠 Cao", "why": "Đo sức khỏe tiêu dùng; quá mạnh có thể giữ chính sách tiền tệ chặt hơn."},
-        {"date": "2026-09-16", "time": "08:30 ET", "event": "US Import / Export Price Indexes", "impact": "🟠 Cao", "why": "Thêm tín hiệu lạm phát trước/đồng thời với quyết định Fed."},
-        {"date": "2026-09-16", "time": "14:00 ET", "event": "FOMC — quyết định lãi suất", "impact": "🔴🔴 Rất cao", "why": "Catalyst vĩ mô lớn nhất tuần; thay đổi lãi suất và thông điệp Fed có thể làm BTC biến động mạnh."},
-        {"date": "2026-09-16", "time": "14:30 ET", "event": "Họp báo Chủ tịch Fed", "impact": "🔴🔴 Rất cao", "why": "Giọng điệu về lạm phát và đường đi lãi suất thường quan trọng không kém quyết định lãi suất."},
-        {"date": "2026-09-17", "time": "08:30 ET", "event": "Initial Jobless Claims", "impact": "🟠 Cao", "why": "Tín hiệu nhanh về thị trường lao động; ảnh hưởng kỳ vọng chính sách Fed."},
-        {"date": "2026-09-17", "time": "08:30 ET", "event": "Housing Starts / Building Permits", "impact": "🟡 Vừa", "why": "Tín hiệu chu kỳ kinh tế và tăng trưởng Mỹ."},
-        {"date": "2026-09-17", "time": "08:30 ET", "event": "Philadelphia Fed Manufacturing", "impact": "🟡 Vừa", "why": "Tín hiệu sớm về hoạt động sản xuất và tăng trưởng."},
-    ]
     out = []
-    for e in events:
+    seen = set()
+    for e in fetch_economic_calendar():
+        try:
+            if str(e.get("country", "")).upper() != "USD":
+                continue
+            impact_raw = str(e.get("impact", "")).lower()
+            if impact_raw not in ("high", "medium"):
+                continue
+            dt = datetime.fromisoformat(str(e.get("date", "")).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt < now - timedelta(hours=2):
+                continue
+            local = dt.astimezone(VN_TZ)
+            if not (today <= local.date() <= end):
+                continue
+            title = str(e.get("title", "")).strip()
+            key = (local.strftime("%Y-%m-%d %H:%M"), title)
+            if not title or key in seen:
+                continue
+            seen.add(key)
+            if impact_raw == "high":
+                impact = "🔴🔴 Rất cao" if any(k in title.lower() for k in _VERY_HIGH_KEYS) else "🟠 Cao"
+            else:
+                impact = "🟡 Vừa"
+            extra = []
+            if e.get("forecast"):
+                extra.append(f"dự báo {e.get('forecast')}")
+            if e.get("previous"):
+                extra.append(f"kỳ trước {e.get('previous')}")
+            out.append({
+                "date": local.strftime("%Y-%m-%d"),
+                "time": local.strftime("%H:%M") + " giờ VN",
+                "event": title + (f" ({', '.join(extra)})" if extra else ""),
+                "impact": impact,
+                "why": _event_why(title),
+                "date_obj": local.date(),
+                "sort_key": local,
+                "source": "Lịch kinh tế tự động (ForexFactory)",
+            })
+        except Exception:
+            continue
+
+    if out:
+        out.sort(key=lambda x: x["sort_key"])
+        return out
+
+    for e in STATIC_EVENTS:
         d = datetime.strptime(e["date"], "%Y-%m-%d").date()
         if today <= d <= end:
             e = dict(e)
             e["date_obj"] = d
+            e["source"] = "Lịch cấu hình sẵn"
             out.append(e)
     return out
 
-history, history_sha = github_history_get()
+
+def static_events_expired():
+    """True nếu toàn bộ lịch dự phòng đã qua → cần cập nhật tay."""
+    today = datetime.now(timezone.utc).date()
+    return all(datetime.strptime(e["date"], "%Y-%m-%d").date() < today for e in STATIC_EVENTS)
+
+
+history, history_sha = github_history_get_cached()
 
 # Vùng đáy đến do người dùng tự thiết lập.
 with st.sidebar:
@@ -2043,9 +2164,15 @@ if urpd is None:
         target_end_date = datetime.now(timezone.utc).date()
 
         if latest_saved_date:
-            start_date = datetime.strptime(latest_saved_date, "%Y-%m-%d").date() + timedelta(days=1)
+            last_saved_day = datetime.strptime(latest_saved_date, "%Y-%m-%d").date()
+            # V63: snapshot của hôm nay/hôm qua có thể chưa chốt (ngày UTC chưa kết thúc)
+            # → luôn lấy lại để cập nhật. Nếu dữ liệu không đổi thì KHÔNG ghi GitHub.
+            if last_saved_day >= target_end_date - timedelta(days=1):
+                start_date = last_saved_day
+            else:
+                start_date = last_saved_day + timedelta(days=1)
         else:
-            start_date = target_end_date
+            start_date = target_end_date - timedelta(days=1)
 
         # Không gọi quá 7 ngày trong một lần cập nhật.
         if start_date < target_end_date - timedelta(days=6):
@@ -2079,25 +2206,44 @@ if urpd is None:
                     "above_price_btc": float(snapshot_top) if snapshot_top is not None else None,
                     "bottom_btc": float(snapshot_bottom) if snapshot_bottom is not None else None,
                     "total_urpd": float(fetched_urpd.btc_amount.sum()),
-                    "urpd": urpd_to_records(fetched_urpd) if "urpd_to_records" in globals() else fetched_urpd[
-                        ["price_low", "price_high", "btc_amount"]
-                    ].to_dict("records"),
+                    "urpd": urpd_to_records(fetched_urpd),
                     "source": "Bitview /api/urpd/all (lin1000)",
+                    "fetched_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
                 }
                 fetched.append((target_date, fetched_urpd, fetched_url, fetched_close, fetched_total_supply))
             except Exception as e:
                 st.warning(f"Bitview chưa có URPD ngày {target_date}: {e}")
 
-        if fetched:
+        if fetched and latest_saved_date and fetched[-1][0] < latest_saved_date:
+            # Bitview không trả được ngày mới nhất đã lưu → giữ snapshot mới nhất trong history,
+            # nhưng vẫn lưu các ngày cũ hơn vừa lấy nếu chúng thay đổi.
+            saved_latest = history[latest_saved_date]
+            urpd = normalize_urpd(pd.DataFrame(saved_latest["urpd"]))
+            urpd_source = saved_latest.get("source", "Lịch sử cục bộ")
+            urpd_date = latest_saved_date
+            history_should_save = any(
+                _snapshot_changed(history.get(d), pending_history_snapshots[d]) for d, *_ in fetched
+            )
+            st.info(f"Đang dùng snapshot đã lưu ngày {latest_saved_date}; Bitview chưa trả lại ngày này.")
+        elif fetched:
             # Dùng ngày mới nhất lấy được làm dữ liệu hiện tại.
             latest_target, urpd, urpd_url, bitview_close, bitview_total_supply = fetched[-1]
             urpd_source = "Bitview /api/urpd/all (lin1000)"
             urpd_date = latest_target
-            history_should_save = True
-            st.success(
-                f"Đã lấy {len(fetched)} snapshot URPD mới từ Bitview: "
-                f"{fetched[0][0]} → {fetched[-1][0]}."
-            )
+            truly_new = [
+                d for d, *_ in fetched
+                if _snapshot_changed(history.get(d), pending_history_snapshots[d])
+            ]
+            history_should_save = bool(truly_new)
+            if truly_new:
+                st.success(
+                    "Đã cập nhật snapshot URPD từ Bitview: " + ", ".join(truly_new) + "."
+                )
+            else:
+                st.info(
+                    f"History đã có snapshot mới nhất {latest_target}; "
+                    "dữ liệu Bitview không đổi nên không ghi lại GitHub."
+                )
         else:
             # Không có ngày nào thiếu: history đã cập nhật đến hiện tại.
             # Hoặc Bitview chưa phát hành snapshot mới: giữ dữ liệu cũ, không tạo ngày giả.
@@ -2177,7 +2323,7 @@ else:
 # BGEOMETRICS: CẬP NHẬT REALIZED P/L — 1 NÚT TỔNG HỢP
 # =========================
 with st.sidebar:
-    st.caption("📊 BTC URPD Monitor V46 — Realized P/L từ BGeometrics Free")
+    st.caption("📊 BTC URPD Monitor V63 — Realized P/L từ BGeometrics Free")
     st.markdown("### 💰 Realized Profit / Loss")
     st.caption(
         "Một nút cập nhật tổng hợp. Lần đầu lấy 180 ngày lịch sử; "
@@ -2764,6 +2910,36 @@ c5.metric(
     else "API chưa trả dữ liệu",
 )
 
+# V63: cảnh báo khi snapshot URPD đã cũ.
+if data_date:
+    try:
+        urpd_age_days = (
+            datetime.now(timezone.utc).date() - datetime.strptime(data_date, "%Y-%m-%d").date()
+        ).days
+        if urpd_age_days >= 2:
+            st.error(
+                f"⚠️ Snapshot URPD mới nhất là {data_date} (cũ {urpd_age_days} ngày). "
+                "Các số liệu cung có thể không còn phản ánh thị trường hiện tại."
+            )
+    except ValueError:
+        pass
+
+# V63: đối chiếu chéo hai nguồn độc lập.
+# "Cung từ giá hiện tại → ATH" (URPD) và "Supply in Loss" (ResearchBitcoin) về bản chất
+# đo gần cùng một thứ: lượng BTC có giá vốn cao hơn giá hiện tại.
+if loss_btc and above_price_btc is not None:
+    cross_gap_pct = (above_price_btc - loss_btc) / loss_btc * 100.0
+    cross_msg = (
+        f"🔍 Đối chiếu chéo: URPD trên giá hiện tại = {above_price_btc:,.0f} BTC • "
+        f"Supply in Loss (ResearchBitcoin, {loss_source.split('•')[-1].strip()}) = {loss_btc:,.0f} BTC • "
+        f"lệch {cross_gap_pct:+.1f}%. "
+        "Lệch vài % là bình thường vì hai số tính ở hai mức giá khác nhau (giá trực tiếp vs giá đóng cửa ngày)."
+    )
+    if abs(cross_gap_pct) > 10:
+        st.warning(cross_msg + " Mức lệch > 10%: nên kiểm tra lại snapshot URPD hoặc dữ liệu ResearchBitcoin.")
+    else:
+        st.caption(cross_msg)
+
 # =========================
 # THỊ TRƯỜNG TỔNG QUAN
 # =========================
@@ -2822,7 +2998,7 @@ summary = pd.DataFrame(
             "% cung đang lỗ trực tiếp",
             "Ngày dữ liệu URPD",
             "Giá BTC hiện tại",
-            "Ngưỡng vùng đỉnh",
+            "Khoảng giá tính cung → ATH",
             "Nguồn URPD",
             "Nguồn Supply in Loss",
         ],
@@ -2870,12 +3046,6 @@ st.info(
 
 # Lịch sử URPD: lưu toàn bộ bucket gốc theo từng ngày.
 # File này nằm cùng thư mục với app.py khi chạy local.
-def urpd_to_records(df):
-    return df[["price_low", "price_high", "btc_amount"]].to_dict("records")
-
-def records_to_urpd(records):
-    return normalize_urpd(pd.DataFrame(records))
-
 # Lưu URPD mới lên history; không ghi đè các ngày cũ.
 # Khi Bitview bù nhiều ngày, tất cả snapshot mới được lưu trong cùng một commit GitHub.
 if urpd is not None and data_date and history_should_save:
@@ -2899,27 +3069,16 @@ if urpd is not None and data_date and history_should_save:
 
     changed_dates = []
     for snap_date, snapshot in sorted(pending_history_snapshots.items()):
-        old_snapshot = history.get(snap_date)
-        if old_snapshot != snapshot:
+        if _snapshot_changed(history.get(snap_date), snapshot):
             history[snap_date] = snapshot
             changed_dates.append(snap_date)
 
     if changed_dates:
         # Giữ tối đa 365 ngày gần nhất.
         history = dict(sorted(history.items())[-365:])
-
-        if github_token and github_repo:
-            if github_history_save(history, history_sha):
-                st.success(
-                    "Đã lưu history URPD lên GitHub: "
-                    + ", ".join(changed_dates)
-                )
-                _, history_sha = github_history_get()
-        else:
-            try:
-                github_history_save(history)
-            except Exception as e:
-                st.warning(f"Không lưu được lịch sử URPD: {e}")
+        saved_ok, history = github_history_save(history, history_sha, changed_keys=changed_dates)
+        if saved_ok and github_token and github_repo:
+            st.success("Đã lưu history URPD lên GitHub: " + ", ".join(changed_dates))
 
 st.markdown("---")
 st.subheader("Lịch sử biến động nguồn cung")
@@ -2994,17 +3153,11 @@ else:
         history[selected_date] = fetched_snapshot
         history = dict(sorted(history.items())[-365:])
 
-        # Best-effort: lưu snapshot lịch sử vào GitHub để lần sau không mất
-        # dữ liệu, nhưng request Bitview vẫn là nguồn ưu tiên khi xem lịch sử.
+        # V63: chỉ lưu GitHub khi history CHƯA có ngày này hoặc dữ liệu gốc thay đổi.
+        # Trước đây mỗi lần rerun đều commit → repo đầy commit rác, app bị reload.
         try:
-            if github_token and github_repo:
-                latest_data, latest_sha = github_history_get()
-                latest_data[selected_date] = fetched_snapshot
-                latest_data = dict(sorted(latest_data.items())[-365:])
-                github_history_save(latest_data, latest_sha)
-                history = latest_data
-            else:
-                github_history_save(history)
+            if _snapshot_changed(saved, fetched_snapshot):
+                _, history = github_history_save(history, history_sha, changed_keys=[selected_date])
         except Exception as e:
             st.caption(f"Đã lấy được Bitview nhưng chưa lưu GitHub: {e}")
 
@@ -3226,6 +3379,11 @@ if comparison_days and comparison_base_date:
             f"Chưa có snapshot URPD cho ngày {comparison_date} để so sánh "
             f"với ngày {comparison_base_date}."
         )
+
+# V63: lấy tin + lịch sự kiện TRƯỚC nhánh if/else để phần News Radar cuối trang
+# luôn có biến (trước đây chart_urpd = None sẽ gây NameError và sập app).
+news_rows = fetch_news_radar(days=7, max_items=30)
+upcoming = upcoming_btc_events(days=7)
 
 if chart_urpd is None:
     st.warning("Chưa có dữ liệu URPD để vẽ biểu đồ.")
@@ -3752,9 +3910,6 @@ else:
     # News Radar vẫn độc lập về mặt dữ liệu, nhưng V26 dùng tín hiệu định hướng
     # của tin mới để hợp nhất với điểm URPD theo tỷ trọng 60/40.
     # =========================
-    news_rows = fetch_news_radar(days=7, max_items=30)
-    upcoming = upcoming_btc_events(days=7)
-
     macro_score = 50.0
     macro_parts = []
     now_utc = datetime.now(timezone.utc)
@@ -3959,6 +4114,23 @@ else:
             # snapshot đang xem để loại nhiễu do giá BTC dịch chuyển.
             if key == "above_price_btc":
                 return _structural_top_delta_for_date(report_date, current_price, days=days)
+            if key == "bottom_btc":
+                # V63: tính lại từ URPD gốc theo khoảng đáy ĐANG chọn ở sidebar,
+                # không dùng số bottom_btc đã lưu (được tính theo khoảng cũ).
+                try:
+                    d0 = datetime.strptime(report_date, "%Y-%m-%d").date()
+                    old_date = (d0 - timedelta(days=days)).strftime("%Y-%m-%d")
+                    old = history.get(old_date, {})
+                    new_urpd = report_urpd if report_urpd is not None else None
+                    if new_urpd is None and history.get(report_date, {}).get("urpd"):
+                        new_urpd = records_to_urpd(history[report_date]["urpd"])
+                    if new_urpd is None or not old.get("urpd"):
+                        return None, old_date
+                    old_urpd = records_to_urpd(old["urpd"])
+                    lo, hi = float(bottom_start), float(bottom_end)
+                    return btc_in_range(new_urpd, lo, hi) - btc_in_range(old_urpd, lo, hi), old_date
+                except Exception:
+                    return None, None
             try:
                 d0 = datetime.strptime(report_date, "%Y-%m-%d").date()
                 old_date = (d0 - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -4037,7 +4209,7 @@ else:
         d7_total, _ = _snapshot_delta("total_urpd", 7)
 
         total_now = float(report_urpd.btc_amount.sum())
-        below_now = float(report_urpd.loc[report_urpd.price_high <= current_price, "btc_amount"].sum())
+        below_now = btc_in_range(report_urpd, 0.0, current_price)
         overhead_now = btc_in_range(report_urpd, current_price, float(ath))
         above_ath_now = float(report_urpd.loc[report_urpd.price_low >= float(ath), "btc_amount"].sum())
         below_pct = below_now / total_now * 100.0 if total_now else np.nan
@@ -4298,7 +4470,7 @@ else:
 
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            st.metric("Sức mạnh BTC", f"{combined_score:.0f}/100", f"URPD 60% · Macro 40%")
+            st.metric("Sức mạnh BTC", f"{combined_score:.0f}/100", "URPD 60% · Macro 40%")
         with c2:
             st.metric("Cung dưới giá hiện tại", f"{below_now:,.0f} BTC", f"{below_pct:.2f}% tổng URPD")
         with c3:
@@ -4573,7 +4745,7 @@ else:
                 st.write("Chưa đủ snapshot để phân tích 7 ngày.")
 
         with st.expander("🧮 Vì sao dashboard cho điểm này?"):
-            st.write(f"Điểm URPD cơ sở: **50/100**. Các thay đổi URPD 1D/7D được giới hạn ảnh hưởng để tránh một bucket đơn lẻ chi phối toàn bộ lớp on-chain. Điểm cuối cùng dùng **60% URPD + 40% Macro/tin tức**.")
+            st.write("Điểm URPD cơ sở: **50/100**. Các thay đổi URPD 1D/7D được giới hạn ảnh hưởng để tránh một bucket đơn lẻ chi phối toàn bộ lớp on-chain. Điểm cuối cùng dùng **60% URPD + 40% Macro/tin tức**.")
             if score_parts:
                 for name, effect in score_parts:
                     st.write(f"• {name}: **{effect:+.1f} điểm**")
@@ -4588,36 +4760,39 @@ else:
         )
 
     # Bảng tổng hợp ngay dưới biểu đồ.
+    # V63: nhãn khớp đúng phép tính. "Giá snapshot → ATH" là cung đang lỗ theo URPD;
+    # "Ngưỡng tham khảo → ATH" dùng giá trị ở sidebar.
+    chart_threshold_btc = (
+        btc_in_range(chart_urpd, float(top_start), float(ath)) if chart_urpd is not None else None
+    )
+
+    def _share(x):
+        return f"{x / chart_total_urpd * 100:.4f}%" if chart_total_urpd and x is not None else "N/A"
+
     chart_summary = pd.DataFrame({
         "Vùng giá": [
             f"Vùng đáy ${bottom_start:,.0f}–${bottom_end:,.0f}",
-            f"Vùng đỉnh từ ${top_start:,.0f}",
-            "Giá hiện tại",
+            f"Giá snapshot → ATH (${price_for_chart:,.0f}–${ath:,.0f})",
+            f"Ngưỡng tham khảo → ATH (${top_start:,.0f}–${ath:,.0f})",
         ],
         "BTC": [
             f"{chart_bottom_btc:,.2f}" if chart_bottom_btc is not None else "N/A",
             f"{chart_top_btc:,.2f}" if chart_top_btc is not None else "N/A",
-            f"{price_for_chart:,.2f}",
+            f"{chart_threshold_btc:,.2f}" if chart_threshold_btc is not None else "N/A",
         ],
-        "Tỷ trọng URPD": [
-            f"{chart_bottom_btc / chart_total_urpd * 100:.4f}%"
-            if chart_total_urpd and chart_bottom_btc is not None else "N/A",
-            f"{chart_top_btc / chart_total_urpd * 100:.4f}%"
-            if chart_total_urpd and chart_top_btc is not None else "N/A",
-            "—",
-        ],
+        "Tỷ trọng URPD": [_share(chart_bottom_btc), _share(chart_top_btc), _share(chart_threshold_btc)],
     })
     st.dataframe(chart_summary, hide_index=True, use_container_width=True)
 
-    with st.expander("Xem URPD gốc"):
-        st.dataframe(urpd, hide_index=True, use_container_width=True)
+    with st.expander(f"Xem URPD gốc ({chart_date})"):
+        st.dataframe(chart_urpd, hide_index=True, use_container_width=True)
 
 # =========================
 # NEWS RADAR — cập nhật độc lập với snapshot URPD
 # =========================
 st.markdown("---")
 st.header("📰 BTC News Radar — Vĩ mô, dòng vốn và sự kiện có thể tác động BTC")
-st.caption("Tin tức được làm mới khoảng mỗi 12 giờ; lịch sự kiện lọc trong 7 ngày tới. V40 hiển thị tiêu đề tiếng Việt, giữ tiêu đề tiếng Anh gốc và dịch mô tả khi có; News/Macro vẫn chiếm 40% điểm tổng hợp cùng URPD 60%.")
+st.caption("Tin tức được làm mới khoảng mỗi 12 giờ; lịch sự kiện vĩ mô Mỹ lấy tự động (giờ Việt Nam), lọc 7 ngày tới. Dashboard hiển thị tiêu đề tiếng Việt, giữ tiêu đề tiếng Anh gốc và dịch mô tả khi có; News/Macro vẫn chiếm 40% điểm tổng hợp cùng URPD 60%.")
 
 # V27 đã lấy News Radar trước phần báo cáo để dùng được cho điểm tổng hợp.
 # Hai biến này được cache 12 giờ nên không tạo thêm lượt gọi ngoài ý muốn.
@@ -4627,15 +4802,21 @@ with n1:
     st.subheader("🔥 Tin mới nhất / 7 ngày qua")
     st.info("🇻🇳 Tiêu đề tiếng Việt là bản dịch để dễ đọc; 🇬🇧 tiêu đề gốc được giữ lại để đối chiếu. Nếu nguồn không có mô tả hoặc dịch vụ dịch tạm thời lỗi, dashboard sẽ giữ nguyên nội dung gốc.")
     if news_rows:
-        for item in news_rows[:15]:
+        shown_news = news_rows[:15]
+        translations = translate_batch(tuple(
+            [item["title"] for item in shown_news]
+            + [news_summary_source(item) for item in shown_news]
+        ))
+        for item in shown_news:
             impact, direction = news_impact(item["title"], item["category"])
             age_h = max(0.0, (datetime.now(timezone.utc) - item["published"]).total_seconds() / 3600.0)
             if age_h < 24:
                 age = f"{age_h:.0f} giờ trước"
             else:
                 age = f"{age_h/24:.1f} ngày trước"
-            title_vi = news_title_vi(item)
-            summary_vi = news_summary_vi(item)
+            title_vi = translations.get(item["title"]) or item["title"]
+            summary_src = news_summary_source(item)
+            summary_vi = (translations.get(summary_src) or summary_src) if summary_src else ""
             st.markdown(
                 f"**🇻🇳 {title_vi}**  \n"
                 f"<small>🇬🇧 <i>{item['title']}</i></small>  \n"
@@ -4652,6 +4833,7 @@ with n1:
 with n2:
     st.subheader("⏰ 7 ngày sắp tới")
     if upcoming:
+        st.caption(f"Nguồn: {upcoming[0].get('source', '')}")
         for e in upcoming:
             st.markdown(
                 f"**{e['date']} · {e['time']} — {e['event']}**  \n"
@@ -4659,7 +4841,12 @@ with n2:
             )
             st.markdown("---")
     else:
-        st.info("Không có sự kiện trọng yếu đã cấu hình trong 7 ngày tới.")
+        st.info("Không có sự kiện vĩ mô Mỹ quan trọng trong 7 ngày tới.")
+        if not fetch_economic_calendar() and static_events_expired():
+            st.warning(
+                "Không lấy được lịch kinh tế tự động và lịch dự phòng (STATIC_EVENTS trong app.py) "
+                "đã hết hạn — hãy cập nhật thêm sự kiện mới."
+            )
 
 # Bảng tóm tắt để báo cáo URPD có thêm bối cảnh vĩ mô.
 st.subheader("🧭 Tác động lên BTC — đọc cùng báo cáo URPD")
