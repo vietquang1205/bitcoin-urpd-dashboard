@@ -38,11 +38,18 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python app.py --update-data
 
+      - name: Lấy dữ liệu NEAR
+        continue-on-error: true          # NEAR lỗi cũng không chặn việc lưu dữ liệu BTC
+        env:
+          NEARBLOCKS_API_KEY: ${{ secrets.NEARBLOCKS_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: python pages/NEAR_Monitor.py --update-data
+
       # Chỉ GitHub Actions ghi các file dữ liệu này, nên bản vừa tạo luôn là bản đúng:
       # cất ra ngoài → đồng bộ với main mới nhất → chép lại → commit. Không bị conflict.
       - name: Commit dữ liệu mới
         run: |
-          FILES="urpd_history.json researchbitcoin_daily_history.json bgeometrics_realized_pl_history.json bgeometrics_onchain_history.json update_status.json"
+          FILES="urpd_history.json researchbitcoin_daily_history.json bgeometrics_realized_pl_history.json bgeometrics_onchain_history.json update_status.json near_history.json"
           BRANCH="${{ github.event.repository.default_branch }}"
           mkdir -p "$RUNNER_TEMP/data"
           for f in $FILES; do
