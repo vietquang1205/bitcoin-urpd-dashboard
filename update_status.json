@@ -1,5 +1,6 @@
 {
  "fatal": [],
+ "last_run_utc": "2026-10-30 15:21",
  "urpd": {
   "latest_date": "2026-10-30",
   "changed": [
@@ -8,29 +9,33 @@
   "errors": []
  },
  "research": {
-  "updated": {},
-  "errors": [
-   "Invalid leading whitespace, reserved character(s), or return character(s) in header value: 'RESEARCHBITCOIN_API_TOKEN = \"cb1937c4-cd4d-42eb-acc2-3611bf08ff95\"\\nGITHUB_TOKEN = \"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\"\\n\\nGITHUB_REPO = \"vietquang12",
-   "Invalid leading whitespace, reserved character(s), or return character(s) in header value: 'RESEARCHBITCOIN_API_TOKEN = \"cb1937c4-cd4d-42eb-acc2-3611bf08ff95\"\\nGITHUB_TOKEN = \"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\"\\n\\nGITHUB_REPO = \"vietquang12"
-  ]
+  "updated": {
+   "sth_realized_price": 90,
+   "lth_realized_price": 90
+  },
+  "errors": []
  },
  "realized": {
-  "updated": {
-   "realized_profit": 1,
-   "realized_loss": 1,
-   "btc_price": 1
-  },
+  "updated": {},
   "errors": []
  },
  "onchain": {
-  "updated": {
-   "mvrv": 359,
-   "nupl": 359,
-   "sopr": 359,
-   "sth_realized_price": 359,
-   "lth_realized_price": 359
-  },
-  "errors": []
+  "updated": {},
+  "errors": [
+   "Không đọc được time-series.",
+   "Không đọc được time-series.",
+   "Không đọc được time-series."
+  ]
  },
- "last_run_utc": "2026-10-30 15:00"
+ "market": {
+  "total_mcap": 2630934222528.467,
+  "total_mcap_change_24h": -6.3862057610724925,
+  "btc_mcap": 1563132706175.2893,
+  "btc_change_24h": -4.555746568589141,
+  "usdt_usdc": 251876107250.78564,
+  "adjusted_btc_dom": 65.70384708709993,
+  "alt_ex_stables": 815925409102.3917,
+  "alt_change_24h": -11.388116438370666,
+  "fetched_at_utc": "2026-10-30 15:21"
+ }
 }

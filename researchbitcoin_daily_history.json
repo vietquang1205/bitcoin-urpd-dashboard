@@ -1,318 +1,617 @@
 {
-  "version": 1,
-  "daily": {
-    "2026-09-25": {
-      "realized_profit": 940330766.2044747,
-      "realized_loss": 385688865.06889045
-    },
-    "2026-09-27": {
-      "realized_profit": 190448429.90772754,
-      "realized_loss": 53091869.18360886,
-      "supply_in_loss": 5682997.66195984,
-      "supply_in_loss_percent": 0.2828799607650082,
-      "btc_price": 84608.63
-    },
-    "2026-09-28": {
-      "realized_profit": 1006674843.5281849,
-      "realized_loss": 411325754.6110784,
-      "supply_in_loss": 5869244.59990304,
-      "supply_in_loss_percent": 0.29214318998374106,
-      "btc_price": 83408.22
-    },
-    "2026-09-29": {
-      "realized_profit": 797278969.6649938,
-      "realized_loss": 277038057.8916582,
-      "supply_in_loss": 5841275.61019927,
-      "supply_in_loss_percent": 0.290743834851309,
-      "btc_price": 83605.01
-    },
-    "2026-09-30": {
-      "realized_profit": 565579101.7278523,
-      "realized_loss": 448670003.6510992,
-      "supply_in_loss": 5851918.45077275,
-      "supply_in_loss_percent": 0.29126718438758764,
-      "btc_price": 83647.12
-    },
-    "2026-10-01": {
-      "realized_profit": 626216409.3399154,
-      "realized_loss": 173221917.80234984,
-      "supply_in_loss": 4811358.88577438,
-      "supply_in_loss_percent": 0.23947040853123785,
-      "btc_price": 84014.29
-    },
-    "2026-10-02": {
-      "realized_profit": 1240109271.9274375,
-      "realized_loss": 250154000.77629232,
-      "supply_in_loss": 5142543.86550616,
-      "supply_in_loss_percent": 0.2559484930660204,
-      "btc_price": 85611.22
-    },
-    "2026-10-03": {
-      "realized_profit": 211827286.10359457,
-      "realized_loss": 53960825.33993835,
-      "supply_in_loss": 4958322.80604013,
-      "supply_in_loss_percent": 0.24677451981825044,
-      "btc_price": 84689.2
-    },
-    "2026-10-04": {
-      "realized_profit": 368708949.1486658,
-      "realized_loss": 19063445.923425604,
-      "supply_in_loss": 4385137.71704285,
-      "supply_in_loss_percent": 0.2182423826916212,
-      "btc_price": 85284.48
-    },
-    "2026-10-05": {
-      "realized_profit": 1092063709.3306272,
-      "realized_loss": 147856345.06819293,
-      "supply_in_loss": 4573646.62100199,
-      "supply_in_loss_percent": 0.22761798618623125,
-      "btc_price": 85999.61
-    },
-    "2026-10-07": {
-      "realized_profit": 991731014.1396677,
-      "realized_loss": 458084763.15239197,
-      "supply_in_loss": 6216370.21300507,
-      "supply_in_loss_percent": 0.3093569652800947,
-      "btc_price": 83840.7
-    },
-    "2026-10-08": {
-      "realized_profit": 800053340.4550282,
-      "realized_loss": 679792158.6155752,
-      "supply_in_loss": 6358819.79347698,
-      "supply_in_loss_percent": 0.31643911043445266,
-      "btc_price": 82430.13
-    },
-    "2026-10-09": {
-      "realized_profit": 525290862.08532196,
-      "realized_loss": 351126197.1795761,
-      "supply_in_loss": 6284618.14609216,
-      "supply_in_loss_percent": 0.31273945062111674,
-      "btc_price": 82450.63
-    },
-    "2026-10-10": {
-      "realized_profit": 296788099.1702072,
-      "realized_loss": 60887402.6762037,
-      "supply_in_loss": 6086541.5326981,
-      "supply_in_loss_percent": 0.302875323381691,
-      "btc_price": 82811.06
-    },
-    "2026-10-11": {
-      "realized_profit": 448418574.88512117,
-      "realized_loss": 186178847.32582244,
-      "supply_in_loss": 5891939.33823184,
-      "supply_in_loss_percent": 0.2931845152349821,
-      "btc_price": 83196.97
-    },
-    "2026-10-12": {
-      "realized_profit": 390137983.21826035,
-      "realized_loss": 219283131.898775,
-      "supply_in_loss": 6463674.86320649,
-      "supply_in_loss_percent": 0.32162663026406685,
-      "btc_price": 83210.32
-    },
-    "2026-10-13": {
-      "realized_profit": 499066275.5461877,
-      "realized_loss": 241158807.1274048,
-      "supply_in_loss": 5879815.4670939,
-      "supply_in_loss_percent": 0.2925668977283702,
-      "btc_price": 83143.12
-    },
-    "2026-10-15": {
-      "realized_profit": 451368493.8807588,
-      "realized_loss": 503419259.4257377,
-      "supply_in_loss": 6235591.51137459,
-      "supply_in_loss_percent": 0.310254346175569,
-      "btc_price": 81404.26
-    },
-    "2026-10-16": {
-      "realized_profit": 441062932.30023474,
-      "realized_loss": 207812759.12320265,
-      "supply_in_loss": 6440431.04213426,
-      "supply_in_loss_percent": 0.32043889405173304,
-      "btc_price": 81827.18
-    },
-    "2026-10-17": {
-      "realized_profit": 212028631.21158358,
-      "realized_loss": 120987433.712922,
-      "supply_in_loss": 6582459.42417696,
-      "supply_in_loss_percent": 0.3274984350527288,
-      "btc_price": 81410.19
-    },
-    "2026-10-19": {
-      "realized_profit": 490674606.71274924,
-      "realized_loss": 126731545.74381156,
-      "supply_in_loss": 6345851.58855236,
-      "supply_in_loss_percent": 0.31571115499022434,
-      "btc_price": 82193.94
-    },
-    "2026-10-20": {
-      "realized_profit": 550391956.6524041,
-      "realized_loss": 263021521.32246348,
-      "supply_in_loss": 5974545.22523627,
-      "supply_in_loss_percent": 0.2972307424584296,
-      "btc_price": 82019.96
-    },
-    "2026-10-21": {
-      "realized_profit": 767892025.9415283,
-      "realized_loss": 161088873.19347844,
-      "supply_in_loss": 5293717.38324215,
-      "supply_in_loss_percent": 0.2633537015170825,
-      "btc_price": 83598.59
-    },
-    "2026-10-22": {
-      "realized_profit": 3649107276.411077,
-      "realized_loss": 1364652632.9498012,
-      "supply_in_loss": 6656498.46852603,
-      "supply_in_loss_percent": 0.3311432200606763,
-      "btc_price": 82031.48
-    },
-    "2026-10-23": {
-      "realized_profit": 545297538.6974795,
-      "realized_loss": 340846450.4939401,
-      "supply_in_loss": 7080908.64426738,
-      "supply_in_loss_percent": 0.35224697719805986,
-      "btc_price": 81525.12
-    },
-    "2026-10-24": {
-      "realized_profit": 100534489.71920498,
-      "realized_loss": 116447031.57885401,
-      "supply_in_loss": 7098957.8662182,
-      "supply_in_loss_percent": 0.3531368391328405,
-      "btc_price": 80528.13
-    },
-    "2026-10-25": {
-      "realized_profit": 170232004.56764373,
-      "realized_loss": 84121619.73958327,
-      "supply_in_loss": 7141006.56387657,
-      "supply_in_loss_percent": 0.35521993147884706,
-      "btc_price": 80491.84
-    },
-    "2026-10-26": {
-      "realized_profit": 632071685.206799,
-      "realized_loss": 529357673.8321572,
-      "supply_in_loss": 7218680.31386459,
-      "supply_in_loss_percent": 0.35907466582737213,
-      "btc_price": 79965.01
-    },
-    "2026-10-27": {
-      "realized_profit": 346505189.4199372,
-      "realized_loss": 330671453.4398846,
-      "supply_in_loss": 6827457.49725472,
-      "supply_in_loss_percent": 0.33960595237879504,
-      "btc_price": 80075.16
-    },
-    "2026-10-28": {
-      "realized_profit": 470491498.13859963,
-      "realized_loss": 299555786.37854236,
-      "supply_in_loss": 6494604.91790355,
-      "supply_in_loss_percent": 0.32304223246266867,
-      "btc_price": 80967.43
-    },
-    "2026-10-29": {
-      "supply_in_loss": 7516886.75852982,
-      "supply_in_loss_percent": 0.37388265256128034
-    }
+ "version": 1,
+ "daily": {
+  "2026-08-01": {
+   "sth_realized_price": 67684.83237998851,
+   "lth_realized_price": 49826.89333711072
   },
-  "last_attempt_date": "2026-10-30",
-  "bootstrap_done": false,
-  "last_attempt_status": "metric=supply_in_loss_percent, updated=1, quota_before=54809.0, quota_after=54808.0",
-  "attempts_by_date": {
-    "2026-10-17": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-18": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-19": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-20": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-21": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-22": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-23": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-24": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-25": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-26": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-27": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-28": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-29": [
-      "price",
-      "realizedloss",
-      "realizedprofit",
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ],
-    "2026-10-30": [
-      "supply_in_loss",
-      "supply_in_loss_percent"
-    ]
+  "2026-08-02": {
+   "sth_realized_price": 67659.6165439858,
+   "lth_realized_price": 49805.64523762714
   },
-  "last_manual_batch_date": "2026-09-28",
-  "last_manual_batch_status": "✓ realizedprofit: đã có cache | ✓ realizedloss: đã có cache | ✓ supply_in_loss: đã có cache | ✓ supply_in_loss_percent: đã có cache | ✓ price: đã có cache"
+  "2026-08-03": {
+   "sth_realized_price": 67581.32274576697,
+   "lth_realized_price": 49747.32393483372
+  },
+  "2026-08-04": {
+   "sth_realized_price": 67549.20953389008,
+   "lth_realized_price": 49717.23060288172
+  },
+  "2026-08-05": {
+   "sth_realized_price": 67526.7677284578,
+   "lth_realized_price": 49684.90186791788
+  },
+  "2026-08-06": {
+   "sth_realized_price": 67501.38281718906,
+   "lth_realized_price": 49695.59779503475
+  },
+  "2026-08-07": {
+   "sth_realized_price": 67459.8122533865,
+   "lth_realized_price": 49690.82986686003
+  },
+  "2026-08-08": {
+   "sth_realized_price": 67480.01507668369,
+   "lth_realized_price": 49698.20199067769
+  },
+  "2026-08-09": {
+   "sth_realized_price": 67472.82182051269,
+   "lth_realized_price": 49690.62991540333
+  },
+  "2026-08-10": {
+   "sth_realized_price": 67439.4299601383,
+   "lth_realized_price": 49682.56168355642
+  },
+  "2026-08-11": {
+   "sth_realized_price": 67389.77098326632,
+   "lth_realized_price": 49674.610437209114
+  },
+  "2026-08-12": {
+   "sth_realized_price": 67321.11488787556,
+   "lth_realized_price": 49667.10666863937
+  },
+  "2026-08-13": {
+   "sth_realized_price": 67284.98575554116,
+   "lth_realized_price": 49671.68969527332
+  },
+  "2026-08-14": {
+   "sth_realized_price": 67200.81413803014,
+   "lth_realized_price": 49682.598686090925
+  },
+  "2026-08-15": {
+   "sth_realized_price": 67176.19163347648,
+   "lth_realized_price": 49692.278579339494
+  },
+  "2026-08-16": {
+   "sth_realized_price": 67151.575748014,
+   "lth_realized_price": 49673.280269318515
+  },
+  "2026-08-17": {
+   "sth_realized_price": 67158.27379072308,
+   "lth_realized_price": 49662.26488818002
+  },
+  "2026-08-18": {
+   "sth_realized_price": 67124.87714796646,
+   "lth_realized_price": 49655.328659674364
+  },
+  "2026-08-19": {
+   "sth_realized_price": 67199.71343136218,
+   "lth_realized_price": 49651.628757869854
+  },
+  "2026-08-20": {
+   "sth_realized_price": 67626.40537306319,
+   "lth_realized_price": 49593.91028331505
+  },
+  "2026-08-21": {
+   "sth_realized_price": 68196.11323305292,
+   "lth_realized_price": 49562.602929599
+  },
+  "2026-08-22": {
+   "sth_realized_price": 68326.46115088121,
+   "lth_realized_price": 49568.58864884348
+  },
+  "2026-08-23": {
+   "sth_realized_price": 68391.05718811876,
+   "lth_realized_price": 49565.930151692395
+  },
+  "2026-08-24": {
+   "sth_realized_price": 68882.78092175993,
+   "lth_realized_price": 49559.69019717973
+  },
+  "2026-08-25": {
+   "sth_realized_price": 69208.00990314723,
+   "lth_realized_price": 49537.7878796626
+  },
+  "2026-08-26": {
+   "sth_realized_price": 69469.52625659174,
+   "lth_realized_price": 49526.4199704998
+  },
+  "2026-08-27": {
+   "sth_realized_price": 69776.29153374908,
+   "lth_realized_price": 49481.06070977415
+  },
+  "2026-08-28": {
+   "sth_realized_price": 69977.17726729784,
+   "lth_realized_price": 49449.51468485874
+  },
+  "2026-08-29": {
+   "sth_realized_price": 70006.9074615853,
+   "lth_realized_price": 49445.899782352324
+  },
+  "2026-08-30": {
+   "sth_realized_price": 70058.64393449483,
+   "lth_realized_price": 49445.00300776408
+  },
+  "2026-08-31": {
+   "sth_realized_price": 70190.41255775676,
+   "lth_realized_price": 49428.01918428837
+  },
+  "2026-09-01": {
+   "sth_realized_price": 70297.67767032461,
+   "lth_realized_price": 49411.508769431086
+  },
+  "2026-09-02": {
+   "sth_realized_price": 70383.29643612067,
+   "lth_realized_price": 49407.66007681319
+  },
+  "2026-09-03": {
+   "sth_realized_price": 70604.502925068,
+   "lth_realized_price": 49395.618213668226
+  },
+  "2026-09-04": {
+   "sth_realized_price": 70788.20185394658,
+   "lth_realized_price": 49356.543139714435
+  },
+  "2026-09-05": {
+   "sth_realized_price": 70852.85201849978,
+   "lth_realized_price": 49355.35841800184
+  },
+  "2026-09-06": {
+   "sth_realized_price": 70908.0574976197,
+   "lth_realized_price": 49353.79210009286
+  },
+  "2026-09-07": {
+   "sth_realized_price": 70948.44285831942,
+   "lth_realized_price": 49351.2981194193
+  },
+  "2026-09-08": {
+   "sth_realized_price": 70991.56035670667,
+   "lth_realized_price": 49351.815141199266
+  },
+  "2026-09-09": {
+   "sth_realized_price": 71107.96785970191,
+   "lth_realized_price": 49329.49124142795
+  },
+  "2026-09-10": {
+   "sth_realized_price": 71160.48564524042,
+   "lth_realized_price": 49328.19206848452
+  },
+  "2026-09-11": {
+   "sth_realized_price": 71199.5596626491,
+   "lth_realized_price": 49324.08732311649
+  },
+  "2026-09-12": {
+   "sth_realized_price": 71203.73476776102,
+   "lth_realized_price": 49337.282256033424
+  },
+  "2026-09-13": {
+   "sth_realized_price": 71219.26619378406,
+   "lth_realized_price": 49335.13089706938
+  },
+  "2026-09-14": {
+   "sth_realized_price": 71305.00131349212,
+   "lth_realized_price": 49313.71239077953
+  },
+  "2026-09-15": {
+   "sth_realized_price": 71276.23974067578,
+   "lth_realized_price": 49312.678206421304
+  },
+  "2026-09-16": {
+   "sth_realized_price": 71358.17979789358,
+   "lth_realized_price": 49294.78594116484
+  },
+  "2026-09-17": {
+   "sth_realized_price": 71430.3414597362,
+   "lth_realized_price": 49252.63610208457
+  },
+  "2026-09-18": {
+   "sth_realized_price": 71676.2852692217,
+   "lth_realized_price": 49237.858495968365
+  },
+  "2026-09-19": {
+   "sth_realized_price": 71761.62790193265,
+   "lth_realized_price": 49269.01871716638
+  },
+  "2026-09-20": {
+   "sth_realized_price": 71785.85354315936,
+   "lth_realized_price": 49268.89904862095
+  },
+  "2026-09-21": {
+   "sth_realized_price": 72290.44220637874,
+   "lth_realized_price": 49246.14984268616
+  },
+  "2026-09-22": {
+   "sth_realized_price": 72749.45639194573,
+   "lth_realized_price": 49273.68913031403
+  },
+  "2026-09-23": {
+   "sth_realized_price": 72790.21183598276,
+   "lth_realized_price": 49300.087068865374
+  },
+  "2026-09-24": {
+   "sth_realized_price": 72861.9983997158,
+   "lth_realized_price": 49315.91289484203
+  },
+  "2026-09-25": {
+   "realized_profit": 940330766.2044747,
+   "realized_loss": 385688865.06889045,
+   "sth_realized_price": 72993.79946216666,
+   "lth_realized_price": 49321.014789871435
+  },
+  "2026-09-26": {
+   "sth_realized_price": 72985.60825399634,
+   "lth_realized_price": 49383.2264284456
+  },
+  "2026-09-27": {
+   "realized_profit": 190448429.90772754,
+   "realized_loss": 53091869.18360886,
+   "supply_in_loss": 5682997.66195984,
+   "supply_in_loss_percent": 0.2828799607650082,
+   "btc_price": 84608.63,
+   "sth_realized_price": 73018.90573910356,
+   "lth_realized_price": 49383.53651349477
+  },
+  "2026-09-28": {
+   "realized_profit": 1006674843.5281849,
+   "realized_loss": 411325754.6110784,
+   "supply_in_loss": 5869244.59990304,
+   "supply_in_loss_percent": 0.29214318998374106,
+   "btc_price": 83408.22,
+   "sth_realized_price": 73235.28510746504,
+   "lth_realized_price": 49294.794307978525
+  },
+  "2026-09-29": {
+   "realized_profit": 797278969.6649938,
+   "realized_loss": 277038057.8916582,
+   "supply_in_loss": 5841275.61019927,
+   "supply_in_loss_percent": 0.290743834851309,
+   "btc_price": 83605.01,
+   "sth_realized_price": 73367.34325498971,
+   "lth_realized_price": 49280.61138446213
+  },
+  "2026-09-30": {
+   "realized_profit": 565579101.7278523,
+   "realized_loss": 448670003.6510992,
+   "supply_in_loss": 5851918.45077275,
+   "supply_in_loss_percent": 0.29126718438758764,
+   "btc_price": 83647.12,
+   "sth_realized_price": 73475.28339109439,
+   "lth_realized_price": 49259.708620282734
+  },
+  "2026-10-01": {
+   "realized_profit": 626216409.3399154,
+   "realized_loss": 173221917.80234984,
+   "supply_in_loss": 4811358.88577438,
+   "supply_in_loss_percent": 0.23947040853123785,
+   "btc_price": 84014.29,
+   "sth_realized_price": 73591.75425307243,
+   "lth_realized_price": 49271.234698262
+  },
+  "2026-10-02": {
+   "realized_profit": 1240109271.9274375,
+   "realized_loss": 250154000.77629232,
+   "supply_in_loss": 5142543.86550616,
+   "supply_in_loss_percent": 0.2559484930660204,
+   "btc_price": 85611.22,
+   "sth_realized_price": 73858.95957157391,
+   "lth_realized_price": 49303.200982991715
+  },
+  "2026-10-03": {
+   "realized_profit": 211827286.10359457,
+   "realized_loss": 53960825.33993835,
+   "supply_in_loss": 4958322.80604013,
+   "supply_in_loss_percent": 0.24677451981825044,
+   "btc_price": 84689.2,
+   "sth_realized_price": 73873.6919077819,
+   "lth_realized_price": 49342.169828606326
+  },
+  "2026-10-04": {
+   "realized_profit": 368708949.1486658,
+   "realized_loss": 19063445.923425604,
+   "supply_in_loss": 4385137.71704285,
+   "supply_in_loss_percent": 0.2182423826916212,
+   "btc_price": 85284.48,
+   "sth_realized_price": 73920.92851551023,
+   "lth_realized_price": 49345.495113634075
+  },
+  "2026-10-05": {
+   "realized_profit": 1092063709.3306272,
+   "realized_loss": 147856345.06819293,
+   "supply_in_loss": 4573646.62100199,
+   "supply_in_loss_percent": 0.22761798618623125,
+   "btc_price": 85999.61,
+   "sth_realized_price": 74126.46856389516,
+   "lth_realized_price": 49337.45343017785
+  },
+  "2026-10-06": {
+   "sth_realized_price": 74322.53499394012,
+   "lth_realized_price": 49271.56626708289
+  },
+  "2026-10-07": {
+   "realized_profit": 991731014.1396677,
+   "realized_loss": 458084763.15239197,
+   "supply_in_loss": 6216370.21300507,
+   "supply_in_loss_percent": 0.3093569652800947,
+   "btc_price": 83840.7,
+   "sth_realized_price": 74337.41552746258,
+   "lth_realized_price": 49287.15293686649
+  },
+  "2026-10-08": {
+   "realized_profit": 800053340.4550282,
+   "realized_loss": 679792158.6155752,
+   "supply_in_loss": 6358819.79347698,
+   "supply_in_loss_percent": 0.31643911043445266,
+   "btc_price": 82430.13,
+   "sth_realized_price": 74322.15237221157,
+   "lth_realized_price": 49276.996872445154
+  },
+  "2026-10-09": {
+   "realized_profit": 525290862.08532196,
+   "realized_loss": 351126197.1795761,
+   "supply_in_loss": 6284618.14609216,
+   "supply_in_loss_percent": 0.31273945062111674,
+   "btc_price": 82450.63,
+   "sth_realized_price": 74386.8078201623,
+   "lth_realized_price": 49260.91282821571
+  },
+  "2026-10-10": {
+   "realized_profit": 296788099.1702072,
+   "realized_loss": 60887402.6762037,
+   "supply_in_loss": 6086541.5326981,
+   "supply_in_loss_percent": 0.302875323381691,
+   "btc_price": 82811.06,
+   "sth_realized_price": 74417.98719528255,
+   "lth_realized_price": 49269.08136299211
+  },
+  "2026-10-11": {
+   "realized_profit": 448418574.88512117,
+   "realized_loss": 186178847.32582244,
+   "supply_in_loss": 5891939.33823184,
+   "supply_in_loss_percent": 0.2931845152349821,
+   "btc_price": 83196.97,
+   "sth_realized_price": 74425.41642801145,
+   "lth_realized_price": 49279.972042865455
+  },
+  "2026-10-12": {
+   "realized_profit": 390137983.21826035,
+   "realized_loss": 219283131.898775,
+   "supply_in_loss": 6463674.86320649,
+   "supply_in_loss_percent": 0.32162663026406685,
+   "btc_price": 83210.32,
+   "sth_realized_price": 74444.77950758913,
+   "lth_realized_price": 49272.823588242994
+  },
+  "2026-10-13": {
+   "realized_profit": 499066275.5461877,
+   "realized_loss": 241158807.1274048,
+   "supply_in_loss": 5879815.4670939,
+   "supply_in_loss_percent": 0.2925668977283702,
+   "btc_price": 83143.12,
+   "sth_realized_price": 74547.13431271257,
+   "lth_realized_price": 49238.50831376041
+  },
+  "2026-10-14": {
+   "sth_realized_price": 74560.18491881127,
+   "lth_realized_price": 49210.442742047824
+  },
+  "2026-10-15": {
+   "realized_profit": 451368493.8807588,
+   "realized_loss": 503419259.4257377,
+   "supply_in_loss": 6235591.51137459,
+   "supply_in_loss_percent": 0.310254346175569,
+   "btc_price": 81404.26,
+   "sth_realized_price": 74572.6877592148,
+   "lth_realized_price": 49180.54966858867
+  },
+  "2026-10-16": {
+   "realized_profit": 441062932.30023474,
+   "realized_loss": 207812759.12320265,
+   "supply_in_loss": 6440431.04213426,
+   "supply_in_loss_percent": 0.32043889405173304,
+   "btc_price": 81827.18,
+   "sth_realized_price": 74608.57818515395,
+   "lth_realized_price": 49184.90933260733
+  },
+  "2026-10-17": {
+   "realized_profit": 212028631.21158358,
+   "realized_loss": 120987433.712922,
+   "supply_in_loss": 6582459.42417696,
+   "supply_in_loss_percent": 0.3274984350527288,
+   "btc_price": 81410.19,
+   "sth_realized_price": 74562.30755056614,
+   "lth_realized_price": 49244.72812556798
+  },
+  "2026-10-18": {
+   "sth_realized_price": 74572.24040715072,
+   "lth_realized_price": 49245.32733153892
+  },
+  "2026-10-19": {
+   "realized_profit": 490674606.71274924,
+   "realized_loss": 126731545.74381156,
+   "supply_in_loss": 6345851.58855236,
+   "supply_in_loss_percent": 0.31571115499022434,
+   "btc_price": 82193.94,
+   "sth_realized_price": 74639.66575376321,
+   "lth_realized_price": 49235.304301100616
+  },
+  "2026-10-20": {
+   "realized_profit": 550391956.6524041,
+   "realized_loss": 263021521.32246348,
+   "supply_in_loss": 5974545.22523627,
+   "supply_in_loss_percent": 0.2972307424584296,
+   "btc_price": 82019.96,
+   "sth_realized_price": 74702.63185253648,
+   "lth_realized_price": 49224.6408290254
+  },
+  "2026-10-21": {
+   "realized_profit": 767892025.9415283,
+   "realized_loss": 161088873.19347844,
+   "supply_in_loss": 5293717.38324215,
+   "supply_in_loss_percent": 0.2633537015170825,
+   "btc_price": 83598.59,
+   "sth_realized_price": 74840.57817613246,
+   "lth_realized_price": 49230.05348036727
+  },
+  "2026-10-22": {
+   "realized_profit": 3649107276.411077,
+   "realized_loss": 1364652632.9498012,
+   "supply_in_loss": 6656498.46852603,
+   "supply_in_loss_percent": 0.3311432200606763,
+   "btc_price": 82031.48,
+   "sth_realized_price": 75730.39693789401,
+   "lth_realized_price": 49120.14257635533
+  },
+  "2026-10-23": {
+   "realized_profit": 545297538.6974795,
+   "realized_loss": 340846450.4939401,
+   "supply_in_loss": 7080908.64426738,
+   "supply_in_loss_percent": 0.35224697719805986,
+   "btc_price": 81525.12,
+   "sth_realized_price": 75778.6644624309,
+   "lth_realized_price": 49097.37404050385
+  },
+  "2026-10-24": {
+   "realized_profit": 100534489.71920498,
+   "realized_loss": 116447031.57885401,
+   "supply_in_loss": 7098957.8662182,
+   "supply_in_loss_percent": 0.3531368391328405,
+   "btc_price": 80528.13,
+   "sth_realized_price": 75762.86212245667,
+   "lth_realized_price": 49104.451246820696
+  },
+  "2026-10-25": {
+   "realized_profit": 170232004.56764373,
+   "realized_loss": 84121619.73958327,
+   "supply_in_loss": 7141006.56387657,
+   "supply_in_loss_percent": 0.35521993147884706,
+   "btc_price": 80491.84,
+   "sth_realized_price": 75769.91076864782,
+   "lth_realized_price": 49110.4169980938
+  },
+  "2026-10-26": {
+   "realized_profit": 632071685.206799,
+   "realized_loss": 529357673.8321572,
+   "supply_in_loss": 7218680.31386459,
+   "supply_in_loss_percent": 0.35907466582737213,
+   "btc_price": 79965.01,
+   "sth_realized_price": 75771.90634413365,
+   "lth_realized_price": 49102.22061675015
+  },
+  "2026-10-27": {
+   "realized_profit": 346505189.4199372,
+   "realized_loss": 330671453.4398846,
+   "supply_in_loss": 6827457.49725472,
+   "supply_in_loss_percent": 0.33960595237879504,
+   "btc_price": 80075.16,
+   "sth_realized_price": 75788.24957179443,
+   "lth_realized_price": 49081.69895712219
+  },
+  "2026-10-28": {
+   "realized_profit": 470491498.13859963,
+   "realized_loss": 299555786.37854236,
+   "supply_in_loss": 6494604.91790355,
+   "supply_in_loss_percent": 0.32304223246266867,
+   "btc_price": 80967.43,
+   "sth_realized_price": 75848.7326908512,
+   "lth_realized_price": 49074.03471279601
+  },
+  "2026-10-29": {
+   "supply_in_loss": 7516886.75852982,
+   "supply_in_loss_percent": 0.37388265256128034,
+   "sth_realized_price": 75862.88945963317,
+   "lth_realized_price": 49025.08739033665
+  }
+ },
+ "last_attempt_date": "2026-10-30",
+ "bootstrap_done": false,
+ "last_attempt_status": "metric=supply_in_loss_percent, updated=1, quota_before=54809.0, quota_after=54808.0",
+ "attempts_by_date": {
+  "2026-10-17": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-18": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-19": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-20": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-21": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-22": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-23": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-24": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-25": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-26": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-27": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-28": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-29": [
+   "price",
+   "realizedloss",
+   "realizedprofit",
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ],
+  "2026-10-30": [
+   "supply_in_loss",
+   "supply_in_loss_percent"
+  ]
+ },
+ "last_manual_batch_date": "2026-09-28",
+ "last_manual_batch_status": "✓ realizedprofit: đã có cache | ✓ realizedloss: đã có cache | ✓ supply_in_loss: đã có cache | ✓ supply_in_loss_percent: đã có cache | ✓ price: đã có cache",
+ "updated_at_utc": "2026-10-30 15:21"
 }
