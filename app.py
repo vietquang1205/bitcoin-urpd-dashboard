@@ -809,7 +809,42 @@ def _save_json(path, data, compact=False):
 
 
 def _log(msg):
-    print(f"[{utc_now():%H:%M:%S}] {msg}", flush=True)
+    print(f"[{utc_now():%H:%M:%S}] {redact(msg)}", flush=True)
+
+
+def clean_secret(raw):
+    """Lấy đúng giá trị token kể cả khi lỡ dán cả dòng 'TÊN = "giá trị"' hoặc nhiều dòng."""
+    text = str(raw or "").strip()
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r'^[A-Za-z_][A-Za-z0-9_]*\s*=\s*(.+)$', line)
+        if m:
+            line = m.group(1).strip()
+        return line.strip().strip('"').strip("'").strip()
+    return ""
+
+
+_SECRET_PATTERNS = [
+    re.compile(r"github_pat_[A-Za-z0-9_]+"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"),
+    re.compile(r"\b\d{8,12}:[A-Za-z0-9_-]{30,}\b"),          # token bot Telegram
+    re.compile(r"(?i)(header value:).*", re.S),                  # requests in lại nguyên header → cắt bỏ
+    re.compile(r"(?i)(token|secret|password|api_key)\s*=\s*\S+"),
+]
+
+
+def redact(msg):
+    """Che token/secret trước khi in log hoặc ghi vào update_status.json (repo có thể public)."""
+    text = str(msg)
+    for name in ("RESEARCHBITCOIN_API_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "GITHUB_TOKEN"):
+        raw = os.environ.get(name, "")
+        for v in {raw.strip(), clean_secret(raw)}:
+            if v and len(v) >= 6:
+                text = text.replace(v, "***")
+    for pat in _SECRET_PATTERNS:
+        text = pat.sub(lambda m: (m.group(1) + " ***") if m.groups() else "***", text)
+    return text
 
 
 def _daily_dates(daily, key):
@@ -871,7 +906,7 @@ def update_urpd(status):
 
 
 def update_research(status):
-    token = os.environ.get("RESEARCHBITCOIN_API_TOKEN", "").strip()
+    token = clean_secret(os.environ.get("RESEARCHBITCOIN_API_TOKEN", ""))
     if not token:
         status["research"] = {"note": "Không có RESEARCHBITCOIN_API_TOKEN — bỏ qua."}
         _log("ResearchBitcoin: không có token, bỏ qua")
@@ -905,7 +940,7 @@ def update_research(status):
                     n += 1
             updated[key] = n
         except Exception as e:
-            errors.append(str(e)[:300])
+            errors.append(redact(e)[:300])
     if updated:
         data["daily"] = dict(sorted((k, v) for k, v in daily.items() if is_day_key(k))[-DAILY_MAX_DAYS:])
         data["updated_at_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
@@ -934,7 +969,7 @@ def _update_bg_file(path, slug_to_key, status_key, status, only_if_missing=None)
                 daily.setdefault(day_str(row.date), {})[key] = float(row.value)
             updated[key] = len(frame)
         except Exception as e:
-            errors.append(str(e)[:200])
+            errors.append(redact(e)[:200])
         time.sleep(2)
     if updated:
         data["daily"] = dict(sorted((k, v) for k, v in daily.items() if is_day_key(k))[-DAILY_MAX_DAYS:])
@@ -971,19 +1006,28 @@ def _daily_file_frame(path):
     return pd.DataFrame(rows).sort_values("date").reset_index(drop=True) if rows else pd.DataFrame(columns=["date"])
 
 
+def _fix_loss_percent(df):
+    """ResearchBitcoin trả supply_in_loss_percent dạng tỷ lệ 0–1 (vd 0.37 = 37%) → đổi sang %."""
+    if df is not None and "supply_in_loss_percent" in df.columns:
+        df = df.copy()
+        v = pd.to_numeric(df["supply_in_loss_percent"], errors="coerce")
+        df["supply_in_loss_percent"] = np.where(v <= 1.5, v * 100.0, v)
+    return df
+
+
 def merge_onchain_frames(research_df, bg_df):
     """Gộp ResearchBitcoin (ưu tiên) + BGeometrics theo ngày."""
     frames = [f for f in (research_df, bg_df) if f is not None and not f.empty]
     if not frames:
         return pd.DataFrame(columns=["date"])
     if len(frames) == 1:
-        return frames[0]
+        return _fix_loss_percent(frames[0])
     m = research_df.merge(bg_df, on="date", how="outer", suffixes=("", "_bg")).sort_values("date")
     for col in [c for c in m.columns if c.endswith("_bg")]:
         base = col[:-3]
         m[base] = m[base].combine_first(m[col]) if base in m.columns else m[col]
         m = m.drop(columns=[col])
-    return m.reset_index(drop=True)
+    return _fix_loss_percent(m.reset_index(drop=True))
 
 
 def _telegram_html(md):
@@ -992,8 +1036,8 @@ def _telegram_html(md):
 
 
 def send_telegram_report(status):
-    bot = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    bot = clean_secret(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+    chat = clean_secret(os.environ.get("TELEGRAM_CHAT_ID", ""))
     if not bot or not chat:
         return
     try:
@@ -1049,19 +1093,23 @@ def send_telegram_report(status):
             tg["last_daily"] = today_key
         _log("Telegram: đã gửi")
     except Exception as e:
-        status.setdefault("telegram", {})["error"] = str(e)[:300]
+        status.setdefault("telegram", {})["error"] = redact(e)[:300]
         _log(f"Telegram lỗi: {e}")
 
 
 def run_update():
     _log(f"BTC URPD Monitor {APP_VERSION} — cập nhật dữ liệu")
     status = _load_json(STATUS_FILE)
+    for k in ("urpd", "research", "realized", "onchain"):
+        status.pop(k, None)
+    if isinstance(status.get("telegram"), dict):
+        status["telegram"].pop("error", None)
     status["fatal"] = []
     for step in (update_urpd, update_research, update_realized, update_onchain, send_telegram_report):
         try:
             step(status)
         except Exception as e:  # một bước lỗi không làm hỏng các bước khác
-            status.setdefault("fatal", []).append(f"{step.__name__}: {e}")
+            status.setdefault("fatal", []).append(redact(f"{step.__name__}: {e}")[:300])
             _log(f"{step.__name__} lỗi: {e}")
     status["last_run_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
     _save_json(STATUS_FILE, status)
@@ -1262,27 +1310,33 @@ def _secret(name, default=""):
 
 def read_data_file(filename):
     """Đọc file dữ liệu: ưu tiên bản mới nhất trên GitHub (do Actions commit), sau đó file local."""
-    repo, token, branch = _secret("GITHUB_REPO"), _secret("GITHUB_TOKEN"), _secret("GITHUB_BRANCH", "main")
+    repo = clean_secret(_secret("GITHUB_REPO"))
+    token = clean_secret(_secret("GITHUB_TOKEN"))
+    branch = clean_secret(_secret("GITHUB_BRANCH", "main")) or "main"
     err = None
     if repo:
         try:
+            r = None
             if token:
                 r = requests.get(f"https://api.github.com/repos/{repo}/contents/{filename}",
                                  headers={"Accept": "application/vnd.github.raw+json",
                                           "Authorization": f"Bearer {token}",
                                           "X-GitHub-Api-Version": "2022-11-28"},
                                  params={"ref": branch}, timeout=30)
-            else:
+                if r.status_code in (401, 403):
+                    err = "GITHUB_TOKEN trên Streamlit không hợp lệ — đang đọc bản public"
+                    r = None
+            if r is None:  # repo public: đọc trực tiếp, không cần token
                 r = requests.get(f"https://raw.githubusercontent.com/{repo}/{branch}/{filename}",
-                                 headers=HTTP_HEADERS, timeout=30)
+                                 headers=HTTP_HEADERS, params={"t": int(time.time() // 300)}, timeout=30)
             if r.status_code == 404:
                 err = "GitHub chưa có file"
             else:
                 r.raise_for_status()
                 data = json.loads(r.text)
-                return (data if isinstance(data, dict) else {}), f"GitHub {repo}@{branch}"
+                return (data if isinstance(data, dict) else {}), f"GitHub {repo}@{branch}" + (f" ({err})" if err else "")
         except Exception as e:
-            err = f"lỗi GitHub: {e}"
+            err = f"lỗi GitHub: {redact(e)[:150]}"
     try:
         with open(filename, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -1498,7 +1552,7 @@ def render_sidebar():
             for step in ("urpd", "research", "realized", "onchain"):
                 errs = (status.get(step) or {}).get("errors") or []
                 if errs:
-                    cap(f"⚠️ {step}: {errs[-1][:120]}")
+                    cap(f"⚠️ {step}: {redact(errs[-1])[:120]}")
         else:
             st.info("Chưa thấy update_status.json — GitHub Actions chưa chạy lần nào. "
                     "Xem hướng dẫn ở đầu file app.py.")
