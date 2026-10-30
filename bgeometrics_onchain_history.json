@@ -1,0 +1,2519 @@
+{
+ "version": 1,
+ "daily": {
+  "2025-10-30": {
+   "mvrv": 1.9879,
+   "nupl": 0.4839,
+   "sopr": 1.0171,
+   "sth_realized_price": 112912.66,
+   "lth_realized_price": 38401.22
+  },
+  "2025-10-31": {
+   "mvrv": 1.9989,
+   "nupl": 0.4903,
+   "sopr": 1.0054,
+   "sth_realized_price": 112850.44,
+   "lth_realized_price": 38375.38
+  },
+  "2025-11-01": {
+   "mvrv": 2.0045,
+   "nupl": 0.4915,
+   "sopr": 1.0115,
+   "sth_realized_price": 112867.24,
+   "lth_realized_price": 38463.89
+  },
+  "2025-11-02": {
+   "mvrv": 2.0156,
+   "nupl": 0.4936,
+   "sopr": 1.0033,
+   "sth_realized_price": 112882.82,
+   "lth_realized_price": 38522.55
+  },
+  "2025-11-03": {
+   "mvrv": 1.9391,
+   "nupl": 0.4744,
+   "sopr": 1.0056,
+   "sth_realized_price": 112757.39,
+   "lth_realized_price": 38632.67
+  },
+  "2025-11-04": {
+   "mvrv": 1.8428,
+   "nupl": 0.4484,
+   "sopr": 0.9952,
+   "sth_realized_price": 112373.8,
+   "lth_realized_price": 38612.76
+  },
+  "2025-11-05": {
+   "mvrv": 1.8888,
+   "nupl": 0.4612,
+   "sopr": 0.9979,
+   "sth_realized_price": 112277.03,
+   "lth_realized_price": 38599.6
+  },
+  "2025-11-06": {
+   "mvrv": 1.8416,
+   "nupl": 0.4478,
+   "sopr": 0.9999,
+   "sth_realized_price": 112078.77,
+   "lth_realized_price": 38587.68
+  },
+  "2025-11-07": {
+   "mvrv": 1.8736,
+   "nupl": 0.4567,
+   "sopr": 1.0322,
+   "sth_realized_price": 111856.87,
+   "lth_realized_price": 38562.23
+  },
+  "2025-11-08": {
+   "mvrv": 1.8555,
+   "nupl": 0.4512,
+   "sopr": 1.006,
+   "sth_realized_price": 111797.97,
+   "lth_realized_price": 38575.03
+  },
+  "2025-11-09": {
+   "mvrv": 1.8943,
+   "nupl": 0.4637,
+   "sopr": 1.0037,
+   "sth_realized_price": 111843.12,
+   "lth_realized_price": 38675.89
+  },
+  "2025-11-10": {
+   "mvrv": 1.9237,
+   "nupl": 0.4697,
+   "sopr": 1.0108,
+   "sth_realized_price": 111009.2,
+   "lth_realized_price": 38753.79
+  },
+  "2025-11-11": {
+   "mvrv": 1.8623,
+   "nupl": 0.4543,
+   "sopr": 1.0041,
+   "sth_realized_price": 110762.44,
+   "lth_realized_price": 38700.72
+  },
+  "2025-11-12": {
+   "mvrv": 1.8349,
+   "nupl": 0.4467,
+   "sopr": 1.0048,
+   "sth_realized_price": 110638.95,
+   "lth_realized_price": 38703.78
+  },
+  "2025-11-13": {
+   "mvrv": 1.8165,
+   "nupl": 0.4357,
+   "sopr": 0.9964,
+   "sth_realized_price": 110336.58,
+   "lth_realized_price": 38692.11
+  },
+  "2025-11-14": {
+   "mvrv": 1.708,
+   "nupl": 0.4073,
+   "sopr": 0.9893,
+   "sth_realized_price": 109754.78,
+   "lth_realized_price": 38600.32
+  },
+  "2025-11-15": {
+   "mvrv": 1.7292,
+   "nupl": 0.4122,
+   "sopr": 1.0011,
+   "sth_realized_price": 109738.2,
+   "lth_realized_price": 38649.23
+  },
+  "2025-11-16": {
+   "mvrv": 1.707,
+   "nupl": 0.4044,
+   "sopr": 0.9969,
+   "sth_realized_price": 108638.97,
+   "lth_realized_price": 38685.55
+  },
+  "2025-11-17": {
+   "mvrv": 1.6685,
+   "nupl": 0.3907,
+   "sopr": 0.9947,
+   "sth_realized_price": 108222.78,
+   "lth_realized_price": 38724.47
+  },
+  "2025-11-18": {
+   "mvrv": 1.6791,
+   "nupl": 0.3957,
+   "sopr": 1.0041,
+   "sth_realized_price": 107720.34,
+   "lth_realized_price": 38597.38
+  },
+  "2025-11-19": {
+   "mvrv": 1.6569,
+   "nupl": 0.3866,
+   "sopr": 0.9899,
+   "sth_realized_price": 107371.5,
+   "lth_realized_price": 38567.81
+  },
+  "2025-11-20": {
+   "mvrv": 1.5667,
+   "nupl": 0.3521,
+   "sopr": 0.9949,
+   "sth_realized_price": 106866.03,
+   "lth_realized_price": 38571.12
+  },
+  "2025-11-21": {
+   "mvrv": 1.5451,
+   "nupl": 0.3428,
+   "sopr": 0.9754,
+   "sth_realized_price": 106135.93,
+   "lth_realized_price": 38546.07
+  },
+  "2025-11-22": {
+   "mvrv": 1.5328,
+   "nupl": 0.3387,
+   "sopr": 1.0253,
+   "sth_realized_price": 106053.41,
+   "lth_realized_price": 37231.74
+  },
+  "2025-11-23": {
+   "mvrv": 1.5636,
+   "nupl": 0.3508,
+   "sopr": 1.0981,
+   "sth_realized_price": 105444.83,
+   "lth_realized_price": 37199.3
+  },
+  "2025-11-24": {
+   "mvrv": 1.586,
+   "nupl": 0.3622,
+   "sopr": 0.999,
+   "sth_realized_price": 105331.88,
+   "lth_realized_price": 37294.91
+  },
+  "2025-11-25": {
+   "mvrv": 1.5723,
+   "nupl": 0.3542,
+   "sopr": 0.9972,
+   "sth_realized_price": 104199.53,
+   "lth_realized_price": 37348.97
+  },
+  "2025-11-26": {
+   "mvrv": 1.6217,
+   "nupl": 0.376,
+   "sopr": 1.0178,
+   "sth_realized_price": 104046.48,
+   "lth_realized_price": 37533.71
+  },
+  "2025-11-27": {
+   "mvrv": 1.6398,
+   "nupl": 0.3817,
+   "sopr": 0.9984,
+   "sth_realized_price": 103867.08,
+   "lth_realized_price": 37619.4
+  },
+  "2025-11-28": {
+   "mvrv": 1.6327,
+   "nupl": 0.379,
+   "sopr": 0.9961,
+   "sth_realized_price": 103773.31,
+   "lth_realized_price": 37625.55
+  },
+  "2025-11-29": {
+   "mvrv": 1.6317,
+   "nupl": 0.3786,
+   "sopr": 0.9992,
+   "sth_realized_price": 103734.78,
+   "lth_realized_price": 37688.32
+  },
+  "2025-11-30": {
+   "mvrv": 1.6241,
+   "nupl": 0.3755,
+   "sopr": 0.9976,
+   "sth_realized_price": 103669.89,
+   "lth_realized_price": 37780.18
+  },
+  "2025-12-01": {
+   "mvrv": 1.5509,
+   "nupl": 0.3474,
+   "sopr": 0.9898,
+   "sth_realized_price": 103414.57,
+   "lth_realized_price": 37836.11
+  },
+  "2025-12-02": {
+   "mvrv": 1.6412,
+   "nupl": 0.3826,
+   "sopr": 0.9927,
+   "sth_realized_price": 103365.01,
+   "lth_realized_price": 37902.25
+  },
+  "2025-12-03": {
+   "mvrv": 1.683,
+   "nupl": 0.3965,
+   "sopr": 1.005,
+   "sth_realized_price": 103225.66,
+   "lth_realized_price": 37893.52
+  },
+  "2025-12-04": {
+   "mvrv": 1.6553,
+   "nupl": 0.3875,
+   "sopr": 1.0015,
+   "sth_realized_price": 103145.73,
+   "lth_realized_price": 37963.74
+  },
+  "2025-12-05": {
+   "mvrv": 1.6055,
+   "nupl": 0.3693,
+   "sopr": 0.9845,
+   "sth_realized_price": 102839.15,
+   "lth_realized_price": 37965.36
+  },
+  "2025-12-06": {
+   "mvrv": 1.5998,
+   "nupl": 0.3686,
+   "sopr": 1.0002,
+   "sth_realized_price": 102795.29,
+   "lth_realized_price": 37985.53
+  },
+  "2025-12-07": {
+   "mvrv": 1.6301,
+   "nupl": 0.3865,
+   "sopr": 0.9979,
+   "sth_realized_price": 102746.64,
+   "lth_realized_price": 38139.75
+  },
+  "2025-12-08": {
+   "mvrv": 1.6435,
+   "nupl": 0.3866,
+   "sopr": 0.9969,
+   "sth_realized_price": 102519.71,
+   "lth_realized_price": 38077.48
+  },
+  "2025-12-09": {
+   "mvrv": 1.6827,
+   "nupl": 0.4057,
+   "sopr": 1.0026,
+   "sth_realized_price": 102495.26,
+   "lth_realized_price": 38111.07
+  },
+  "2025-12-10": {
+   "mvrv": 1.6607,
+   "nupl": 0.3979,
+   "sopr": 1.0177,
+   "sth_realized_price": 102255.44,
+   "lth_realized_price": 38061.01
+  },
+  "2025-12-11": {
+   "mvrv": 1.6609,
+   "nupl": 0.3979,
+   "sopr": 0.998,
+   "sth_realized_price": 102170.77,
+   "lth_realized_price": 38063.85
+  },
+  "2025-12-12": {
+   "mvrv": 1.6221,
+   "nupl": 0.3835,
+   "sopr": 0.9949,
+   "sth_realized_price": 102009.14,
+   "lth_realized_price": 38034.63
+  },
+  "2025-12-13": {
+   "mvrv": 1.6209,
+   "nupl": 0.383,
+   "sopr": 0.9995,
+   "sth_realized_price": 101965.95,
+   "lth_realized_price": 38033.89
+  },
+  "2025-12-14": {
+   "mvrv": 1.5851,
+   "nupl": 0.3691,
+   "sopr": 0.9978,
+   "sth_realized_price": 101897.07,
+   "lth_realized_price": 38075.52
+  },
+  "2025-12-15": {
+   "mvrv": 1.5531,
+   "nupl": 0.3561,
+   "sopr": 0.9816,
+   "sth_realized_price": 101663.3,
+   "lth_realized_price": 38125.83
+  },
+  "2025-12-16": {
+   "mvrv": 1.5775,
+   "nupl": 0.3661,
+   "sopr": 0.9965,
+   "sth_realized_price": 101496.34,
+   "lth_realized_price": 38093.15
+  },
+  "2025-12-17": {
+   "mvrv": 1.5488,
+   "nupl": 0.3543,
+   "sopr": 0.994,
+   "sth_realized_price": 101308.94,
+   "lth_realized_price": 38044.6
+  },
+  "2025-12-18": {
+   "mvrv": 1.5372,
+   "nupl": 0.3495,
+   "sopr": 0.9999,
+   "sth_realized_price": 101147.1,
+   "lth_realized_price": 38184.69
+  },
+  "2025-12-19": {
+   "mvrv": 1.5868,
+   "nupl": 0.3698,
+   "sopr": 0.9984,
+   "sth_realized_price": 101048.87,
+   "lth_realized_price": 38139.73
+  },
+  "2025-12-20": {
+   "mvrv": 1.5947,
+   "nupl": 0.3729,
+   "sopr": 0.9892,
+   "sth_realized_price": 100915.48,
+   "lth_realized_price": 37995.97
+  },
+  "2025-12-21": {
+   "mvrv": 1.5944,
+   "nupl": 0.3728,
+   "sopr": 1.0021,
+   "sth_realized_price": 100813.79,
+   "lth_realized_price": 38132.65
+  },
+  "2025-12-22": {
+   "mvrv": 1.5968,
+   "nupl": 0.3738,
+   "sopr": 1.0013,
+   "sth_realized_price": 100690.47,
+   "lth_realized_price": 38222.59
+  },
+  "2025-12-23": {
+   "mvrv": 1.5733,
+   "nupl": 0.3644,
+   "sopr": 0.9984,
+   "sth_realized_price": 100440.42,
+   "lth_realized_price": 38365.79
+  },
+  "2025-12-24": {
+   "mvrv": 1.578,
+   "nupl": 0.3663,
+   "sopr": 0.9935,
+   "sth_realized_price": 100239.62,
+   "lth_realized_price": 38493.8
+  },
+  "2025-12-25": {
+   "mvrv": 1.571,
+   "nupl": 0.3635,
+   "sopr": 1.0022,
+   "sth_realized_price": 100133.5,
+   "lth_realized_price": 38617.13
+  },
+  "2025-12-26": {
+   "mvrv": 1.5729,
+   "nupl": 0.3642,
+   "sopr": 0.9869,
+   "sth_realized_price": 99915.85,
+   "lth_realized_price": 38611.03
+  },
+  "2025-12-27": {
+   "mvrv": 1.5825,
+   "nupl": 0.3681,
+   "sopr": 0.9999,
+   "sth_realized_price": 99883.16,
+   "lth_realized_price": 38626.19
+  },
+  "2025-12-28": {
+   "mvrv": 1.5834,
+   "nupl": 0.3685,
+   "sopr": 0.9951,
+   "sth_realized_price": 99787.4,
+   "lth_realized_price": 38644.53
+  },
+  "2025-12-29": {
+   "mvrv": 1.5707,
+   "nupl": 0.3633,
+   "sopr": 0.9993,
+   "sth_realized_price": 99315.85,
+   "lth_realized_price": 36981.26
+  },
+  "2025-12-30": {
+   "mvrv": 1.5949,
+   "nupl": 0.373,
+   "sopr": 0.9941,
+   "sth_realized_price": 98882.75,
+   "lth_realized_price": 37474.76
+  },
+  "2025-12-31": {
+   "mvrv": 1.5796,
+   "nupl": 0.3669,
+   "sopr": 0.9935,
+   "sth_realized_price": 98671.34,
+   "lth_realized_price": 37379.76
+  },
+  "2026-01-01": {
+   "mvrv": 1.6061,
+   "nupl": 0.3774,
+   "sopr": 0.9984,
+   "sth_realized_price": 98677.37,
+   "lth_realized_price": 37238.4
+  },
+  "2026-01-02": {
+   "mvrv": 1.6242,
+   "nupl": 0.3843,
+   "sopr": 1.0003,
+   "sth_realized_price": 98519.45,
+   "lth_realized_price": 37483.72
+  },
+  "2026-01-03": {
+   "mvrv": 1.6348,
+   "nupl": 0.3883,
+   "sopr": 1.0008,
+   "sth_realized_price": 98468.14,
+   "lth_realized_price": 37557.83
+  },
+  "2026-01-04": {
+   "mvrv": 1.6477,
+   "nupl": 0.3931,
+   "sopr": 1.0022,
+   "sth_realized_price": 98447.65,
+   "lth_realized_price": 37580.1
+  },
+  "2026-01-05": {
+   "mvrv": 1.6931,
+   "nupl": 0.4094,
+   "sopr": 1.0078,
+   "sth_realized_price": 98469.65,
+   "lth_realized_price": 37629.25
+  },
+  "2026-01-06": {
+   "mvrv": 1.6854,
+   "nupl": 0.4067,
+   "sopr": 1.0047,
+   "sth_realized_price": 98469.65,
+   "lth_realized_price": 37689.67
+  },
+  "2026-01-07": {
+   "mvrv": 1.6448,
+   "nupl": 0.392,
+   "sopr": 1.0032,
+   "sth_realized_price": 98285.61,
+   "lth_realized_price": 37642.68
+  },
+  "2026-01-08": {
+   "mvrv": 1.6493,
+   "nupl": 0.3937,
+   "sopr": 0.9955,
+   "sth_realized_price": 98210.97,
+   "lth_realized_price": 37463.49
+  },
+  "2026-01-09": {
+   "mvrv": 1.6326,
+   "nupl": 0.3875,
+   "sopr": 0.9949,
+   "sth_realized_price": 97995.24,
+   "lth_realized_price": 37843.84
+  },
+  "2026-01-10": {
+   "mvrv": 1.6298,
+   "nupl": 0.3864,
+   "sopr": 1.0004,
+   "sth_realized_price": 97891.25,
+   "lth_realized_price": 37898.06
+  },
+  "2026-01-11": {
+   "mvrv": 1.6379,
+   "nupl": 0.3895,
+   "sopr": 0.9946,
+   "sth_realized_price": 97813.43,
+   "lth_realized_price": 37929.51
+  },
+  "2026-01-12": {
+   "mvrv": 1.6442,
+   "nupl": 0.3918,
+   "sopr": 0.9986,
+   "sth_realized_price": 97757.12,
+   "lth_realized_price": 37892.53
+  },
+  "2026-01-13": {
+   "mvrv": 1.7173,
+   "nupl": 0.4177,
+   "sopr": 1.0081,
+   "sth_realized_price": 97742.54,
+   "lth_realized_price": 37899.4
+  },
+  "2026-01-14": {
+   "mvrv": 1.7438,
+   "nupl": 0.4266,
+   "sopr": 1.0089,
+   "sth_realized_price": 97757.47,
+   "lth_realized_price": 37952.22
+  },
+  "2026-01-15": {
+   "mvrv": 1.7208,
+   "nupl": 0.4189,
+   "sopr": 1.0051,
+   "sth_realized_price": 97754.71,
+   "lth_realized_price": 38017.92
+  },
+  "2026-01-16": {
+   "mvrv": 1.7148,
+   "nupl": 0.4168,
+   "sopr": 1.0024,
+   "sth_realized_price": 97622.41,
+   "lth_realized_price": 38303.78
+  },
+  "2026-01-17": {
+   "mvrv": 1.7084,
+   "nupl": 0.4146,
+   "sopr": 1.0059,
+   "sth_realized_price": 97552.0,
+   "lth_realized_price": 38431.2
+  },
+  "2026-01-18": {
+   "mvrv": 1.7019,
+   "nupl": 0.4124,
+   "sopr": 1.0033,
+   "sth_realized_price": 97569.31,
+   "lth_realized_price": 38249.16
+  },
+  "2026-01-19": {
+   "mvrv": 1.662,
+   "nupl": 0.3983,
+   "sopr": 0.9991,
+   "sth_realized_price": 97445.24,
+   "lth_realized_price": 38523.72
+  },
+  "2026-01-20": {
+   "mvrv": 1.5864,
+   "nupl": 0.3696,
+   "sopr": 0.9912,
+   "sth_realized_price": 97294.01,
+   "lth_realized_price": 38466.62
+  },
+  "2026-01-21": {
+   "mvrv": 1.6067,
+   "nupl": 0.3776,
+   "sopr": 0.9928,
+   "sth_realized_price": 97049.42,
+   "lth_realized_price": 38665.25
+  },
+  "2026-01-22": {
+   "mvrv": 1.6103,
+   "nupl": 0.379,
+   "sopr": 1.0011,
+   "sth_realized_price": 96933.76,
+   "lth_realized_price": 38684.15
+  },
+  "2026-01-23": {
+   "mvrv": 1.6162,
+   "nupl": 0.3813,
+   "sopr": 0.9501,
+   "sth_realized_price": 95992.82,
+   "lth_realized_price": 38859.19
+  },
+  "2026-01-24": {
+   "mvrv": 1.6129,
+   "nupl": 0.38,
+   "sopr": 0.9984,
+   "sth_realized_price": 95922.05,
+   "lth_realized_price": 38911.71
+  },
+  "2026-01-25": {
+   "mvrv": 1.5624,
+   "nupl": 0.36,
+   "sopr": 0.9961,
+   "sth_realized_price": 95762.31,
+   "lth_realized_price": 38986.61
+  },
+  "2026-01-26": {
+   "mvrv": 1.598,
+   "nupl": 0.3742,
+   "sopr": 0.9971,
+   "sth_realized_price": 95695.78,
+   "lth_realized_price": 39088.17
+  },
+  "2026-01-27": {
+   "mvrv": 1.615,
+   "nupl": 0.3808,
+   "sopr": 1.0006,
+   "sth_realized_price": 95658.68,
+   "lth_realized_price": 39101.35
+  },
+  "2026-01-28": {
+   "mvrv": 1.612,
+   "nupl": 0.3796,
+   "sopr": 0.9995,
+   "sth_realized_price": 95567.51,
+   "lth_realized_price": 39211.95
+  },
+  "2026-01-29": {
+   "mvrv": 1.53,
+   "nupl": 0.3464,
+   "sopr": 0.9907,
+   "sth_realized_price": 95371.04,
+   "lth_realized_price": 39263.27
+  },
+  "2026-01-30": {
+   "mvrv": 1.5231,
+   "nupl": 0.3435,
+   "sopr": 0.9889,
+   "sth_realized_price": 95101.89,
+   "lth_realized_price": 39350.23
+  },
+  "2026-01-31": {
+   "mvrv": 1.4247,
+   "nupl": 0.2981,
+   "sopr": 0.9878,
+   "sth_realized_price": 94747.6,
+   "lth_realized_price": 39484.36
+  },
+  "2026-02-01": {
+   "mvrv": 1.4006,
+   "nupl": 0.286,
+   "sopr": 0.9917,
+   "sth_realized_price": 94698.81,
+   "lth_realized_price": 39487.59
+  },
+  "2026-02-02": {
+   "mvrv": 1.429,
+   "nupl": 0.3002,
+   "sopr": 0.9891,
+   "sth_realized_price": 94329.48,
+   "lth_realized_price": 39545.93
+  },
+  "2026-02-03": {
+   "mvrv": 1.3743,
+   "nupl": 0.2724,
+   "sopr": 0.9793,
+   "sth_realized_price": 93952.95,
+   "lth_realized_price": 39548.54
+  },
+  "2026-02-04": {
+   "mvrv": 1.3307,
+   "nupl": 0.2485,
+   "sopr": 0.9772,
+   "sth_realized_price": 93497.1,
+   "lth_realized_price": 39601.36
+  },
+  "2026-02-05": {
+   "mvrv": 1.1732,
+   "nupl": 0.1476,
+   "sopr": 0.9625,
+   "sth_realized_price": 92463.87,
+   "lth_realized_price": 39541.31
+  },
+  "2026-02-06": {
+   "mvrv": 1.2924,
+   "nupl": 0.2263,
+   "sopr": 0.9852,
+   "sth_realized_price": 91856.8,
+   "lth_realized_price": 39684.6
+  },
+  "2026-02-07": {
+   "mvrv": 1.2684,
+   "nupl": 0.2116,
+   "sopr": 0.9825,
+   "sth_realized_price": 91434.16,
+   "lth_realized_price": 39822.63
+  },
+  "2026-02-08": {
+   "mvrv": 1.288,
+   "nupl": 0.2236,
+   "sopr": 1.0023,
+   "sth_realized_price": 91460.68,
+   "lth_realized_price": 39821.53
+  },
+  "2026-02-09": {
+   "mvrv": 1.288,
+   "nupl": 0.2236,
+   "sopr": 0.9871,
+   "sth_realized_price": 91185.42,
+   "lth_realized_price": 39778.37
+  },
+  "2026-02-10": {
+   "mvrv": 1.2621,
+   "nupl": 0.2077,
+   "sopr": 0.9864,
+   "sth_realized_price": 91004.81,
+   "lth_realized_price": 39678.32
+  },
+  "2026-02-11": {
+   "mvrv": 1.2318,
+   "nupl": 0.1882,
+   "sopr": 0.9795,
+   "sth_realized_price": 90648.23,
+   "lth_realized_price": 39754.82
+  },
+  "2026-02-12": {
+   "mvrv": 1.2186,
+   "nupl": 0.1794,
+   "sopr": 0.9792,
+   "sth_realized_price": 90271.37,
+   "lth_realized_price": 39823.11
+  },
+  "2026-02-13": {
+   "mvrv": 1.2689,
+   "nupl": 0.2119,
+   "sopr": 0.9849,
+   "sth_realized_price": 90393.53,
+   "lth_realized_price": 39837.45
+  },
+  "2026-02-14": {
+   "mvrv": 1.2843,
+   "nupl": 0.2213,
+   "sopr": 1.0015,
+   "sth_realized_price": 89929.29,
+   "lth_realized_price": 39987.49
+  },
+  "2026-02-15": {
+   "mvrv": 1.262,
+   "nupl": 0.2076,
+   "sopr": 0.9986,
+   "sth_realized_price": 89970.18,
+   "lth_realized_price": 40079.68
+  },
+  "2026-02-16": {
+   "mvrv": 1.2723,
+   "nupl": 0.214,
+   "sopr": 0.9871,
+   "sth_realized_price": 90368.3,
+   "lth_realized_price": 40055.82
+  },
+  "2026-02-17": {
+   "mvrv": 1.2443,
+   "nupl": 0.1963,
+   "sopr": 0.9902,
+   "sth_realized_price": 89697.9,
+   "lth_realized_price": 40193.87
+  },
+  "2026-02-18": {
+   "mvrv": 1.2274,
+   "nupl": 0.1853,
+   "sopr": 0.984,
+   "sth_realized_price": 89783.64,
+   "lth_realized_price": 39920.19
+  },
+  "2026-02-19": {
+   "mvrv": 1.2347,
+   "nupl": 0.1901,
+   "sopr": 0.9919,
+   "sth_realized_price": 88896.65,
+   "lth_realized_price": 40254.52
+  },
+  "2026-02-20": {
+   "mvrv": 1.2549,
+   "nupl": 0.2031,
+   "sopr": 0.9819,
+   "sth_realized_price": 88706.76,
+   "lth_realized_price": 40432.65
+  },
+  "2026-02-21": {
+   "mvrv": 1.2569,
+   "nupl": 0.2044,
+   "sopr": 1.0005,
+   "sth_realized_price": 88555.59,
+   "lth_realized_price": 40587.69
+  },
+  "2026-02-22": {
+   "mvrv": 1.2486,
+   "nupl": 0.1991,
+   "sopr": 0.9967,
+   "sth_realized_price": 88361.36,
+   "lth_realized_price": 40763.42
+  },
+  "2026-02-23": {
+   "mvrv": 1.1935,
+   "nupl": 0.1621,
+   "sopr": 0.9806,
+   "sth_realized_price": 88124.14,
+   "lth_realized_price": 40812.8
+  },
+  "2026-02-24": {
+   "mvrv": 1.1841,
+   "nupl": 0.1555,
+   "sopr": 0.978,
+   "sth_realized_price": 87765.49,
+   "lth_realized_price": 41054.45
+  },
+  "2026-02-25": {
+   "mvrv": 1.2577,
+   "nupl": 0.2049,
+   "sopr": 0.9965,
+   "sth_realized_price": 87598.56,
+   "lth_realized_price": 41213.2
+  },
+  "2026-02-26": {
+   "mvrv": 1.2483,
+   "nupl": 0.1989,
+   "sopr": 0.9977,
+   "sth_realized_price": 87417.86,
+   "lth_realized_price": 41365.62
+  },
+  "2026-02-27": {
+   "mvrv": 1.2198,
+   "nupl": 0.1802,
+   "sopr": 0.9879,
+   "sth_realized_price": 87080.91,
+   "lth_realized_price": 41533.59
+  },
+  "2026-02-28": {
+   "mvrv": 1.2377,
+   "nupl": 0.192,
+   "sopr": 0.9943,
+   "sth_realized_price": 86926.47,
+   "lth_realized_price": 41752.96
+  },
+  "2026-03-01": {
+   "mvrv": 1.2173,
+   "nupl": 0.1785,
+   "sopr": 0.9958,
+   "sth_realized_price": 86923.28,
+   "lth_realized_price": 41858.31
+  },
+  "2026-03-02": {
+   "mvrv": 1.2748,
+   "nupl": 0.2156,
+   "sopr": 0.9978,
+   "sth_realized_price": 86839.83,
+   "lth_realized_price": 41878.3
+  },
+  "2026-03-03": {
+   "mvrv": 1.2677,
+   "nupl": 0.2112,
+   "sopr": 0.9959,
+   "sth_realized_price": 87180.52,
+   "lth_realized_price": 41985.48
+  },
+  "2026-03-04": {
+   "mvrv": 1.3404,
+   "nupl": 0.2539,
+   "sopr": 1.0024,
+   "sth_realized_price": 86607.74,
+   "lth_realized_price": 42057.59
+  },
+  "2026-03-05": {
+   "mvrv": 1.3147,
+   "nupl": 0.2394,
+   "sopr": 0.9954,
+   "sth_realized_price": 86540.59,
+   "lth_realized_price": 42089.32
+  },
+  "2026-03-06": {
+   "mvrv": 1.2644,
+   "nupl": 0.2091,
+   "sopr": 0.9825,
+   "sth_realized_price": 86173.01,
+   "lth_realized_price": 42138.12
+  },
+  "2026-03-07": {
+   "mvrv": 1.2474,
+   "nupl": 0.1983,
+   "sopr": 0.9933,
+   "sth_realized_price": 85970.58,
+   "lth_realized_price": 42321.83
+  },
+  "2026-03-08": {
+   "mvrv": 1.2251,
+   "nupl": 0.1837,
+   "sopr": 0.9963,
+   "sth_realized_price": 85798.55,
+   "lth_realized_price": 42408.75
+  },
+  "2026-03-09": {
+   "mvrv": 1.2686,
+   "nupl": 0.2117,
+   "sopr": 0.9959,
+   "sth_realized_price": 85704.4,
+   "lth_realized_price": 42385.47
+  },
+  "2026-03-10": {
+   "mvrv": 1.2961,
+   "nupl": 0.2284,
+   "sopr": 0.9999,
+   "sth_realized_price": 85710.8,
+   "lth_realized_price": 42355.52
+  },
+  "2026-03-11": {
+   "mvrv": 1.3035,
+   "nupl": 0.2329,
+   "sopr": 0.977,
+   "sth_realized_price": 85654.37,
+   "lth_realized_price": 42258.7
+  },
+  "2026-03-12": {
+   "mvrv": 1.3102,
+   "nupl": 0.2368,
+   "sopr": 0.9934,
+   "sth_realized_price": 85492.35,
+   "lth_realized_price": 42206.17
+  },
+  "2026-03-13": {
+   "mvrv": 1.3173,
+   "nupl": 0.2409,
+   "sopr": 1.0028,
+   "sth_realized_price": 85592.17,
+   "lth_realized_price": 42192.31
+  },
+  "2026-03-14": {
+   "mvrv": 1.3217,
+   "nupl": 0.2434,
+   "sopr": 0.9904,
+   "sth_realized_price": 85507.74,
+   "lth_realized_price": 42185.26
+  },
+  "2026-03-15": {
+   "mvrv": 1.3519,
+   "nupl": 0.2603,
+   "sopr": 1.0027,
+   "sth_realized_price": 85502.62,
+   "lth_realized_price": 42165.77
+  },
+  "2026-03-16": {
+   "mvrv": 1.386,
+   "nupl": 0.2785,
+   "sopr": 1.0056,
+   "sth_realized_price": 85558.69,
+   "lth_realized_price": 42146.31
+  },
+  "2026-03-17": {
+   "mvrv": 1.3717,
+   "nupl": 0.271,
+   "sopr": 1.0001,
+   "sth_realized_price": 85441.91,
+   "lth_realized_price": 42151.49
+  },
+  "2026-03-18": {
+   "mvrv": 1.325,
+   "nupl": 0.2453,
+   "sopr": 0.9906,
+   "sth_realized_price": 85196.23,
+   "lth_realized_price": 42273.32
+  },
+  "2026-03-19": {
+   "mvrv": 1.2999,
+   "nupl": 0.2307,
+   "sopr": 0.9896,
+   "sth_realized_price": 84911.4,
+   "lth_realized_price": 42489.44
+  },
+  "2026-03-20": {
+   "mvrv": 1.3102,
+   "nupl": 0.2368,
+   "sopr": 0.9941,
+   "sth_realized_price": 84663.7,
+   "lth_realized_price": 42597.03
+  },
+  "2026-03-21": {
+   "mvrv": 1.3044,
+   "nupl": 0.2333,
+   "sopr": 1.0001,
+   "sth_realized_price": 84621.28,
+   "lth_realized_price": 42707.2
+  },
+  "2026-03-22": {
+   "mvrv": 1.2636,
+   "nupl": 0.2086,
+   "sopr": 1.0124,
+   "sth_realized_price": 84475.24,
+   "lth_realized_price": 42777.04
+  },
+  "2026-03-23": {
+   "mvrv": 1.3176,
+   "nupl": 0.241,
+   "sopr": 0.999,
+   "sth_realized_price": 84306.14,
+   "lth_realized_price": 42819.41
+  },
+  "2026-03-24": {
+   "mvrv": 1.3129,
+   "nupl": 0.2383,
+   "sopr": 0.9836,
+   "sth_realized_price": 84151.08,
+   "lth_realized_price": 42843.77
+  },
+  "2026-03-25": {
+   "mvrv": 1.3249,
+   "nupl": 0.2452,
+   "sopr": 0.9946,
+   "sth_realized_price": 83966.6,
+   "lth_realized_price": 42881.91
+  },
+  "2026-03-26": {
+   "mvrv": 1.2803,
+   "nupl": 0.2189,
+   "sopr": 0.9943,
+   "sth_realized_price": 83760.34,
+   "lth_realized_price": 43010.68
+  },
+  "2026-03-27": {
+   "mvrv": 1.233,
+   "nupl": 0.189,
+   "sopr": 0.9816,
+   "sth_realized_price": 83494.08,
+   "lth_realized_price": 43137.62
+  },
+  "2026-03-28": {
+   "mvrv": 1.2382,
+   "nupl": 0.1924,
+   "sopr": 0.955,
+   "sth_realized_price": 83355.47,
+   "lth_realized_price": 43188.62
+  },
+  "2026-03-29": {
+   "mvrv": 1.2284,
+   "nupl": 0.1859,
+   "sopr": 1.1992,
+   "sth_realized_price": 83257.48,
+   "lth_realized_price": 43252.94
+  },
+  "2026-03-30": {
+   "mvrv": 1.2442,
+   "nupl": 0.1963,
+   "sopr": 0.9974,
+   "sth_realized_price": 83010.06,
+   "lth_realized_price": 43255.1
+  },
+  "2026-03-31": {
+   "mvrv": 1.272,
+   "nupl": 0.2138,
+   "sopr": 0.9991,
+   "sth_realized_price": 82831.5,
+   "lth_realized_price": 43304.44
+  },
+  "2026-04-01": {
+   "mvrv": 1.2703,
+   "nupl": 0.2128,
+   "sopr": 1.0027,
+   "sth_realized_price": 82606.67,
+   "lth_realized_price": 43462.93
+  },
+  "2026-04-02": {
+   "mvrv": 1.2478,
+   "nupl": 0.1986,
+   "sopr": 0.9897,
+   "sth_realized_price": 82254.93,
+   "lth_realized_price": 43618.77
+  },
+  "2026-04-03": {
+   "mvrv": 1.2495,
+   "nupl": 0.1997,
+   "sopr": 0.9962,
+   "sth_realized_price": 82055.25,
+   "lth_realized_price": 43779.08
+  },
+  "2026-04-04": {
+   "mvrv": 1.256,
+   "nupl": 0.2038,
+   "sopr": 1.0003,
+   "sth_realized_price": 81975.43,
+   "lth_realized_price": 43828.55
+  },
+  "2026-04-05": {
+   "mvrv": 1.2871,
+   "nupl": 0.2231,
+   "sopr": 1.0082,
+   "sth_realized_price": 81879.63,
+   "lth_realized_price": 43915.57
+  },
+  "2026-04-06": {
+   "mvrv": 1.285,
+   "nupl": 0.2218,
+   "sopr": 1.003,
+   "sth_realized_price": 81813.4,
+   "lth_realized_price": 43921.6
+  },
+  "2026-04-07": {
+   "mvrv": 1.342,
+   "nupl": 0.2548,
+   "sopr": 0.9963,
+   "sth_realized_price": 81670.41,
+   "lth_realized_price": 43970.01
+  },
+  "2026-04-08": {
+   "mvrv": 1.3263,
+   "nupl": 0.246,
+   "sopr": 1.0078,
+   "sth_realized_price": 81594.47,
+   "lth_realized_price": 44120.05
+  },
+  "2026-04-09": {
+   "mvrv": 1.3386,
+   "nupl": 0.2529,
+   "sopr": 0.9995,
+   "sth_realized_price": 81417.57,
+   "lth_realized_price": 44255.98
+  },
+  "2026-04-10": {
+   "mvrv": 1.3613,
+   "nupl": 0.2654,
+   "sopr": 1.0047,
+   "sth_realized_price": 81552.59,
+   "lth_realized_price": 44364.27
+  },
+  "2026-04-11": {
+   "mvrv": 1.3628,
+   "nupl": 0.2662,
+   "sopr": 1.006,
+   "sth_realized_price": 81204.69,
+   "lth_realized_price": 44500.53
+  },
+  "2026-04-12": {
+   "mvrv": 1.3189,
+   "nupl": 0.2418,
+   "sopr": 0.9978,
+   "sth_realized_price": 81091.84,
+   "lth_realized_price": 44539.12
+  },
+  "2026-04-13": {
+   "mvrv": 1.3898,
+   "nupl": 0.2805,
+   "sopr": 1.0028,
+   "sth_realized_price": 81152.33,
+   "lth_realized_price": 44547.03
+  },
+  "2026-04-14": {
+   "mvrv": 1.3818,
+   "nupl": 0.2763,
+   "sopr": 1.0029,
+   "sth_realized_price": 81111.31,
+   "lth_realized_price": 44543.43
+  },
+  "2026-04-15": {
+   "mvrv": 1.3919,
+   "nupl": 0.2816,
+   "sopr": 0.999,
+   "sth_realized_price": 80989.15,
+   "lth_realized_price": 44614.12
+  },
+  "2026-04-16": {
+   "mvrv": 1.3994,
+   "nupl": 0.2854,
+   "sopr": 1.0025,
+   "sth_realized_price": 80889.25,
+   "lth_realized_price": 44677.12
+  },
+  "2026-04-17": {
+   "mvrv": 1.4359,
+   "nupl": 0.3036,
+   "sopr": 1.0067,
+   "sth_realized_price": 80896.8,
+   "lth_realized_price": 44744.64
+  },
+  "2026-04-18": {
+   "mvrv": 1.4101,
+   "nupl": 0.2908,
+   "sopr": 0.9999,
+   "sth_realized_price": 80776.61,
+   "lth_realized_price": 44849.67
+  },
+  "2026-04-19": {
+   "mvrv": 1.3787,
+   "nupl": 0.2747,
+   "sopr": 0.9981,
+   "sth_realized_price": 80774.45,
+   "lth_realized_price": 44859.17
+  },
+  "2026-04-20": {
+   "mvrv": 1.413,
+   "nupl": 0.2923,
+   "sopr": 0.997,
+   "sth_realized_price": 80726.07,
+   "lth_realized_price": 44829.46
+  },
+  "2026-04-21": {
+   "mvrv": 1.4217,
+   "nupl": 0.2966,
+   "sopr": 1.0016,
+   "sth_realized_price": 80553.66,
+   "lth_realized_price": 44886.97
+  },
+  "2026-04-22": {
+   "mvrv": 1.4562,
+   "nupl": 0.3133,
+   "sopr": 0.9979,
+   "sth_realized_price": 80535.91,
+   "lth_realized_price": 44951.94
+  },
+  "2026-04-23": {
+   "mvrv": 1.4579,
+   "nupl": 0.3141,
+   "sopr": 0.9998,
+   "sth_realized_price": 80459.54,
+   "lth_realized_price": 45040.84
+  },
+  "2026-04-24": {
+   "mvrv": 1.4449,
+   "nupl": 0.3079,
+   "sopr": 0.9822,
+   "sth_realized_price": 80024.21,
+   "lth_realized_price": 45087.81
+  },
+  "2026-04-25": {
+   "mvrv": 1.4479,
+   "nupl": 0.3093,
+   "sopr": 0.9999,
+   "sth_realized_price": 79938.63,
+   "lth_realized_price": 45287.37
+  },
+  "2026-04-26": {
+   "mvrv": 1.4628,
+   "nupl": 0.3164,
+   "sopr": 1.0032,
+   "sth_realized_price": 79248.85,
+   "lth_realized_price": 46875.89
+  },
+  "2026-04-27": {
+   "mvrv": 1.4413,
+   "nupl": 0.3062,
+   "sopr": 1.0009,
+   "sth_realized_price": 79016.78,
+   "lth_realized_price": 47272.75
+  },
+  "2026-04-28": {
+   "mvrv": 1.4238,
+   "nupl": 0.2977,
+   "sopr": 0.9988,
+   "sth_realized_price": 78983.87,
+   "lth_realized_price": 47292.01
+  },
+  "2026-04-29": {
+   "mvrv": 1.4152,
+   "nupl": 0.2934,
+   "sopr": 0.9929,
+   "sth_realized_price": 78936.63,
+   "lth_realized_price": 47282.01
+  },
+  "2026-04-30": {
+   "mvrv": 1.4246,
+   "nupl": 0.298,
+   "sopr": 0.9964,
+   "sth_realized_price": 78898.4,
+   "lth_realized_price": 47275.21
+  },
+  "2026-05-01": {
+   "mvrv": 1.4565,
+   "nupl": 0.3134,
+   "sopr": 1.0071,
+   "sth_realized_price": 78928.95,
+   "lth_realized_price": 47291.41
+  },
+  "2026-05-02": {
+   "mvrv": 1.4687,
+   "nupl": 0.3191,
+   "sopr": 1.0027,
+   "sth_realized_price": 78915.98,
+   "lth_realized_price": 47315.71
+  },
+  "2026-05-03": {
+   "mvrv": 1.4642,
+   "nupl": 0.317,
+   "sopr": 1.0047,
+   "sth_realized_price": 78912.07,
+   "lth_realized_price": 47328.68
+  },
+  "2026-05-04": {
+   "mvrv": 1.4855,
+   "nupl": 0.3268,
+   "sopr": 1.0158,
+   "sth_realized_price": 79026.84,
+   "lth_realized_price": 47339.06
+  },
+  "2026-05-05": {
+   "mvrv": 1.5058,
+   "nupl": 0.3359,
+   "sopr": 1.0073,
+   "sth_realized_price": 79136.03,
+   "lth_realized_price": 47365.11
+  },
+  "2026-05-06": {
+   "mvrv": 1.513,
+   "nupl": 0.3391,
+   "sopr": 1.0049,
+   "sth_realized_price": 79172.96,
+   "lth_realized_price": 47388.69
+  },
+  "2026-05-07": {
+   "mvrv": 1.4907,
+   "nupl": 0.3292,
+   "sopr": 1.0002,
+   "sth_realized_price": 79122.79,
+   "lth_realized_price": 47423.38
+  },
+  "2026-05-08": {
+   "mvrv": 1.4914,
+   "nupl": 0.3295,
+   "sopr": 1.0004,
+   "sth_realized_price": 79076.17,
+   "lth_realized_price": 47475.56
+  },
+  "2026-05-09": {
+   "mvrv": 1.5016,
+   "nupl": 0.334,
+   "sopr": 1.0034,
+   "sth_realized_price": 78937.33,
+   "lth_realized_price": 47605.35
+  },
+  "2026-05-10": {
+   "mvrv": 1.5311,
+   "nupl": 0.3469,
+   "sopr": 1.0038,
+   "sth_realized_price": 78933.51,
+   "lth_realized_price": 47616.78
+  },
+  "2026-05-11": {
+   "mvrv": 1.5186,
+   "nupl": 0.3415,
+   "sopr": 1.0033,
+   "sth_realized_price": 78976.63,
+   "lth_realized_price": 47612.69
+  },
+  "2026-05-12": {
+   "mvrv": 1.4961,
+   "nupl": 0.3316,
+   "sopr": 1.0013,
+   "sth_realized_price": 78885.51,
+   "lth_realized_price": 47716.75
+  },
+  "2026-05-13": {
+   "mvrv": 1.4741,
+   "nupl": 0.3216,
+   "sopr": 0.999,
+   "sth_realized_price": 78803.99,
+   "lth_realized_price": 47766.16
+  },
+  "2026-05-14": {
+   "mvrv": 1.5068,
+   "nupl": 0.3363,
+   "sopr": 1.0004,
+   "sth_realized_price": 78717.55,
+   "lth_realized_price": 47835.97
+  },
+  "2026-05-15": {
+   "mvrv": 1.4707,
+   "nupl": 0.3201,
+   "sopr": 0.9988,
+   "sth_realized_price": 78687.36,
+   "lth_realized_price": 47842.35
+  },
+  "2026-05-16": {
+   "mvrv": 1.4542,
+   "nupl": 0.3123,
+   "sopr": 0.9981,
+   "sth_realized_price": 78582.76,
+   "lth_realized_price": 47915.98
+  },
+  "2026-05-17": {
+   "mvrv": 1.4465,
+   "nupl": 0.3087,
+   "sopr": 1.0,
+   "sth_realized_price": 78550.78,
+   "lth_realized_price": 47938.81
+  },
+  "2026-05-18": {
+   "mvrv": 1.4319,
+   "nupl": 0.3016,
+   "sopr": 0.9942,
+   "sth_realized_price": 78478.73,
+   "lth_realized_price": 47927.85
+  },
+  "2026-05-19": {
+   "mvrv": 1.4295,
+   "nupl": 0.3004,
+   "sopr": 0.9926,
+   "sth_realized_price": 78332.74,
+   "lth_realized_price": 47973.15
+  },
+  "2026-05-20": {
+   "mvrv": 1.4411,
+   "nupl": 0.3061,
+   "sopr": 0.9982,
+   "sth_realized_price": 78211.16,
+   "lth_realized_price": 47982.08
+  },
+  "2026-05-21": {
+   "mvrv": 1.4457,
+   "nupl": 0.3083,
+   "sopr": 0.9978,
+   "sth_realized_price": 78279.47,
+   "lth_realized_price": 47987.99
+  },
+  "2026-05-22": {
+   "mvrv": 1.4061,
+   "nupl": 0.2888,
+   "sopr": 0.9931,
+   "sth_realized_price": 78206.63,
+   "lth_realized_price": 47967.35
+  },
+  "2026-05-23": {
+   "mvrv": 1.4278,
+   "nupl": 0.2996,
+   "sopr": 0.9974,
+   "sth_realized_price": 78136.28,
+   "lth_realized_price": 47984.83
+  },
+  "2026-05-24": {
+   "mvrv": 1.435,
+   "nupl": 0.3031,
+   "sopr": 1.0003,
+   "sth_realized_price": 78100.65,
+   "lth_realized_price": 48019.27
+  },
+  "2026-05-25": {
+   "mvrv": 1.4395,
+   "nupl": 0.3053,
+   "sopr": 1.0021,
+   "sth_realized_price": 78102.89,
+   "lth_realized_price": 48027.56
+  },
+  "2026-05-26": {
+   "mvrv": 1.4137,
+   "nupl": 0.2927,
+   "sopr": 0.9988,
+   "sth_realized_price": 78027.57,
+   "lth_realized_price": 48025.81
+  },
+  "2026-05-27": {
+   "mvrv": 1.3849,
+   "nupl": 0.2779,
+   "sopr": 0.9959,
+   "sth_realized_price": 77911.99,
+   "lth_realized_price": 48061.93
+  },
+  "2026-05-28": {
+   "mvrv": 1.3711,
+   "nupl": 0.2707,
+   "sopr": 0.9829,
+   "sth_realized_price": 77509.98,
+   "lth_realized_price": 48129.33
+  },
+  "2026-05-29": {
+   "mvrv": 1.3706,
+   "nupl": 0.2704,
+   "sopr": 0.9876,
+   "sth_realized_price": 77366.83,
+   "lth_realized_price": 48076.53
+  },
+  "2026-05-30": {
+   "mvrv": 1.3783,
+   "nupl": 0.2744,
+   "sopr": 0.9972,
+   "sth_realized_price": 77253.88,
+   "lth_realized_price": 48094.36
+  },
+  "2026-05-31": {
+   "mvrv": 1.375,
+   "nupl": 0.2727,
+   "sopr": 0.9992,
+   "sth_realized_price": 77238.34,
+   "lth_realized_price": 48116.0
+  },
+  "2026-06-01": {
+   "mvrv": 1.3341,
+   "nupl": 0.2504,
+   "sopr": 0.9881,
+   "sth_realized_price": 76988.52,
+   "lth_realized_price": 48108.67
+  },
+  "2026-06-02": {
+   "mvrv": 1.2493,
+   "nupl": 0.1995,
+   "sopr": 0.9741,
+   "sth_realized_price": 76557.23,
+   "lth_realized_price": 48069.21
+  },
+  "2026-06-03": {
+   "mvrv": 1.2057,
+   "nupl": 0.1706,
+   "sopr": 0.9728,
+   "sth_realized_price": 76000.95,
+   "lth_realized_price": 48132.98
+  },
+  "2026-06-04": {
+   "mvrv": 1.1913,
+   "nupl": 0.1606,
+   "sopr": 0.9781,
+   "sth_realized_price": 75519.85,
+   "lth_realized_price": 48206.43
+  },
+  "2026-06-05": {
+   "mvrv": 1.1411,
+   "nupl": 0.1236,
+   "sopr": 0.9778,
+   "sth_realized_price": 75090.16,
+   "lth_realized_price": 48246.52
+  },
+  "2026-06-06": {
+   "mvrv": 1.1452,
+   "nupl": 0.1268,
+   "sopr": 0.9863,
+   "sth_realized_price": 74585.28,
+   "lth_realized_price": 48265.48
+  },
+  "2026-06-07": {
+   "mvrv": 1.1903,
+   "nupl": 0.1598,
+   "sopr": 1.0028,
+   "sth_realized_price": 74746.6,
+   "lth_realized_price": 48270.5
+  },
+  "2026-06-08": {
+   "mvrv": 1.1881,
+   "nupl": 0.1584,
+   "sopr": 0.9942,
+   "sth_realized_price": 74715.66,
+   "lth_realized_price": 48257.09
+  },
+  "2026-06-09": {
+   "mvrv": 1.1642,
+   "nupl": 0.1411,
+   "sopr": 0.9867,
+   "sth_realized_price": 74544.09,
+   "lth_realized_price": 48283.03
+  },
+  "2026-06-10": {
+   "mvrv": 1.1587,
+   "nupl": 0.1369,
+   "sopr": 0.9808,
+   "sth_realized_price": 74080.18,
+   "lth_realized_price": 48353.94
+  },
+  "2026-06-11": {
+   "mvrv": 1.1984,
+   "nupl": 0.1656,
+   "sopr": 0.9885,
+   "sth_realized_price": 73420.27,
+   "lth_realized_price": 48585.66
+  },
+  "2026-06-12": {
+   "mvrv": 1.1984,
+   "nupl": 0.1656,
+   "sopr": 0.9962,
+   "sth_realized_price": 73411.75,
+   "lth_realized_price": 48598.83
+  },
+  "2026-06-13": {
+   "mvrv": 1.2143,
+   "nupl": 0.1765,
+   "sopr": 0.9997,
+   "sth_realized_price": 73250.78,
+   "lth_realized_price": 48677.69
+  },
+  "2026-06-14": {
+   "mvrv": 1.2362,
+   "nupl": 0.1911,
+   "sopr": 1.001,
+   "sth_realized_price": 73017.34,
+   "lth_realized_price": 48801.24
+  },
+  "2026-06-15": {
+   "mvrv": 1.2515,
+   "nupl": 0.201,
+   "sopr": 0.9964,
+   "sth_realized_price": 72899.86,
+   "lth_realized_price": 48814.71
+  },
+  "2026-06-16": {
+   "mvrv": 1.2399,
+   "nupl": 0.1935,
+   "sopr": 0.9949,
+   "sth_realized_price": 72701.29,
+   "lth_realized_price": 48857.48
+  },
+  "2026-06-17": {
+   "mvrv": 1.2166,
+   "nupl": 0.178,
+   "sopr": 0.9948,
+   "sth_realized_price": 72467.51,
+   "lth_realized_price": 48908.39
+  },
+  "2026-06-18": {
+   "mvrv": 1.1885,
+   "nupl": 0.1586,
+   "sopr": 0.9878,
+   "sth_realized_price": 72181.84,
+   "lth_realized_price": 48956.13
+  },
+  "2026-06-19": {
+   "mvrv": 1.2003,
+   "nupl": 0.1669,
+   "sopr": 0.9904,
+   "sth_realized_price": 71989.88,
+   "lth_realized_price": 49005.44
+  },
+  "2026-06-20": {
+   "mvrv": 1.2142,
+   "nupl": 0.1764,
+   "sopr": 0.9999,
+   "sth_realized_price": 71711.48,
+   "lth_realized_price": 49090.12
+  },
+  "2026-06-21": {
+   "mvrv": 1.1948,
+   "nupl": 0.163,
+   "sopr": 1.0196,
+   "sth_realized_price": 71552.15,
+   "lth_realized_price": 49165.36
+  },
+  "2026-06-22": {
+   "mvrv": 1.208,
+   "nupl": 0.1722,
+   "sopr": 0.9986,
+   "sth_realized_price": 71512.34,
+   "lth_realized_price": 49169.19
+  },
+  "2026-06-23": {
+   "mvrv": 1.1846,
+   "nupl": 0.1558,
+   "sopr": 0.9859,
+   "sth_realized_price": 71317.74,
+   "lth_realized_price": 49156.21
+  },
+  "2026-06-24": {
+   "mvrv": 1.1519,
+   "nupl": 0.1319,
+   "sopr": 0.988,
+   "sth_realized_price": 71040.39,
+   "lth_realized_price": 49197.09
+  },
+  "2026-06-25": {
+   "mvrv": 1.1318,
+   "nupl": 0.1164,
+   "sopr": 0.9792,
+   "sth_realized_price": 70651.08,
+   "lth_realized_price": 49202.18
+  },
+  "2026-06-26": {
+   "mvrv": 1.1368,
+   "nupl": 0.1203,
+   "sopr": 0.9849,
+   "sth_realized_price": 70287.93,
+   "lth_realized_price": 49209.55
+  },
+  "2026-06-27": {
+   "mvrv": 1.1364,
+   "nupl": 0.12,
+   "sopr": 0.9996,
+   "sth_realized_price": 70148.32,
+   "lth_realized_price": 49248.26
+  },
+  "2026-06-28": {
+   "mvrv": 1.1298,
+   "nupl": 0.1149,
+   "sopr": 0.9946,
+   "sth_realized_price": 70093.7,
+   "lth_realized_price": 49251.88
+  },
+  "2026-06-29": {
+   "mvrv": 1.1429,
+   "nupl": 0.1251,
+   "sopr": 0.9834,
+   "sth_realized_price": 69911.62,
+   "lth_realized_price": 49213.04
+  },
+  "2026-06-30": {
+   "mvrv": 1.1133,
+   "nupl": 0.1018,
+   "sopr": 0.9794,
+   "sth_realized_price": 69551.96,
+   "lth_realized_price": 49218.88
+  },
+  "2026-07-01": {
+   "mvrv": 1.1407,
+   "nupl": 0.1233,
+   "sopr": 0.9933,
+   "sth_realized_price": 69450.36,
+   "lth_realized_price": 49212.27
+  },
+  "2026-07-02": {
+   "mvrv": 1.1699,
+   "nupl": 0.1453,
+   "sopr": 0.9949,
+   "sth_realized_price": 69349.47,
+   "lth_realized_price": 49185.37
+  },
+  "2026-07-03": {
+   "mvrv": 1.189,
+   "nupl": 0.1589,
+   "sopr": 0.9998,
+   "sth_realized_price": 69233.23,
+   "lth_realized_price": 49205.2
+  },
+  "2026-07-04": {
+   "mvrv": 1.1996,
+   "nupl": 0.1664,
+   "sopr": 1.0011,
+   "sth_realized_price": 69113.44,
+   "lth_realized_price": 49260.7
+  },
+  "2026-07-05": {
+   "mvrv": 1.2086,
+   "nupl": 0.1726,
+   "sopr": 1.0008,
+   "sth_realized_price": 69142.19,
+   "lth_realized_price": 49272.27
+  },
+  "2026-07-06": {
+   "mvrv": 1.2172,
+   "nupl": 0.1784,
+   "sopr": 0.9985,
+   "sth_realized_price": 69142.28,
+   "lth_realized_price": 49266.03
+  },
+  "2026-07-07": {
+   "mvrv": 1.2039,
+   "nupl": 0.1694,
+   "sopr": 0.9987,
+   "sth_realized_price": 69058.25,
+   "lth_realized_price": 49290.59
+  },
+  "2026-07-08": {
+   "mvrv": 1.1825,
+   "nupl": 0.1544,
+   "sopr": 0.9929,
+   "sth_realized_price": 68882.26,
+   "lth_realized_price": 49311.49
+  },
+  "2026-07-09": {
+   "mvrv": 1.2019,
+   "nupl": 0.168,
+   "sopr": 0.9979,
+   "sth_realized_price": 68895.15,
+   "lth_realized_price": 49321.34
+  },
+  "2026-07-10": {
+   "mvrv": 1.2201,
+   "nupl": 0.1804,
+   "sopr": 0.9832,
+   "sth_realized_price": 68722.66,
+   "lth_realized_price": 49334.09
+  },
+  "2026-07-11": {
+   "mvrv": 1.214,
+   "nupl": 0.1763,
+   "sopr": 1.0007,
+   "sth_realized_price": 68768.38,
+   "lth_realized_price": 49379.73
+  },
+  "2026-07-12": {
+   "mvrv": 1.2134,
+   "nupl": 0.1759,
+   "sopr": 1.0002,
+   "sth_realized_price": 68739.21,
+   "lth_realized_price": 49394.34
+  },
+  "2026-07-13": {
+   "mvrv": 1.1875,
+   "nupl": 0.1579,
+   "sopr": 0.9722,
+   "sth_realized_price": 68152.97,
+   "lth_realized_price": 49392.52
+  },
+  "2026-07-14": {
+   "mvrv": 1.2376,
+   "nupl": 0.192,
+   "sopr": 0.991,
+   "sth_realized_price": 68175.69,
+   "lth_realized_price": 49354.96
+  },
+  "2026-07-15": {
+   "mvrv": 1.2348,
+   "nupl": 0.1901,
+   "sopr": 0.9942,
+   "sth_realized_price": 68174.86,
+   "lth_realized_price": 49354.52
+  },
+  "2026-07-16": {
+   "mvrv": 1.2176,
+   "nupl": 0.1787,
+   "sopr": 0.9946,
+   "sth_realized_price": 68143.8,
+   "lth_realized_price": 49345.29
+  },
+  "2026-07-17": {
+   "mvrv": 1.2203,
+   "nupl": 0.1805,
+   "sopr": 0.9958,
+   "sth_realized_price": 68076.04,
+   "lth_realized_price": 49361.18
+  },
+  "2026-07-18": {
+   "mvrv": 1.2361,
+   "nupl": 0.191,
+   "sopr": 0.998,
+   "sth_realized_price": 68039.22,
+   "lth_realized_price": 49382.91
+  },
+  "2026-07-19": {
+   "mvrv": 1.2333,
+   "nupl": 0.1892,
+   "sopr": 1.0022,
+   "sth_realized_price": 68064.14,
+   "lth_realized_price": 49394.35
+  },
+  "2026-07-20": {
+   "mvrv": 1.2434,
+   "nupl": 0.1958,
+   "sopr": 1.004,
+   "sth_realized_price": 68084.23,
+   "lth_realized_price": 49382.75
+  },
+  "2026-07-21": {
+   "mvrv": 1.2682,
+   "nupl": 0.2115,
+   "sopr": 1.0067,
+   "sth_realized_price": 68189.21,
+   "lth_realized_price": 49397.2
+  },
+  "2026-07-22": {
+   "mvrv": 1.2582,
+   "nupl": 0.2052,
+   "sopr": 0.9983,
+   "sth_realized_price": 68194.52,
+   "lth_realized_price": 49402.42
+  },
+  "2026-07-23": {
+   "mvrv": 1.2419,
+   "nupl": 0.1948,
+   "sopr": 0.9977,
+   "sth_realized_price": 68164.16,
+   "lth_realized_price": 49422.11
+  },
+  "2026-07-24": {
+   "mvrv": 1.2237,
+   "nupl": 0.1828,
+   "sopr": 0.9941,
+   "sth_realized_price": 68161.5,
+   "lth_realized_price": 49410.85
+  },
+  "2026-07-25": {
+   "mvrv": 1.2267,
+   "nupl": 0.1848,
+   "sopr": 1.0084,
+   "sth_realized_price": 68104.84,
+   "lth_realized_price": 49447.74
+  },
+  "2026-07-26": {
+   "mvrv": 1.2465,
+   "nupl": 0.1977,
+   "sopr": 1.0001,
+   "sth_realized_price": 68104.73,
+   "lth_realized_price": 49448.09
+  },
+  "2026-07-27": {
+   "mvrv": 1.2185,
+   "nupl": 0.1793,
+   "sopr": 0.9976,
+   "sth_realized_price": 67568.44,
+   "lth_realized_price": 49507.21
+  },
+  "2026-07-28": {
+   "mvrv": 1.2192,
+   "nupl": 0.1798,
+   "sopr": 0.9967,
+   "sth_realized_price": 68058.7,
+   "lth_realized_price": 49430.61
+  },
+  "2026-07-29": {
+   "mvrv": 1.2201,
+   "nupl": 0.1804,
+   "sopr": 0.9993,
+   "sth_realized_price": 68099.24,
+   "lth_realized_price": 49427.0
+  },
+  "2026-07-30": {
+   "mvrv": 1.2348,
+   "nupl": 0.1901,
+   "sopr": 0.9991,
+   "sth_realized_price": 68070.68,
+   "lth_realized_price": 49408.66
+  },
+  "2026-07-31": {
+   "mvrv": 1.1995,
+   "nupl": 0.1663,
+   "sopr": 0.9947,
+   "sth_realized_price": 67920.47,
+   "lth_realized_price": 49365.32
+  },
+  "2026-08-01": {
+   "mvrv": 1.1992,
+   "nupl": 0.1661,
+   "sopr": 0.9795,
+   "sth_realized_price": 67755.72,
+   "lth_realized_price": 49275.57
+  },
+  "2026-08-02": {
+   "mvrv": 1.2131,
+   "nupl": 0.1757,
+   "sopr": 0.9989,
+   "sth_realized_price": 67739.47,
+   "lth_realized_price": 49255.35
+  },
+  "2026-08-03": {
+   "mvrv": 1.2134,
+   "nupl": 0.1759,
+   "sopr": 0.9966,
+   "sth_realized_price": 67617.2,
+   "lth_realized_price": 49195.92
+  },
+  "2026-08-04": {
+   "mvrv": 1.2254,
+   "nupl": 0.1839,
+   "sopr": 0.9975,
+   "sth_realized_price": 67616.78,
+   "lth_realized_price": 49164.43
+  },
+  "2026-08-05": {
+   "mvrv": 1.2359,
+   "nupl": 0.1909,
+   "sopr": 0.9961,
+   "sth_realized_price": 67583.14,
+   "lth_realized_price": 49134.13
+  },
+  "2026-08-06": {
+   "mvrv": 1.229,
+   "nupl": 0.1863,
+   "sopr": 1.0014,
+   "sth_realized_price": 67580.24,
+   "lth_realized_price": 49145.98
+  },
+  "2026-08-07": {
+   "mvrv": 1.2406,
+   "nupl": 0.1939,
+   "sopr": 0.996,
+   "sth_realized_price": 67537.59,
+   "lth_realized_price": 49141.38
+  },
+  "2026-08-08": {
+   "mvrv": 1.2417,
+   "nupl": 0.1946,
+   "sopr": 1.0027,
+   "sth_realized_price": 67537.13,
+   "lth_realized_price": 49149.29
+  },
+  "2026-08-09": {
+   "mvrv": 1.2405,
+   "nupl": 0.1939,
+   "sopr": 0.9975,
+   "sth_realized_price": 67545.4,
+   "lth_realized_price": 49142.41
+  },
+  "2026-08-10": {
+   "mvrv": 1.2228,
+   "nupl": 0.1822,
+   "sopr": 0.9969,
+   "sth_realized_price": 67503.9,
+   "lth_realized_price": 49133.58
+  },
+  "2026-08-11": {
+   "mvrv": 1.2171,
+   "nupl": 0.1784,
+   "sopr": 0.9956,
+   "sth_realized_price": 67438.72,
+   "lth_realized_price": 49126.06
+  },
+  "2026-08-12": {
+   "mvrv": 1.213,
+   "nupl": 0.1756,
+   "sopr": 0.9947,
+   "sth_realized_price": 67379.59,
+   "lth_realized_price": 49119.92
+  },
+  "2026-08-13": {
+   "mvrv": 1.2132,
+   "nupl": 0.1757,
+   "sopr": 0.9975,
+   "sth_realized_price": 67371.98,
+   "lth_realized_price": 49121.87
+  },
+  "2026-08-14": {
+   "mvrv": 1.2062,
+   "nupl": 0.171,
+   "sopr": 0.9969,
+   "sth_realized_price": 67292.33,
+   "lth_realized_price": 49136.0
+  },
+  "2026-08-15": {
+   "mvrv": 1.2069,
+   "nupl": 0.1714,
+   "sopr": 0.9994,
+   "sth_realized_price": 67241.3,
+   "lth_realized_price": 49146.58
+  },
+  "2026-08-16": {
+   "mvrv": 1.204,
+   "nupl": 0.1694,
+   "sopr": 0.9934,
+   "sth_realized_price": 67241.43,
+   "lth_realized_price": 49127.2
+  },
+  "2026-08-17": {
+   "mvrv": 1.2349,
+   "nupl": 0.1902,
+   "sopr": 0.999,
+   "sth_realized_price": 67240.05,
+   "lth_realized_price": 49116.47
+  },
+  "2026-08-18": {
+   "mvrv": 1.2393,
+   "nupl": 0.1931,
+   "sopr": 0.996,
+   "sth_realized_price": 67201.93,
+   "lth_realized_price": 49109.79
+  },
+  "2026-08-19": {
+   "mvrv": 1.3248,
+   "nupl": 0.2452,
+   "sopr": 1.0012,
+   "sth_realized_price": 67243.51,
+   "lth_realized_price": 49112.24
+  },
+  "2026-08-20": {
+   "mvrv": 1.3977,
+   "nupl": 0.2845,
+   "sopr": 1.0125,
+   "sth_realized_price": 67668.98,
+   "lth_realized_price": 49059.0
+  },
+  "2026-08-21": {
+   "mvrv": 1.4957,
+   "nupl": 0.3314,
+   "sopr": 1.0181,
+   "sth_realized_price": 68194.43,
+   "lth_realized_price": 49029.22
+  },
+  "2026-08-22": {
+   "mvrv": 1.4681,
+   "nupl": 0.3188,
+   "sopr": 1.0076,
+   "sth_realized_price": 68327.2,
+   "lth_realized_price": 49035.54
+  },
+  "2026-08-23": {
+   "mvrv": 1.4792,
+   "nupl": 0.324,
+   "sopr": 1.0048,
+   "sth_realized_price": 68409.57,
+   "lth_realized_price": 49033.04
+  },
+  "2026-08-24": {
+   "mvrv": 1.5027,
+   "nupl": 0.3345,
+   "sopr": 1.0194,
+   "sth_realized_price": 68841.52,
+   "lth_realized_price": 49027.0
+  },
+  "2026-08-25": {
+   "mvrv": 1.493,
+   "nupl": 0.3302,
+   "sopr": 1.0103,
+   "sth_realized_price": 69205.1,
+   "lth_realized_price": 49008.44
+  },
+  "2026-08-26": {
+   "mvrv": 1.5013,
+   "nupl": 0.3339,
+   "sopr": 1.0126,
+   "sth_realized_price": 69422.98,
+   "lth_realized_price": 48991.72
+  },
+  "2026-08-27": {
+   "mvrv": 1.5249,
+   "nupl": 0.3442,
+   "sopr": 1.0087,
+   "sth_realized_price": 69733.02,
+   "lth_realized_price": 48944.08
+  },
+  "2026-08-28": {
+   "mvrv": 1.4753,
+   "nupl": 0.3222,
+   "sopr": 1.0054,
+   "sth_realized_price": 69979.57,
+   "lth_realized_price": 48917.67
+  },
+  "2026-08-29": {
+   "mvrv": 1.4864,
+   "nupl": 0.3272,
+   "sopr": 1.0,
+   "sth_realized_price": 70025.14,
+   "lth_realized_price": 48914.19
+  },
+  "2026-08-30": {
+   "mvrv": 1.4883,
+   "nupl": 0.3281,
+   "sopr": 1.0029,
+   "sth_realized_price": 70038.83,
+   "lth_realized_price": 48913.45
+  },
+  "2026-08-31": {
+   "mvrv": 1.4914,
+   "nupl": 0.3295,
+   "sopr": 1.0046,
+   "sth_realized_price": 70148.64,
+   "lth_realized_price": 48894.42
+  },
+  "2026-09-01": {
+   "mvrv": 1.4706,
+   "nupl": 0.32,
+   "sopr": 1.0024,
+   "sth_realized_price": 70269.54,
+   "lth_realized_price": 48880.42
+  },
+  "2026-09-02": {
+   "mvrv": 1.464,
+   "nupl": 0.3169,
+   "sopr": 1.0009,
+   "sth_realized_price": 70393.01,
+   "lth_realized_price": 48877.7
+  },
+  "2026-09-03": {
+   "mvrv": 1.5417,
+   "nupl": 0.3514,
+   "sopr": 1.0082,
+   "sth_realized_price": 70609.87,
+   "lth_realized_price": 48865.86
+  },
+  "2026-09-04": {
+   "mvrv": 1.5122,
+   "nupl": 0.3387,
+   "sopr": 1.004,
+   "sth_realized_price": 70780.53,
+   "lth_realized_price": 48826.54
+  },
+  "2026-09-05": {
+   "mvrv": 1.5136,
+   "nupl": 0.3393,
+   "sopr": 1.0069,
+   "sth_realized_price": 70868.57,
+   "lth_realized_price": 48825.43
+  },
+  "2026-09-06": {
+   "mvrv": 1.5218,
+   "nupl": 0.3429,
+   "sopr": 1.005,
+   "sth_realized_price": 70860.03,
+   "lth_realized_price": 48824.4
+  },
+  "2026-09-07": {
+   "mvrv": 1.4997,
+   "nupl": 0.3332,
+   "sopr": 1.0019,
+   "sth_realized_price": 70966.91,
+   "lth_realized_price": 48822.64
+  },
+  "2026-09-08": {
+   "mvrv": 1.4873,
+   "nupl": 0.3276,
+   "sopr": 1.0022,
+   "sth_realized_price": 70955.89,
+   "lth_realized_price": 48817.64
+  },
+  "2026-09-09": {
+   "mvrv": 1.4808,
+   "nupl": 0.3247,
+   "sopr": 1.0034,
+   "sth_realized_price": 71088.01,
+   "lth_realized_price": 48800.86
+  },
+  "2026-09-10": {
+   "mvrv": 1.4527,
+   "nupl": 0.3116,
+   "sopr": 1.0018,
+   "sth_realized_price": 71168.03,
+   "lth_realized_price": 48799.78
+  },
+  "2026-09-11": {
+   "mvrv": 1.4618,
+   "nupl": 0.3159,
+   "sopr": 1.0069,
+   "sth_realized_price": 71207.8,
+   "lth_realized_price": 48795.43
+  },
+  "2026-09-12": {
+   "mvrv": 1.4633,
+   "nupl": 0.3166,
+   "sopr": 1.0015,
+   "sth_realized_price": 71216.61,
+   "lth_realized_price": 48809.3
+  },
+  "2026-09-13": {
+   "mvrv": 1.4541,
+   "nupl": 0.3123,
+   "sopr": 1.0005,
+   "sth_realized_price": 71208.01,
+   "lth_realized_price": 48807.19
+  },
+  "2026-09-14": {
+   "mvrv": 1.4835,
+   "nupl": 0.3259,
+   "sopr": 1.003,
+   "sth_realized_price": 71262.19,
+   "lth_realized_price": 48786.81
+  },
+  "2026-09-15": {
+   "mvrv": 1.4324,
+   "nupl": 0.3019,
+   "sopr": 1.001,
+   "sth_realized_price": 71295.15,
+   "lth_realized_price": 48786.03
+  },
+  "2026-09-16": {
+   "mvrv": 1.4415,
+   "nupl": 0.3063,
+   "sopr": 0.9971,
+   "sth_realized_price": 71350.43,
+   "lth_realized_price": 48770.21
+  },
+  "2026-09-17": {
+   "mvrv": 1.4478,
+   "nupl": 0.3093,
+   "sopr": 0.9994,
+   "sth_realized_price": 71422.04,
+   "lth_realized_price": 48723.07
+  },
+  "2026-09-18": {
+   "mvrv": 1.5305,
+   "nupl": 0.3466,
+   "sopr": 1.0076,
+   "sth_realized_price": 71636.24,
+   "lth_realized_price": 48712.1
+  },
+  "2026-09-19": {
+   "mvrv": 1.5369,
+   "nupl": 0.3493,
+   "sopr": 1.0062,
+   "sth_realized_price": 71776.19,
+   "lth_realized_price": 48744.72
+  },
+  "2026-09-20": {
+   "mvrv": 1.5349,
+   "nupl": 0.3485,
+   "sopr": 1.0019,
+   "sth_realized_price": 71806.08,
+   "lth_realized_price": 48744.76
+  },
+  "2026-09-21": {
+   "mvrv": 1.6366,
+   "nupl": 0.389,
+   "sopr": 1.0173,
+   "sth_realized_price": 72158.48,
+   "lth_realized_price": 48722.61
+  },
+  "2026-09-22": {
+   "mvrv": 1.6254,
+   "nupl": 0.3848,
+   "sopr": 1.0217,
+   "sth_realized_price": 72763.08,
+   "lth_realized_price": 48751.38
+  },
+  "2026-09-23": {
+   "mvrv": 1.5899,
+   "nupl": 0.371,
+   "sopr": 1.0025,
+   "sth_realized_price": 72797.88,
+   "lth_realized_price": 48777.7
+  },
+  "2026-09-24": {
+   "mvrv": 1.5897,
+   "nupl": 0.371,
+   "sopr": 1.0029,
+   "sth_realized_price": 72875.88,
+   "lth_realized_price": 48798.1
+  },
+  "2026-09-25": {
+   "mvrv": 1.5834,
+   "nupl": 0.3684,
+   "sopr": 1.0033,
+   "sth_realized_price": 72931.6,
+   "lth_realized_price": 48803.91
+  },
+  "2026-09-26": {
+   "mvrv": 1.5878,
+   "nupl": 0.3702,
+   "sopr": 1.0016,
+   "sth_realized_price": 72938.23,
+   "lth_realized_price": 48867.65
+  },
+  "2026-09-27": {
+   "mvrv": 1.5889,
+   "nupl": 0.3706,
+   "sopr": 1.0022,
+   "sth_realized_price": 73033.16,
+   "lth_realized_price": 48868.04
+  },
+  "2026-09-28": {
+   "mvrv": 1.5716,
+   "nupl": 0.3637,
+   "sopr": 1.0052,
+   "sth_realized_price": 73204.94,
+   "lth_realized_price": 48768.01
+  },
+  "2026-09-29": {
+   "mvrv": 1.5719,
+   "nupl": 0.3638,
+   "sopr": 1.0033,
+   "sth_realized_price": 73382.99,
+   "lth_realized_price": 48763.32
+  },
+  "2026-09-30": {
+   "mvrv": 1.5705,
+   "nupl": 0.3633,
+   "sopr": 1.0012,
+   "sth_realized_price": 73467.89,
+   "lth_realized_price": 48741.02
+  },
+  "2026-10-01": {
+   "mvrv": 1.5925,
+   "nupl": 0.3721,
+   "sopr": 1.0053,
+   "sth_realized_price": 73604.8,
+   "lth_realized_price": 48755.28
+  },
+  "2026-10-02": {
+   "mvrv": 1.5869,
+   "nupl": 0.3698,
+   "sopr": 1.0082,
+   "sth_realized_price": 73863.58,
+   "lth_realized_price": 48788.57
+  },
+  "2026-10-03": {
+   "mvrv": 1.5895,
+   "nupl": 0.3709,
+   "sopr": 1.0025,
+   "sth_realized_price": 73896.84,
+   "lth_realized_price": 48829.0
+  },
+  "2026-10-04": {
+   "mvrv": 1.624,
+   "nupl": 0.3842,
+   "sopr": 1.0098,
+   "sth_realized_price": 73844.91,
+   "lth_realized_price": 48832.12
+  },
+  "2026-10-05": {
+   "mvrv": 1.6068,
+   "nupl": 0.3776,
+   "sopr": 1.0089,
+   "sth_realized_price": 74136.02,
+   "lth_realized_price": 48823.98
+  },
+  "2026-10-06": {
+   "mvrv": 1.6056,
+   "nupl": 0.3772,
+   "sopr": 1.0055,
+   "sth_realized_price": 74264.32,
+   "lth_realized_price": 48752.24
+  },
+  "2026-10-07": {
+   "mvrv": 1.5596,
+   "nupl": 0.3588,
+   "sopr": 1.0064,
+   "sth_realized_price": 74326.56,
+   "lth_realized_price": 48771.99
+  },
+  "2026-10-08": {
+   "mvrv": 1.5301,
+   "nupl": 0.3464,
+   "sopr": 1.0001,
+   "sth_realized_price": 74338.39,
+   "lth_realized_price": 48762.77
+  },
+  "2026-10-09": {
+   "mvrv": 1.5462,
+   "nupl": 0.3533,
+   "sopr": 1.0022,
+   "sth_realized_price": 74393.2,
+   "lth_realized_price": 48746.88
+  },
+  "2026-10-10": {
+   "mvrv": 1.5543,
+   "nupl": 0.3566,
+   "sopr": 1.0049,
+   "sth_realized_price": 74397.57,
+   "lth_realized_price": 48755.27
+  },
+  "2026-10-11": {
+   "mvrv": 1.567,
+   "nupl": 0.3618,
+   "sopr": 1.0047,
+   "sth_realized_price": 74442.51,
+   "lth_realized_price": 48766.3
+  },
+  "2026-10-12": {
+   "mvrv": 1.5327,
+   "nupl": 0.3475,
+   "sopr": 1.0025,
+   "sth_realized_price": 74414.97,
+   "lth_realized_price": 48759.18
+  },
+  "2026-10-13": {
+   "mvrv": 1.5545,
+   "nupl": 0.3567,
+   "sopr": 1.0031,
+   "sth_realized_price": 74488.18,
+   "lth_realized_price": 48735.43
+  },
+  "2026-10-14": {
+   "mvrv": 1.5249,
+   "nupl": 0.3442,
+   "sopr": 0.9987,
+   "sth_realized_price": 74581.13,
+   "lth_realized_price": 48697.71
+  },
+  "2026-10-15": {
+   "mvrv": 1.5385,
+   "nupl": 0.35,
+   "sopr": 0.9992,
+   "sth_realized_price": 74568.39,
+   "lth_realized_price": 48667.19
+  },
+  "2026-10-16": {
+   "mvrv": 1.5258,
+   "nupl": 0.3446,
+   "sopr": 1.0035,
+   "sth_realized_price": 74639.33,
+   "lth_realized_price": 48671.52
+  },
+  "2026-10-17": {
+   "mvrv": 1.5232,
+   "nupl": 0.3435,
+   "sopr": 1.0016,
+   "sth_realized_price": 74604.04,
+   "lth_realized_price": 48732.98
+  },
+  "2026-10-18": {
+   "mvrv": 1.5329,
+   "nupl": 0.3477,
+   "sopr": 1.0018,
+   "sth_realized_price": 74572.67,
+   "lth_realized_price": 48732.05
+  },
+  "2026-10-19": {
+   "mvrv": 1.5313,
+   "nupl": 0.347,
+   "sopr": 1.0057,
+   "sth_realized_price": 74682.09,
+   "lth_realized_price": 48723.27
+  },
+  "2026-10-20": {
+   "mvrv": 1.5506,
+   "nupl": 0.3551,
+   "sopr": 1.0036,
+   "sth_realized_price": 74736.27,
+   "lth_realized_price": 48713.73
+  },
+  "2026-10-21": {
+   "mvrv": 1.5735,
+   "nupl": 0.3645,
+   "sopr": 1.0086,
+   "sth_realized_price": 74864.56,
+   "lth_realized_price": 48720.04
+  },
+  "2026-10-22": {
+   "mvrv": 1.516,
+   "nupl": 0.3404,
+   "sopr": 1.0269,
+   "sth_realized_price": 75780.57,
+   "lth_realized_price": 48607.61
+  },
+  "2026-10-23": {
+   "mvrv": 1.5071,
+   "nupl": 0.3365,
+   "sopr": 1.0026,
+   "sth_realized_price": 75800.28,
+   "lth_realized_price": 48583.92
+  }
+ },
+ "updated_at_utc": "2026-10-30 15:00"
+}
