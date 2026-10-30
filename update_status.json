@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-10-30 16:39",
+ "last_run_utc": "2026-10-30 21:37",
  "market": {
-  "total_mcap": 2624478775933.8647,
-  "total_mcap_change_24h": -7.0959105556159345,
-  "btc_mcap": 1555948410576.9114,
-  "btc_change_24h": -4.843496039501302,
-  "usdt_usdc": 251916552107.82068,
-  "adjusted_btc_dom": 65.58093165909706,
-  "alt_ex_stables": 816613813249.1327,
-  "alt_change_24h": -12.932612795509367,
-  "fetched_at_utc": "2026-10-30 16:39"
+  "total_mcap": 2610223208809.5317,
+  "total_mcap_change_24h": -4.204056757850758,
+  "btc_mcap": 1543554470870.992,
+  "btc_change_24h": -3.4680580383584214,
+  "usdt_usdc": 251987150052.51862,
+  "adjusted_btc_dom": 65.45377275269779,
+  "alt_ex_stables": 814681587886.0212,
+  "alt_change_24h": -6.774458200958211,
+  "fetched_at_utc": "2026-10-30 21:37"
  },
  "urpd": {
   "latest_date": "2026-10-30",
@@ -29,12 +29,12 @@
   "pending": []
  },
  "onchain": {
-  "updated": {},
+  "updated": {
+   "mvrv": 6,
+   "nupl": 6,
+   "sopr": 6
+  },
   "errors": [],
-  "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ]
+  "pending": []
  }
 }
