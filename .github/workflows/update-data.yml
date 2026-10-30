@@ -19,7 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Luôn lấy code MỚI NHẤT của nhánh main (kể cả khi bấm "Re-run" một lần chạy cũ)
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
 
       - uses: actions/setup-python@v6
         with:
@@ -35,17 +38,33 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python app.py --update-data
 
+      # Chỉ GitHub Actions ghi các file dữ liệu này, nên bản vừa tạo luôn là bản đúng:
+      # cất ra ngoài → đồng bộ với main mới nhất → chép lại → commit. Không bị conflict.
       - name: Commit dữ liệu mới
         run: |
+          FILES="urpd_history.json researchbitcoin_daily_history.json bgeometrics_realized_pl_history.json bgeometrics_onchain_history.json update_status.json"
+          BRANCH="${{ github.event.repository.default_branch }}"
+          mkdir -p "$RUNNER_TEMP/data"
+          for f in $FILES; do
+            if [ -f "$f" ]; then cp "$f" "$RUNNER_TEMP/data/"; fi
+          done
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          for f in urpd_history.json researchbitcoin_daily_history.json bgeometrics_realized_pl_history.json bgeometrics_onchain_history.json update_status.json; do
-            if [ -f "$f" ]; then git add "$f"; fi
-          done
-          if git diff --cached --quiet; then
-            echo "Không có dữ liệu mới."
-          else
+          for attempt in 1 2 3; do
+            git fetch origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            for f in $FILES; do
+              if [ -f "$RUNNER_TEMP/data/$f" ]; then cp "$RUNNER_TEMP/data/$f" "$f"; git add "$f"; fi
+            done
+            if git diff --cached --quiet; then
+              echo "Không có dữ liệu mới."
+              exit 0
+            fi
             git commit -m "Update BTC data $(date -u +'%Y-%m-%d %H:%M') UTC"
-            git pull --rebase --autostash || true
-            git push
-          fi
+            if git push origin "HEAD:$BRANCH"; then
+              exit 0
+            fi
+            echo "Push lỗi, thử lại ($attempt)..."
+            sleep 5
+          done
+          exit 1
