@@ -1097,6 +1097,16 @@ def send_telegram_report(status):
         _log(f"Telegram lỗi: {e}")
 
 
+def update_market(status):
+    try:
+        m = fetch_market_overview()
+        m["fetched_at_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
+        status["market"] = m
+        _log("Vốn hóa thị trường: OK")
+    except Exception as e:
+        _log(f"Vốn hóa thị trường lỗi: {e}")
+
+
 def run_update():
     _log(f"BTC URPD Monitor {APP_VERSION} — cập nhật dữ liệu")
     status = _load_json(STATUS_FILE)
@@ -1105,7 +1115,7 @@ def run_update():
     if isinstance(status.get("telegram"), dict):
         status["telegram"].pop("error", None)
     status["fatal"] = []
-    for step in (update_urpd, update_research, update_realized, update_onchain, send_telegram_report):
+    for step in (update_urpd, update_research, update_realized, update_onchain, update_market, send_telegram_report):
         try:
             step(status)
         except Exception as e:  # một bước lỗi không làm hỏng các bước khác
@@ -1415,11 +1425,16 @@ def live_price():
     return fetch_live_price()
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False)
 def live_market():
+    """CoinGecko hay chặn IP dùng chung của Streamlit Cloud (lỗi 429) →
+    khi lỗi thì dùng số liệu GitHub Actions đã lấy ở lần chạy gần nhất."""
     try:
         return fetch_market_overview(), None
     except Exception as e:
+        saved = load_status().get("market")
+        if isinstance(saved, dict) and saved.get("total_mcap"):
+            return saved, None
         return None, str(e)
 
 
@@ -1662,6 +1677,9 @@ def page_overview():
 
     if market:
         mk("#### 🌐 Vốn hóa thị trường")
+        if market.get("fetched_at_utc"):
+            t = datetime.strptime(market["fetched_at_utc"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+            cap(f"CoinGecko đang giới hạn lượt gọi — hiển thị số liệu lúc {t.astimezone(VN_TZ):%d/%m %H:%M} giờ VN.")
         m = st.columns(4)
         m[0].metric("Tổng vốn hóa", fmt_big_usd(market["total_mcap"]),
                     f"{market['total_mcap_change_24h']:+.2f}%" if market["total_mcap_change_24h"] is not None else None)
