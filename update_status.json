@@ -1,21 +1,23 @@
 {
  "fatal": [],
- "last_run_utc": "2026-10-30 15:25",
+ "last_run_utc": "2026-10-30 16:25",
  "market": {
-  "total_mcap": 2635119901730.1855,
-  "total_mcap_change_24h": -6.087391227537256,
-  "btc_mcap": 1566207011604.1309,
-  "btc_change_24h": -4.378842520731621,
-  "usdt_usdc": 251872892997.59113,
-  "adjusted_btc_dom": 65.71735979801088,
-  "alt_ex_stables": 817039997128.4636,
-  "alt_change_24h": -10.815348276738646,
-  "fetched_at_utc": "2026-10-30 15:25"
+  "total_mcap": 2625341492919.9526,
+  "total_mcap_change_24h": -7.108236176046804,
+  "btc_mcap": 1558325772696.222,
+  "btc_change_24h": -4.74694598249949,
+  "usdt_usdc": 251893607096.62628,
+  "adjusted_btc_dom": 65.6566247779927,
+  "alt_ex_stables": 815122113127.1044,
+  "alt_change_24h": -13.136193150091035,
+  "fetched_at_utc": "2026-10-30 16:25"
  },
  "urpd": {
   "latest_date": "2026-10-30",
   "changed": [],
-  "errors": []
+  "errors": [
+   "2026-10-30: Bitview không lấy được 2026-10-30. HTTPError: 400 Client Error: Bad Request for url: https://bitview.space/api/urpd/all/2026-10-30?agg=lin1000&weight=raw | ValueError: response không có buckets"
+  ]
  },
  "research": {
   "updated": {},
@@ -23,14 +25,16 @@
  },
  "realized": {
   "updated": {},
-  "errors": []
+  "errors": [],
+  "pending": []
  },
  "onchain": {
   "updated": {},
-  "errors": [
-   "Không đọc được time-series.",
-   "Không đọc được time-series.",
-   "Không đọc được time-series."
+  "errors": [],
+  "pending": [
+   "mvrv",
+   "nupl",
+   "sopr"
   ]
  }
 }

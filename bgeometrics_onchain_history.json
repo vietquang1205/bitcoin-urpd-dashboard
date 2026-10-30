@@ -2515,5 +2515,10 @@
    "lth_realized_price": 48583.92
   }
  },
- "updated_at_utc": "2026-10-30 15:00"
+ "updated_at_utc": "2026-10-30 15:00",
+ "last_attempt": {
+  "mvrv": "2026-10-30",
+  "nupl": "2026-10-30",
+  "sopr": "2026-10-30"
+ }
 }
