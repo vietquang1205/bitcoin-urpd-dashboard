@@ -1,0 +1,49 @@
+name: Update BTC data
+
+on:
+  schedule:
+    - cron: "23 1,9,17 * * *"   # 08:23, 16:23, 00:23 giờ Việt Nam
+  workflow_dispatch:             # cho phép bấm "Run workflow" chạy tay
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-btc-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cài thư viện
+        run: pip install requests pandas numpy plotly streamlit
+
+      - name: Lấy dữ liệu
+        env:
+          RESEARCHBITCOIN_API_TOKEN: ${{ secrets.RESEARCHBITCOIN_API_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python app.py --update-data
+
+      - name: Commit dữ liệu mới
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          for f in urpd_history.json researchbitcoin_daily_history.json bgeometrics_realized_pl_history.json bgeometrics_onchain_history.json update_status.json; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if git diff --cached --quiet; then
+            echo "Không có dữ liệu mới."
+          else
+            git commit -m "Update BTC data $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git pull --rebase --autostash || true
+            git push
+          fi
