@@ -89,7 +89,7 @@ def fmt_price(x):
 def fmt_big_usd(x, signed=False):
     if x is None or not np.isfinite(x):
         return "N/A"
-    sign = ("+" if x >= 0 else "−") if signed else ("−" if x < 0 else "")
+    sign = ("+" if x >= 0 else "-") if signed else ("-" if x < 0 else "")
     a = abs(x)
     for div, suf in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "K")):
         if a >= div:
@@ -101,7 +101,7 @@ def fmt_near(x, signed=False):
     if x is None or not np.isfinite(x):
         return "N/A"
     a = abs(x)
-    sign = ("+" if x >= 0 else "−") if signed else ("−" if x < 0 else "")
+    sign = ("+" if x >= 0 else "-") if signed else ("-" if x < 0 else "")
     if a >= 1e9:
         return f"{sign}{a / 1e9:.2f}B Ⓝ"
     if a >= 1e6:
@@ -347,6 +347,15 @@ def fetch_derivatives():
                 out.setdefault(d, {})["long_short_ratio"] = float(row[1])
     except Exception as e:
         errors.append(f"OKX long/short: {e}")
+    try:  # khối lượng chủ động mua/bán (taker) trên hợp đồng: [ts, sellVol, buyVol]
+        j = _get(f"{okx}/rubik/stat/taker-volume", params={"ccy": "NEAR", "instType": "CONTRACT", "period": "1D"})
+        for row in j.get("data", []) or []:
+            d = _to_date(row[0])
+            sell, buy = safe_float(row[1]), safe_float(row[2])
+            if d and sell is not None and buy is not None:
+                out.setdefault(d, {}).update({"taker_sell": sell, "taker_buy": buy})
+    except Exception as e:
+        errors.append(f"OKX taker: {e}")
     try:
         j = _get(f"{okx}/public/funding-rate-history", params={"instId": "NEAR-USDT-SWAP", "limit": 100})
         rows = [(int(r["fundingTime"]), safe_float(r.get("realizedRate") or r.get("fundingRate")))
@@ -409,6 +418,76 @@ def fetch_nearblocks(api_key):
         except Exception as e:
             errors.append(f"NearBlocks {path}: {e}")
     return out, errors
+
+
+# ----------------------------------------------------------------------------- Tin tức NEAR
+NEAR_NEWS_QUERIES = ['"NEAR Protocol"', '"NEAR token" OR "NEAR price"', '"NEAR AI" OR "NEAR Intents" OR "Illia Polosukhin"']
+NEWS_POS = ("partnership", "partners", "launch", "launches", "launched", "upgrade", "listing", "lists", "etf",
+            "approval", "approved", "inflows", "adoption", "record", "surge", "surges", "rally", "rallies", "jumps",
+            "soars", "breakout", "integration", "integrates", "milestone", "acquires", "bullish", "gains")
+NEWS_NEG = ("hack", "hacked", "exploit", "outage", "delist", "delisting", "lawsuit", "sues", "unlock", "unlocks",
+            "sell-off", "selloff", "plunge", "plunges", "drops", "falls", "slides", "tumbles", "outflows", "bearish",
+            "downgrade", "halt", "halts", "investigation", "scam", "dump", "crash")
+
+
+def news_tag(title):
+    t = title.lower()
+
+    def has(words):
+        return any(re.search(r"(?<![a-z0-9])" + re.escape(w) + r"(?![a-z0-9])", t) for w in words)
+    if has(NEWS_NEG):
+        return -1
+    if has(NEWS_POS):
+        return 1
+    return 0
+
+
+def _translate_vi(text):
+    try:
+        r = requests.get("https://translate.googleapis.com/translate_a/single",
+                         params={"client": "gtx", "sl": "en", "tl": "vi", "dt": "t", "q": text[:500]},
+                         headers=HTTP_HEADERS, timeout=10)
+        r.raise_for_status()
+        return "".join(p[0] for p in r.json()[0] if p and p[0]).strip() or text
+    except Exception:
+        return text
+
+
+def fetch_near_news(days=7, limit=25, translate=True):
+    import xml.etree.ElementTree as ET
+    from email.utils import parsedate_to_datetime
+    from urllib.parse import quote_plus
+    cutoff = utc_now() - timedelta(days=days)
+    rows, seen = [], set()
+    for q in NEAR_NEWS_QUERIES:
+        try:
+            r = requests.get("https://news.google.com/rss/search?q=" + quote_plus(q) + "&hl=en-US&gl=US&ceid=US:en",
+                             headers=HTTP_HEADERS, timeout=15)
+            r.raise_for_status()
+            root = ET.fromstring(r.content)
+        except Exception:
+            continue
+        for item in root.findall("./channel/item"):
+            title = (item.findtext("title") or "").strip()
+            if not title or title.lower() in seen:
+                continue
+            try:
+                pub = parsedate_to_datetime(item.findtext("pubDate") or "").astimezone(timezone.utc)
+            except Exception:
+                continue
+            if pub < cutoff:
+                continue
+            seen.add(title.lower())
+            src = item.find("source")
+            rows.append({"title": title, "link": (item.findtext("link") or "").strip(),
+                         "source": (src.text or "").strip() if src is not None else "Google News",
+                         "published": pub.strftime("%Y-%m-%d %H:%M"), "tag": news_tag(title)})
+    rows.sort(key=lambda x: x["published"], reverse=True)
+    rows = rows[:limit]
+    if translate:
+        for r in rows:
+            r["title_vi"] = _translate_vi(r["title"])
+    return rows
 
 
 # =============================================================================
@@ -699,6 +778,223 @@ def group_flow(wf, kind, days):
 
 
 # =============================================================================
+# BÁO CÁO TỔNG HỢP HẰNG NGÀY — 6 nhóm tín hiệu → 1 đánh giá xu hướng
+# =============================================================================
+REPORT_WEIGHTS = {"Giá & xu hướng": 0.25, "Khối lượng": 0.15, "Hệ sinh thái": 0.15,
+                  "Phái sinh": 0.20, "Dòng tiền ví (cá voi/sàn)": 0.15, "Tin tức": 0.10}
+
+
+def rsi(series, n=14):
+    d = series.diff()
+    up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
+    dn = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
+    rs = up / dn.replace(0, np.nan)
+    return 100 - 100 / (1 + rs)
+
+
+def _window_mean(df, col, days, end):
+    if col not in df.columns:
+        return None
+    s = df[(df.date > end - timedelta(days=days)) & (df.date <= end)][col].dropna()
+    return float(s.mean()) if len(s) >= max(2, days // 3) else None
+
+
+def _pct(a, b):
+    return (a / b - 1) * 100 if a is not None and b not in (None, 0) else None
+
+
+def compute_report(df, realized_price=None, wf=None, news=None, as_of=None):
+    """Trả {'categories': [...], 'score': 0–100, 'verdict', 'agree', 'ret7'} — chỉ dùng dữ liệu đến ngày as_of."""
+    if df is None or df.empty or "price" not in df.columns:
+        return None
+    if as_of is not None:
+        df = df[df.date <= as_of]
+    p = df.dropna(subset=["price"])
+    if len(p) < 30:
+        return None
+    end = p.date.iloc[-1]
+    price = float(p.price.iloc[-1])
+    old7 = p[p.date <= end - timedelta(days=7)]
+    ret7 = _pct(price, float(old7.price.iloc[-1])) if not old7.empty else None
+    cats = []
+
+    def sig(label, val, detail):
+        return {"label": label, "val": val, "detail": detail}
+
+    # A. Giá & xu hướng
+    s = []
+    e20, e50 = float(ema(p.price, 20).iloc[-1]), float(ema(p.price, 50).iloc[-1])
+    s.append(sig("Giá so với EMA50", 1 if price > e50 else -1, f"{_pct(price, e50):+.1f}%"))
+    s.append(sig("EMA20 so với EMA50", 1 if e20 > e50 else -1, "EMA20 trên EMA50" if e20 > e50 else "EMA20 dưới EMA50"))
+    if ret7 is not None:
+        s.append(sig("Biến động giá 7 ngày", 1 if ret7 > 5 else (-1 if ret7 < -5 else 0), f"{ret7:+.1f}%"))
+    r = float(rsi(p.price).iloc[-1]) if len(p) > 20 else None
+    if r is not None and np.isfinite(r):
+        s.append(sig("RSI 14 ngày", -1 if r > 70 else (1 if r < 30 else 0),
+                     f"{r:.0f}" + (" — quá mua" if r > 70 else " — quá bán" if r < 30 else "")))
+    if realized_price:
+        s.append(sig("Giá so với giá vốn ước tính", 1 if price > realized_price else -1,
+                     f"{_pct(price, realized_price):+.1f}%"))
+    cats.append(("Giá & xu hướng", s))
+
+    # B. Khối lượng
+    s = []
+    v7, v30 = _window_mean(df, "volume_usd", 7, end), _window_mean(df, "volume_usd", 30, end)
+    if v7 and v30 and ret7 is not None:
+        ch = _pct(v7, v30)
+        val = (1 if ret7 > 0 else -1) if ch > 15 else 0
+        s.append(sig("Khối lượng giao ngay 7N so với 30N", val,
+                     f"{ch:+.0f}% · " + ("giá tăng kèm vol tăng" if val > 0 else "giá giảm kèm vol tăng" if val < 0
+                                         else "vol không tăng rõ")))
+    d7, d30 = _window_mean(df, "dex_volume", 7, end), _window_mean(df, "dex_volume", 30, end)
+    if d7 and d30:
+        ch = _pct(d7, d30)
+        s.append(sig("Khối lượng DEX 7N so với 30N", 1 if ch > 10 else (-1 if ch < -10 else 0), f"{ch:+.0f}%"))
+    cats.append(("Khối lượng", s))
+
+    # C. Hệ sinh thái
+    s = []
+    if "tvl" in df.columns:
+        t = df.dropna(subset=["tvl", "price"])
+        t = t.assign(tvl_near=t.tvl / t.price)
+        a, _ = last_val(t, "tvl_near", before=end)
+        b, _ = last_val(t, "tvl_near", before=end - timedelta(days=30))
+        ch = _pct(a, b)
+        if ch is not None:
+            s.append(sig("TVL tính bằng NEAR — 30 ngày", 1 if ch > 5 else (-1 if ch < -5 else 0),
+                         f"{ch:+.1f}% (đã loại ảnh hưởng của giá)"))
+    a, _ = last_val(df, "stables", before=end)
+    b, _ = last_val(df, "stables", before=end - timedelta(days=30))
+    ch = _pct(a, b)
+    if ch is not None:
+        s.append(sig("Stablecoin trên NEAR — 30 ngày", 1 if ch > 3 else (-1 if ch < -3 else 0), f"{ch:+.1f}%"))
+    a, _ = last_val(df, "staking_ratio", before=end)
+    b, _ = last_val(df, "staking_ratio", before=end - timedelta(days=7))
+    if a is not None and b is not None:
+        ch = a - b
+        s.append(sig("Tỷ lệ staking — 7 ngày", 1 if ch > 0.2 else (-1 if ch < -0.2 else 0), f"{ch:+.2f} điểm %"))
+    cats.append(("Hệ sinh thái", s))
+
+    # D. Phái sinh
+    s = []
+    f, _ = last_val(df, "funding_apr", before=end)
+    if f is not None:
+        s.append(sig("Funding (năm hóa)", -1 if f > 25 else (1 if f < -5 else 0),
+                     f"{f:+.1f}%" + (" — long quá đông" if f > 25 else " — short đông" if f < -5 else "")))
+    if "oi_usd" in df.columns and ret7 is not None:
+        o = df.dropna(subset=["oi_usd", "price"])
+        o = o.assign(oi_near=o.oi_usd / o.price)
+        a, _ = last_val(o, "oi_near", before=end)
+        b, _ = last_val(o, "oi_near", before=end - timedelta(days=7))
+        ch = _pct(a, b)
+        if ch is not None:
+            val = (1 if ret7 > 0 else -1) if ch > 10 else 0
+            s.append(sig("Open interest 7 ngày (tính bằng NEAR)", val,
+                         f"{ch:+.0f}% · " + ("vị thế mới theo chiều tăng" if val > 0 else
+                                             "vị thế mới theo chiều giảm" if val < 0 else "không tăng rõ")))
+    ls, _ = last_val(df, "long_short_ratio", before=end)
+    if ls is not None:
+        s.append(sig("Tỷ lệ tài khoản long/short", -1 if ls > 2.5 else (1 if ls < 0.9 else 0),
+                     f"{ls:.2f}" + (" — đám đông nghiêng long (tín hiệu ngược)" if ls > 2.5 else
+                                    " — đám đông nghiêng short" if ls < 0.9 else "")))
+    if {"taker_buy", "taker_sell"}.issubset(df.columns):
+        tk = df[(df.date > end - timedelta(days=7)) & (df.date <= end)].dropna(subset=["taker_buy", "taker_sell"])
+        if len(tk) >= 3 and tk.taker_sell.sum() > 0:
+            ratio = float(tk.taker_buy.sum() / tk.taker_sell.sum())
+            s.append(sig("Lực mua chủ động / bán chủ động 7 ngày", 1 if ratio > 1.05 else (-1 if ratio < 0.95 else 0),
+                         f"{ratio:.2f}"))
+    cats.append(("Phái sinh", s))
+
+    # E. Dòng tiền ví
+    s = []
+    if wf is not None and not wf.empty:
+        w = wf[wf.date <= end] if as_of is not None else wf
+        for kind, label, sign in (("whale", "Ví cá voi — dòng ròng 7 ngày", 1), ("exchange", "Ví sàn — nạp/rút ròng 7 ngày", -1)):
+            fl = group_flow(w, kind, 7)
+            if fl is None:
+                continue
+            hold = float(w[(w.type == kind) & (w.date == w.date.max())].balance.sum()) or 1.0
+            rel = fl / hold * 100
+            th = 0.5 if kind == "whale" else 1.0
+            val = sign * (1 if rel > th else (-1 if rel < -th else 0))
+            if fl == 0:
+                word = "không đổi"
+            elif kind == "exchange":
+                word = "nạp lên sàn" if fl > 0 else "rút khỏi sàn"
+            else:
+                word = "tăng" if fl > 0 else "giảm"
+            s.append(sig(label, val, f"{fmt_near(fl, signed=True)} ({rel:+.2f}%) — {word}"))
+    cats.append(("Dòng tiền ví (cá voi/sàn)", s))
+
+    # F. Tin tức (chỉ ảnh hưởng nhẹ)
+    s = []
+    if news:
+        recent = [n for n in news if n.get("published", "") >= (utc_now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M")]
+        pos, neg = sum(n.get("tag") == 1 for n in recent), sum(n.get("tag") == -1 for n in recent)
+        s.append(sig("Tin 3 ngày gần nhất (gắn nhãn theo từ khóa)", 1 if pos - neg >= 2 else (-1 if neg - pos >= 2 else 0),
+                     f"{pos} tích cực · {neg} tiêu cực · {len(recent) - pos - neg} trung tính"))
+    cats.append(("Tin tức", s))
+
+    out, num, den = [], 0.0, 0.0
+    for name, sigs in cats:
+        if not sigs:
+            out.append({"name": name, "signals": [], "score": None})
+            continue
+        sc = float(np.mean([x["val"] for x in sigs]))
+        out.append({"name": name, "signals": sigs, "score": sc})
+        num += REPORT_WEIGHTS[name] * sc
+        den += REPORT_WEIGHTS[name]
+    x = num / den if den else 0.0
+    score = 50 + 50 * x
+    verdict = ("🟢 Tích cực" if score >= 65 else "🟢 Hơi tích cực" if score >= 55 else
+               "🟡 Trung tính" if score > 45 else "🟠 Hơi tiêu cực" if score > 35 else "🔴 Tiêu cực")
+    used = [c for c in out if c["score"] is not None]
+    agree = sum(1 for c in used if np.sign(c["score"]) == np.sign(x) and x != 0)
+    return {"categories": out, "score": score, "verdict": verdict, "agree": agree, "n_cats": len(used),
+            "price": price, "date": end, "ret7": ret7}
+
+
+def outlook_text(rep, zones):
+    """Diễn giải xu hướng 1–2 tuần + điều kiện xác nhận/vô hiệu (không phải khuyến nghị)."""
+    sup, res = zones
+    s1 = f"{fmt_price(sup[0]['low'])}–{fmt_price(sup[0]['high'])}" if sup else None
+    r1 = f"{fmt_price(res[0]['low'])}–{fmt_price(res[0]['high'])}" if res else None
+    sc = rep["score"]
+    if sc >= 55:
+        head = "Các nhóm dữ liệu đang nghiêng về **khả năng tăng** trong 1–2 tuần tới."
+        cond = (f"Xác nhận nếu giá giữ trên vùng {s1} và vượt được {r1}. " if s1 and r1 else "") + \
+               (f"Đánh giá này **mất hiệu lực** nếu giá đóng ngày dưới {s1}." if s1 else "")
+    elif sc <= 45:
+        head = "Các nhóm dữ liệu đang nghiêng về **khả năng giảm/yếu** trong 1–2 tuần tới."
+        cond = (f"Áp lực còn nếu giá không lấy lại được {r1}; vùng cần chú ý phía dưới là {s1}. " if s1 and r1 else "") + \
+               (f"Đánh giá này **mất hiệu lực** nếu giá vượt và giữ trên {r1}." if r1 else "")
+    else:
+        head = "Các nhóm dữ liệu **trái chiều** — chưa có xu hướng rõ cho 1–2 tuần tới."
+        cond = (f"Chờ giá ra khỏi khoảng {s1} → {r1} để xác nhận hướng đi." if s1 and r1 else "")
+    return head, cond, f"{rep['agree']}/{rep['n_cats']} nhóm dữ liệu cùng chiều với đánh giá chung."
+
+
+def score_history(df, mseries, wf, days=120):
+    """Điểm tổng hợp tính lại cho từng ngày quá khứ (không gồm tin tức) — để xem độ tin cậy của chỉ báo."""
+    if df is None or df.empty or "price" not in df.columns:
+        return pd.DataFrame()
+    dates = df.dropna(subset=["price"]).date
+    dates = dates[dates >= dates.max() - timedelta(days=days)]
+    rp = dict(zip(mseries.date, mseries.realized_price)) if mseries is not None and not mseries.empty else {}
+    rows = []
+    for d in dates:
+        rep = compute_report(df, rp.get(d), wf, None, as_of=d)
+        if rep:
+            rows.append({"date": d, "score": rep["score"], "price": rep["price"]})
+    out = pd.DataFrame(rows)
+    if not out.empty:   # giá 7 ngày sau đó — để đối chiếu đánh giá có đúng không
+        nxt = out.set_index("date").price
+        out["ret_next7"] = [(_pct(nxt.get(d + timedelta(days=7)), p) if (d + timedelta(days=7)) in nxt.index else None)
+                            for d, p in zip(out.date, out.price)]
+    return out
+
+
+# =============================================================================
 # CHẾ ĐỘ CẬP NHẬT — python pages/NEAR_Monitor.py --update-data
 # =============================================================================
 def _log(msg):
@@ -798,6 +1094,15 @@ def run_near_update():
     if fails:
         errors["ví"] = "; ".join(fails[:5])
 
+    # 7) Tin tức NEAR (dịch sẵn tiêu đề sang tiếng Việt cho dashboard + Telegram)
+    try:
+        news = fetch_near_news()
+        if news:
+            data["news"] = news
+            done["tin"] = len(news)
+    except Exception as e:
+        errors["tin"] = str(e)[:200]
+
     # Dọn & lưu
     data["daily"] = dict(sorted((k, v) for k, v in daily.items() if is_day_key(k))[-HISTORY_DAYS:])
     data["whales"] = dict(sorted((k, v) for k, v in whales.items() if is_day_key(k))[-400:])
@@ -808,6 +1113,68 @@ def run_near_update():
     _log(f"cập nhật {done}")
     for k, v in errors.items():
         _log(f"  ⚠️ {k}: {v}")
+    try:
+        if send_near_telegram(data):
+            with open(NEAR_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    except Exception as e:
+        _log(f"  ⚠️ Telegram: {e}")
+
+
+def _tg_html(text):
+    text = str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+
+
+def send_near_telegram(data):
+    """Báo cáo NEAR qua Telegram, 1 lần/ngày. Trả True nếu đã gửi."""
+    bot = clean_secret(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+    chat = clean_secret(os.environ.get("TELEGRAM_CHAT_ID", ""))
+    today = day_str(utc_today())
+    if not bot or not chat or data.get("telegram_last") == today:
+        return False
+    df = daily_frame(data)
+    live = {}
+    for fn in (fetch_coingecko_now, fetch_coinbase_now):
+        try:
+            live = fn()
+            if live.get("price"):
+                break
+        except Exception:
+            continue
+    price = live.get("price") or (float(df.price.dropna().iloc[-1]) if "price" in df.columns else None)
+    if not price:
+        return False
+    model = cost_basis_model(df)
+    mm = model_metrics(model, price)
+    zones = find_zones(model, price)
+    rep = compute_report(df, mm.get("realized_price"), whale_frame(data), data.get("news"))
+    if not rep:
+        return False
+    qty = safe_float(clean_secret(os.environ.get("NEAR_HOLDINGS", ""))) or 5000.0
+    head, cond, agree = outlook_text(rep, zones)
+    lines = [f"<b>🟢 NEAR — báo cáo {today}</b>",
+             _tg_html(f"Giá **{fmt_price(price)}**" + (f" ({live['change_24h']:+.2f}% 24h)" if live.get("change_24h") is not None else "")
+                      + f" · {qty:,.0f} NEAR ≈ **{fmt_big_usd(qty * price)}**"),
+             _tg_html(f"Đánh giá: **{rep['verdict']}** — {rep['score']:.0f}/100 · {agree}"),
+             _tg_html(head), _tg_html(cond), ""]
+    for c in rep["categories"]:
+        if c["score"] is None:
+            continue
+        icon = "🟢" if c["score"] > 0.2 else ("🔴" if c["score"] < -0.2 else "🟡")
+        lines.append(_tg_html(f"{icon} {c['name']}: " + "; ".join(f"{x['label']} {x['detail']}" for x in c["signals"][:2])))
+    top = [n for n in (data.get("news") or [])[:3]]
+    if top:
+        lines.append("")
+        lines += [_tg_html(f"📰 {n.get('title_vi') or n['title']}") for n in top]
+    lines.append("<i>Tham khảo, không phải khuyến nghị đầu tư.</i>")
+    r = requests.post(f"https://api.telegram.org/bot{bot}/sendMessage",
+                      json={"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML",
+                            "disable_web_page_preview": True}, timeout=20)
+    r.raise_for_status()
+    data["telegram_last"] = today
+    _log("Telegram NEAR: đã gửi")
+    return True
 
 
 # =============================================================================
@@ -878,6 +1245,22 @@ def candles_cached(days):
         return df, src, None
     except Exception as e:
         return None, None, str(e)
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def news_cached():
+    try:
+        return fetch_near_news(translate=True)
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def history_cached(version):
+    data, _ = load_near()
+    df = daily_frame(data)
+    model = cost_basis_model(df, alpha=0.2)
+    return score_history(df, model_series(model), whale_frame(data))
 
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -1315,6 +1698,136 @@ def near_btc_change(df, btc, days=30):
     return (last.ratio / old.ratio.iloc[-1] - 1) * 100 if not old.empty else None
 
 
+
+# ----------------------------------------------------------------------------- Báo cáo hằng ngày
+def _cat_light(score):
+    if score is None:
+        return "⚪"
+    return "🟢" if score > 0.2 else ("🔴" if score < -0.2 else "🟡")
+
+
+def tab_report(live, df, mm, mseries, zones, wf, news, version):
+    price = live["price"]
+    rep = compute_report(df, mm.get("realized_price"), wf, news)
+    if not rep:
+        st.info("Cần ít nhất 30 ngày dữ liệu giá để lập báo cáo.")
+        return
+    head, cond, agree = outlook_text(rep, zones)
+
+    left, right = st.columns([1, 2])
+    with left:
+        g = go.Figure(go.Indicator(
+            mode="gauge+number", value=rep["score"], number={"suffix": "/100", "font": {"size": 34}, "valueformat": ".0f"},
+            gauge={"axis": {"range": [0, 100]}, "bar": {"color": "#f8fafc", "thickness": 0.25},
+                   "steps": [{"range": [0, 35], "color": "#7f1d1d"}, {"range": [35, 45], "color": "#9a3412"},
+                             {"range": [45, 55], "color": "#78716c"}, {"range": [55, 65], "color": "#166534"},
+                             {"range": [65, 100], "color": "#15803d"}]}))
+        g.update_layout(height=230, margin=dict(l=20, r=20, t=10, b=0), paper_bgcolor=BG, font_color="#e5e7eb")
+        show_fig(g, "near_gauge")
+    with right:
+        mk(f"## {rep['verdict']}")
+        mk(head)
+        if cond:
+            mk(cond)
+        cap(f"{agree} Dữ liệu chốt ngày {rep['date']:%d/%m/%Y}; giá trực tiếp hiện tại {fmt_price(price)}.")
+
+    mk("### 🧩 Sáu nhóm dữ liệu")
+    cols = st.columns(3)
+    for i, c in enumerate(rep["categories"]):
+        with cols[i % 3]:
+            with st.container(border=True):
+                sc = c["score"]
+                mk(f"**{_cat_light(sc)} {c['name']}**  ·  trọng số {int(REPORT_WEIGHTS[c['name']] * 100)}%")
+                if not c["signals"]:
+                    cap("Chưa có dữ liệu cho nhóm này." + (" Thêm ví sàn/cá voi vào near_watchlist.txt."
+                                                            if c["name"].startswith("Dòng tiền") else ""))
+                for x in c["signals"]:
+                    icon = "🟢" if x["val"] > 0 else ("🔴" if x["val"] < 0 else "🟡")
+                    mk(f"{icon} {x['label']}: {x['detail']}")
+
+    # ---- Vị thế của bạn
+    mk("### 💼 Vị thế của bạn")
+    a, b = st.columns(2)
+    default_qty = safe_float(_secret("NEAR_HOLDINGS")) or 5000.0
+    qty = a.number_input("Số NEAR đang giữ", min_value=0.0, value=default_qty, step=100.0, key="near_qty")
+    cost = b.number_input("Giá vốn trung bình của bạn (USD/NEAR) — để 0 nếu không muốn nhập", min_value=0.0,
+                          value=0.0, step=0.01, format="%.4f", key="near_cost")
+    value = qty * price
+    m = st.columns(3)
+    chg = live.get("change_24h")
+    m[0].metric("Giá trị hiện tại", fmt_big_usd(value),
+                f"{fmt_big_usd(value - value / (1 + chg / 100), signed=True)} 24h" if chg is not None else None)
+    if cost > 0:
+        pl = (price - cost) * qty
+        m[1].metric("Lãi/lỗ so với giá vốn", fmt_big_usd(pl, signed=True), f"{(price / cost - 1) * 100:+.1f}%")
+    else:
+        m[1].metric("Lãi/lỗ so với giá vốn", "—", "nhập giá vốn để tính", delta_color="off")
+    if mm.get("realized_price"):
+        m[2].metric("Giá vốn trung bình thị trường (ước tính)", fmt_price(mm["realized_price"]),
+                    f"giá {(price / mm['realized_price'] - 1) * 100:+.1f}%", delta_color="off")
+    sup, res = zones
+    levels = []
+    for i, z in enumerate(sup[:2], start=1):
+        levels.append((f"Về hỗ trợ S{i} (cận dưới)", z["low"]))
+    for i, z in enumerate(res[:2], start=1):
+        levels.append((f"Lên kháng cự R{i} (cận trên)", z["high"]))
+    levels += [("Giảm 10%", price * 0.9), ("Tăng 10%", price * 1.1)]
+    rows = []
+    for name, lv in sorted(levels, key=lambda x: x[1]):
+        row = {"Kịch bản": name, "Giá NEAR": fmt_price(lv), "Giá trị vị thế": fmt_big_usd(qty * lv),
+               "Thay đổi so với hiện tại": f"{fmt_big_usd(qty * (lv - price), signed=True)} ({(lv / price - 1) * 100:+.1f}%)"}
+        if cost > 0:
+            row["Lãi/lỗ so với giá vốn"] = fmt_big_usd(qty * (lv - cost), signed=True)
+        rows.append(row)
+    show_df(pd.DataFrame(rows))
+    cap("Bảng kịch bản chỉ cho biết giá trị vị thế nếu giá chạm các vùng đó — không phải dự báo giá sẽ tới.")
+
+    # ---- Tin tức
+    mk("### 📰 Tin NEAR mới nhất")
+    if news:
+        for n in news[:8]:
+            icon = "🟢" if n.get("tag") == 1 else ("🔴" if n.get("tag") == -1 else "⚪")
+            when = datetime.strptime(n["published"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone(VN_TZ)
+            mk(f"{icon} **{n.get('title_vi') or n['title']}**  \n"
+               f"<small><i>{n['title']}</i> · {n.get('source', '')} · {when:%d/%m %H:%M} · "
+               f"[đọc]({n.get('link', '')})</small>", unsafe_allow_html=True)
+        cap("🟢/🔴 gắn tự động theo từ khóa trong tiêu đề — nhóm Tin tức chỉ chiếm 10% điểm tổng hợp.")
+    else:
+        cap("Chưa lấy được tin.")
+
+    # ---- Lịch sử điểm
+    mk("### 📜 Điểm tổng hợp theo thời gian (tính lại cho từng ngày, không gồm tin tức)")
+    hist = history_cached(version)
+    if hist is None or len(hist) < 10:
+        cap("Chưa đủ lịch sử.")
+    else:
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_scatter(x=hist.date, y=hist.score, name="Điểm tổng hợp", line=dict(color=NEAR_GREEN, width=2),
+                        secondary_y=False)
+        fig.add_scatter(x=hist.date, y=hist.price, name="Giá NEAR", line=dict(color="#f8fafc", width=1.5),
+                        secondary_y=True)
+        for y in (45, 55):
+            fig.add_hline(y=y, line_dash="dot", line_color=GREY, secondary_y=False)
+        style_fig(fig, 380)
+        fig.update_yaxes(range=[0, 100], title_text="Điểm", secondary_y=False)
+        fig.update_yaxes(tickprefix="$", showgrid=False, secondary_y=True)
+        show_fig(fig, "near_score_hist")
+        calls = hist.dropna(subset=["ret_next7"])
+        calls = calls[(calls.score >= 55) | (calls.score <= 45)]
+        if len(calls) >= 10:
+            hit = ((calls.score >= 55) & (calls.ret_next7 > 0)) | ((calls.score <= 45) & (calls.ret_next7 < 0))
+            cap(f"Trong {len(calls)} ngày điểm nghiêng rõ (≥55 hoặc ≤45), giá 7 ngày sau đi đúng hướng "
+                f"**{hit.mean() * 100:.0f}%** số lần. Dưới ~55% nghĩa là chỉ báo chưa đáng tin hơn tung đồng xu.")
+        last7 = hist.tail(7).iloc[::-1]
+        show_df(pd.DataFrame({"Ngày": last7.date.map(lambda d: d.strftime("%d/%m")),
+                              "Điểm": last7.score.map(lambda v: f"{v:.0f}"),
+                              "Giá": last7.price.map(fmt_price)}))
+
+    st.warning("⚠️ Đây là tổng hợp dữ liệu và chỉ báo định lượng để tham khảo, **không phải khuyến nghị mua/bán** "
+               "(dashboard không phải chuyên gia tư vấn tài chính). Thị trường crypto biến động mạnh; quyết định cuối cùng "
+               "nên dựa trên kế hoạch và mức rủi ro bạn chấp nhận được.")
+
+
 def main_near():
     st.set_page_config(page_title="NEAR Monitor", page_icon="🟢", layout="wide")
     inject_css()
@@ -1357,24 +1870,27 @@ def main_near():
     nb30 = near_btc_change(df, btc)
     prices = df.dropna(subset=["price"])[["date", "price"]] if "price" in df.columns else pd.DataFrame()
 
-    tabs = st.tabs(["📊 Tổng quan", "🧱 Giá vốn ước tính", "🏦 Hệ sinh thái & Staking", "📈 Phái sinh",
-                    "🐋 Cá voi", "📉 Giá & xu hướng"])
+    news = data.get("news") or news_cached()
+    tabs = st.tabs(["🧭 Báo cáo hằng ngày", "📊 Tổng quan", "🧱 Giá vốn ước tính", "🏦 Hệ sinh thái & Staking",
+                    "📈 Phái sinh", "🐋 Cá voi", "📉 Giá & xu hướng"])
     with tabs[0]:
-        tab_overview(live, df, mm, mseries, zones, wf, nb30, None)
+        tab_report(live, df, mm, mseries, zones, wf, news, version)
     with tabs[1]:
-        tab_cost_basis(version, price, df)
+        tab_overview(live, df, mm, mseries, zones, wf, nb30, None)
     with tabs[2]:
+        tab_cost_basis(version, price, df)
+    with tabs[3]:
         days = st.radio("Khoảng thời gian", [90, 180, 365], index=1, horizontal=True,
                         format_func=lambda x: f"{x} ngày", key="near_eco_days")
         tab_ecosystem(df, prices[prices.date >= prices.date.max() - timedelta(days=days - 1)] if not prices.empty else prices,
                       days)
-    with tabs[3]:
+    with tabs[4]:
         days = st.radio("Khoảng thời gian", [30, 90, 180], index=1, horizontal=True,
                         format_func=lambda x: f"{x} ngày", key="near_der_days")
         tab_derivatives(df, prices, days, data.get("derivatives_meta"))
-    with tabs[4]:
-        tab_whales(wf, _secret("GITHUB_REPO"))
     with tabs[5]:
+        tab_whales(wf, _secret("GITHUB_REPO"))
+    with tabs[6]:
         days = st.radio("Khoảng thời gian", [90, 180, 365], index=1, horizontal=True,
                         format_func=lambda x: f"{x} ngày", key="near_trend_days")
         tab_trend(df, btc, days, mseries)
