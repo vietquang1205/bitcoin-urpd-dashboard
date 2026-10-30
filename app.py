@@ -941,6 +941,7 @@ def update_research(status):
             updated[key] = n
         except Exception as e:
             errors.append(redact(e)[:300])
+            _log(f"  ⚠️ {slug}: {redact(e)[:300]}")
     if updated:
         data["daily"] = dict(sorted((k, v) for k, v in daily.items() if is_day_key(k))[-DAILY_MAX_DAYS:])
         data["updated_at_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
@@ -955,27 +956,45 @@ def _update_bg_file(path, slug_to_key, status_key, status, only_if_missing=None)
     data.setdefault("version", 1)
     daily = data.setdefault("daily", {})
     yesterday = utc_today() - timedelta(days=1)
-    updated, errors = {}, []
+    updated, errors, pending = {}, [], []
+    attempts = data.setdefault("last_attempt", {})
+    attempted_now = False
+    today_key = day_str(utc_today())
     for slug, key in slug_to_key.items():
         if only_if_missing and not only_if_missing(key):
             continue
         have = _daily_dates(daily, key)
         if have and have[-1] >= day_str(yesterday):
             continue
+        # Nguồn thường công bố trễ 1–2 ngày: nếu đã thử hôm nay và dữ liệu chỉ trễ ≤ 3 ngày
+        # thì không gọi lại (tiết kiệm lượt gọi gói miễn phí).
+        if have and attempts.get(key) == today_key and have[-1] >= day_str(yesterday - timedelta(days=3)):
+            pending.append(key)
+            continue
         start = parse_day(have[-1]) + timedelta(days=1) if have else yesterday - timedelta(days=BG_INITIAL_DAYS - 1)
+        attempts[key] = today_key
+        attempted_now = True
         try:
             frame = bgeometrics_fetch_daily(slug, start, yesterday)
             for row in frame.itertuples(index=False):
                 daily.setdefault(day_str(row.date), {})[key] = float(row.value)
             updated[key] = len(frame)
         except Exception as e:
-            errors.append(redact(e)[:200])
+            msg = redact(e)[:200]
+            if "Không đọc được time-series" in msg:
+                pending.append(key)  # nguồn chưa công bố ngày mới — không phải lỗi
+            else:
+                errors.append(f"{slug}: {msg}")
+                _log(f"  ⚠️ {slug}: {msg}")
         time.sleep(2)
-    if updated:
+    if pending:
+        _log(f"  ⏳ Nguồn chưa có số liệu ngày mới cho: {', '.join(pending)} (sẽ thử lại ngày mai)")
+    if updated or attempted_now:
         data["daily"] = dict(sorted((k, v) for k, v in daily.items() if is_day_key(k))[-DAILY_MAX_DAYS:])
-        data["updated_at_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
+        if updated:
+            data["updated_at_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
         _save_json(path, data)
-    status[status_key] = {"updated": updated, "errors": errors[-4:]}
+    status[status_key] = {"updated": updated, "errors": errors[-4:], "pending": pending}
     _log(f"{path}: {updated or 'không có gì mới'}; lỗi {len(errors)}")
 
 
