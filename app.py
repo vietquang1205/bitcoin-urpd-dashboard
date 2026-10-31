@@ -245,10 +245,10 @@ def _bitview_bucket_rows(buckets):
     return out
 
 
-def fetch_bitview_urpd(day, agg="lin1000"):
+def fetch_bitview_urpd(day, agg="lin1000", cohort="all"):
     """URPD từ Bitview / Bitcoin Research Kit. Trả (frame, url, close, total_supply).
     Luôn quy về bucket cố định $1.000 để khớp với history cũ."""
-    base_url = f"https://bitview.space/api/urpd/all/{day}"
+    base_url = f"https://bitview.space/api/urpd/{cohort}/{day}"
     # Bitview đổi API ngày 31/10/2026: tham số weight=raw bị từ chối (lỗi 400) → thử agg=lin1000 trước.
     attempts = [{"agg": agg}, {"agg": agg, "weight": "raw"}, {}]
     errors, response = [], None
@@ -908,6 +908,28 @@ def update_urpd(status):
         d += timedelta(days=1)
         time.sleep(0.3)
 
+    # URPD riêng của holder dài hạn (LTH ≥ 155 ngày) — để biết BTC rời vùng giá là của holder lâu năm hay mới.
+    # Lấy cho các ngày vừa tải lại + bù các ngày gần đây còn thiếu (tối đa 35 ngày).
+    lth_done = 0
+    for key in sorted(k for k in hist if is_day_key(k) and parse_day(k) >= today - timedelta(days=35)):
+        snap = hist[key]
+        if not isinstance(snap, dict) or not snap.get("urpd"):
+            continue
+        if snap.get("urpd_lth") and parse_day(key) < start:
+            continue
+        try:
+            lf, _, _, lsup = fetch_bitview_urpd(key, cohort="lth")
+            recs = urpd_to_records(lf)
+            if recs != snap.get("urpd_lth"):
+                snap["urpd_lth"] = recs
+                snap["lth_supply"] = safe_float(lsup) or float(lf.btc_amount.sum())
+                if key not in changed:
+                    changed.append(key)
+                lth_done += 1
+        except Exception as e:
+            errors.append(f"LTH {key}: {str(e)[:150]}")
+        time.sleep(0.3)
+
     if not saved and not changed:  # chưa có gì: thử BGeometrics cho hôm qua
         key = day_str(today - timedelta(days=1))
         try:
@@ -1402,19 +1424,24 @@ def read_data_file(filename):
 def get_urpd_store():
     """Toàn bộ snapshot URPD đã chuẩn hóa — dùng chung, KHÔNG được sửa trực tiếp."""
     raw, source = read_data_file(URPD_FILE)
-    frames, prices = {}, {}
+    frames, prices, frames_lth = {}, {}, {}
     for k, v in raw.items():
         if not is_day_key(k) or not isinstance(v, dict) or not v.get("urpd"):
             continue
         try:
             frames[k] = records_to_urpd(v["urpd"])
+            if v.get("urpd_lth"):
+                try:
+                    frames_lth[k] = records_to_urpd(v["urpd_lth"])
+                except Exception:
+                    pass
             p = safe_float(v.get("price"))
             if p:
                 prices[k] = p
         except Exception:
             continue
     dates = sorted(frames)
-    return {"frames": frames, "prices": prices, "dates": dates, "source": source,
+    return {"frames": frames, "prices": prices, "dates": dates, "source": source, "frames_lth": frames_lth,
             "version": f"{dates[-1] if dates else 'none'}|{len(dates)}|{utc_now():%H%M}"}
 
 
@@ -1783,44 +1810,205 @@ def page_overview():
 # TRANG 2 — URPD
 # =============================================================================
 def urpd_figure(frame, price, label, cmp_frame=None, cmp_label=None, sth=None, lth=None,
-                supports=(), resistances=(), ath=DEFAULT_ATH):
+                supports=(), resistances=(), ath=DEFAULT_ATH, lth_delta=None):
+    """Biểu đồ URPD; khi có snapshot so sánh thì thêm hàng dưới hiển thị Δ BTC từng cột (+ Δ của LTH)."""
     plot = frame[frame.price_low > 0].sort_values("price_low").reset_index(drop=True)
     lo, hi = plot.price_low.to_numpy(float), plot.price_high.to_numpy(float)
     mid = (lo + hi) / 2
-    fig = go.Figure()
-    if cmp_frame is not None:
+    has_cmp = cmp_frame is not None
+    fig = make_subplots(rows=2 if has_cmp else 1, cols=1, shared_xaxes=True, vertical_spacing=0.04,
+                        row_heights=[0.72, 0.28] if has_cmp else [1.0])
+    delta = None
+    if has_cmp:
         cp = cmp_frame[cmp_frame.price_low > 0]
         fig.add_bar(x=(cp.price_low + cp.price_high) / 2, y=cp.btc_amount, width=(cp.price_high - cp.price_low) * 0.92,
                     name=cmp_label, marker_color="rgba(148,163,184,.28)",
                     marker_line=dict(color="rgba(148,163,184,.7)", width=1),
-                    hovertemplate=f"{cmp_label}<br>BTC: %{{y:,.0f}}<extra></extra>")
+                    hovertemplate=f"{cmp_label}<br>BTC: %{{y:,.0f}}<extra></extra>", row=1, col=1)
         bd = bucket_deltas(plot, cmp_frame)
         old = pd.Series(bd.old.values, index=bd.low.values).reindex(lo).to_numpy(float) if not bd.empty else np.full(len(lo), np.nan)
-        custom = np.column_stack([lo, hi, old, plot.btc_amount.to_numpy(float) - old])
+        delta = plot.btc_amount.to_numpy(float) - old
+        custom = np.column_stack([lo, hi, old, delta])
         hover = (f"{label}<br>$%{{customdata[0]:,.0f}} – $%{{customdata[1]:,.0f}}<br>BTC: %{{y:,.0f}}<br>"
                  f"{cmp_label}: %{{customdata[2]:,.0f}}<br>Thay đổi: %{{customdata[3]:+,.0f}} BTC<extra></extra>")
     else:
         custom = np.column_stack([lo, hi])
         hover = f"{label}<br>$%{{customdata[0]:,.0f}} – $%{{customdata[1]:,.0f}}<br>BTC: %{{y:,.0f}}<extra></extra>"
-    fig.add_bar(x=mid, y=plot.btc_amount, width=(hi - lo) * (0.72 if cmp_frame is not None else 0.92),
-                name=label, marker_color=np.where(mid < price, GREEN, RED), customdata=custom, hovertemplate=hover)
+    fig.add_bar(x=mid, y=plot.btc_amount, width=(hi - lo) * (0.72 if has_cmp else 0.92), name=label,
+                marker_color=np.where(mid < price, GREEN, RED), customdata=custom, hovertemplate=hover, row=1, col=1)
+    if has_cmp:
+        fig.add_bar(x=mid, y=delta, width=(hi - lo) * 0.85, name="Δ toàn bộ", showlegend=False,
+                    marker_color=np.where(np.nan_to_num(delta) >= 0, GREEN, RED),
+                    hovertemplate="$%{x:,.0f}<br>Δ toàn bộ: %{y:+,.0f} BTC<extra></extra>", row=2, col=1)
+        if lth_delta is not None:
+            ld = pd.Series(lth_delta).reindex(lo).to_numpy(float)
+            fig.add_scatter(x=mid, y=ld, mode="markers", name="Δ holder dài hạn (LTH)",
+                            marker=dict(color=CYAN, size=6, symbol="diamond"),
+                            hovertemplate="$%{x:,.0f}<br>Δ LTH: %{y:+,.0f} BTC<extra></extra>", row=2, col=1)
+        fig.add_hline(y=0, line_color=GREY, line_width=1, row=2, col=1)
     for z in supports:
-        fig.add_vrect(x0=z["low"], x1=z["high"], fillcolor=GREEN, opacity=0.10, line_width=0, layer="below")
+        fig.add_vrect(x0=z["low"], x1=z["high"], fillcolor=GREEN, opacity=0.10, line_width=0, layer="below", row=1, col=1)
     for z in resistances:
-        fig.add_vrect(x0=z["low"], x1=z["high"], fillcolor=RED, opacity=0.10, line_width=0, layer="below")
+        fig.add_vrect(x0=z["low"], x1=z["high"], fillcolor=RED, opacity=0.10, line_width=0, layer="below", row=1, col=1)
     fig.add_vline(x=price, line_dash="dash", line_color="white",
-                  annotation_text=f"Giá {fmt_usd(price)}", annotation_position="top left")
+                  annotation_text=f"Giá {fmt_usd(price)}", annotation_position="top left", row=1, col=1)
     if sth:
         fig.add_vline(x=sth, line_dash="dot", line_color=AMBER, annotation_text=f"STH {fmt_usd(sth)}",
-                      annotation_position="top right", annotation_y=0.93, annotation_font_color=AMBER)
+                      annotation_position="top right", annotation_y=0.93, annotation_font_color=AMBER, row=1, col=1)
     if lth:
         fig.add_vline(x=lth, line_dash="dot", line_color=CYAN, annotation_text=f"LTH {fmt_usd(lth)}",
-                      annotation_position="top right", annotation_y=0.86, annotation_font_color=CYAN)
-    style_fig(fig, 560, hovermode="closest")
-    fig.update_layout(barmode="overlay", bargap=0.02, showlegend=cmp_frame is not None,
-                      xaxis=dict(title="Giá vốn on-chain (USD)", range=[0, max(ath, price) * 1.05], tickformat="$,.0f"),
-                      yaxis=dict(title="BTC"))
+                      annotation_position="top right", annotation_y=0.86, annotation_font_color=CYAN, row=1, col=1)
+    if has_cmp:
+        fig.add_vline(x=price, line_dash="dash", line_color="white", row=2, col=1)
+    style_fig(fig, 680 if has_cmp else 560, hovermode="closest")
+    xr = [0, max(ath, price) * 1.05]
+    fig.update_layout(barmode="overlay", bargap=0.02, showlegend=has_cmp)
+    fig.update_xaxes(range=xr, tickformat="$,.0f")
+    fig.update_xaxes(title_text="Giá vốn on-chain (USD)", row=2 if has_cmp else 1, col=1)
+    fig.update_yaxes(title_text="BTC", row=1, col=1)
+    if has_cmp:
+        fig.update_yaxes(title_text="Δ BTC", row=2, col=1)
     return fig
+
+
+def lth_delta_series(store, sel, cmp_date):
+    """Δ BTC của holder dài hạn theo bucket (index = price_low), nếu có URPD LTH cho cả 2 ngày."""
+    a, b = store.get("frames_lth", {}).get(sel), store.get("frames_lth", {}).get(cmp_date)
+    if a is None or b is None:
+        return None
+    bd = bucket_deltas(a, b)
+    return pd.Series(bd.delta.values, index=bd.low.values) if not bd.empty else None
+
+
+def bucket_change_table(frame, cmp_frame, lth_delta, only_big, price):
+    bd = bucket_deltas(frame, cmp_frame)
+    if bd.empty:
+        return None
+    bd = bd.sort_values("low", ascending=False)
+    if lth_delta is not None:
+        bd["lth"] = lth_delta.reindex(bd.low).to_numpy(float)
+    if only_big:
+        bd = bd[bd.delta.abs() >= 1000]
+    out = pd.DataFrame({
+        "Vùng giá": [("🟢 " if h <= price else "🔴 ") + f"${a / 1000:,.0f}k–{h / 1000:,.0f}k" for a, h in zip(bd.low, bd.high)],
+        "BTC": bd.current.round(0),
+        "Δ BTC": bd.delta.round(0),
+    })
+    if "lth" in bd.columns:
+        out["Δ LTH"] = bd.lth.round(0)
+    return out
+
+
+def _color_delta(v):
+    if pd.isna(v) or v == 0:
+        return ""
+    return "color: #34d399; font-weight: 600" if v > 0 else "color: #f87171; font-weight: 600"
+
+
+def render_flow_analysis(store, sel, cmp_date, frame, cmp_frame, price, lth_delta):
+    """BTC rời vùng giá đã đi đâu? — dựa trên cơ chế của URPD."""
+    st.subheader(f"🔀 BTC rời các vùng giá đã đi đâu? ({cmp_date} → {sel})")
+    d0, d1 = parse_day(cmp_date), parse_day(sel)
+    closes = [store["prices"][k] for k in store["dates"] if d0 <= parse_day(k) <= d1 and store["prices"].get(k)]
+    closes = closes or [price]
+    zone_lo = np.floor(min(closes) * 0.98 / 1000) * 1000
+    zone_hi = np.ceil(max(closes) * 1.02 / 1000) * 1000
+    avg_px = float(np.mean(closes[1:] if len(closes) > 1 else closes))
+    bd = bucket_deltas(frame, cmp_frame)
+    if bd.empty:
+        st.info("Không đủ dữ liệu để phân tích.")
+        return
+    bd["mid"] = (bd.low + bd.high) / 2
+    in_zone = (bd.high > zone_lo) & (bd.low < zone_hi)
+    dep = bd[~in_zone & (bd.delta <= -50)].copy()
+    arrivals = float(bd[in_zone].delta.sum())
+    if lth_delta is not None:
+        dep["lth"] = lth_delta.reindex(dep.low).to_numpy(float)
+    dep["kind"] = np.where(dep.mid < zone_lo, "profit", "loss")
+    dep["usd"] = -dep.delta * (avg_px - dep.mid)
+    prof, loss = dep[dep.kind == "profit"], dep[dep.kind == "loss"]
+    moved = float(-dep.delta.sum())
+    days = max(1, (d1 - d0).days)
+    mined = 450.0 * days
+
+    m = st.columns(4)
+    m[0].metric("BTC rời các vùng giá cũ", fmt_btc(moved), help="Tổng các vùng giảm, không tính vùng giá đang giao dịch.")
+    m[1].metric(f"Vùng giá giao dịch ${zone_lo / 1000:,.0f}k–{zone_hi / 1000:,.0f}k", fmt_btc(arrivals, signed=True),
+                f"gồm ≈ {fmt_btc(mined)} mới đào", delta_color="off",
+                help="BTC di chuyển xuất hiện lại ở đây — giá vốn mới = giá lúc di chuyển.")
+    m[2].metric("Từ vùng đang lãi (chốt lời?)", fmt_btc(-prof.delta.sum()),
+                f"lãi ước tính {fmt_big_usd(prof.usd.sum())}", delta_color="off")
+    m[3].metric("Từ vùng đang lỗ (cắt lỗ?)", fmt_btc(-loss.delta.sum()),
+                f"lỗ ước tính {fmt_big_usd(-loss.usd.sum())}", delta_color="off")
+
+    if not dep.empty:
+        dep["band"] = (dep.low // 5000 * 5000).astype(int)
+        grp = dep.groupby(["band", "kind"]).agg(btc=("delta", lambda x: -x.sum())).reset_index()
+        grp = grp.sort_values("btc", ascending=False).head(10)
+        labels = [f"${b / 1000:,.0f}k–{(b + 5000) / 1000:,.0f}k" for b in grp.band] + \
+                 [f"Vùng giá giao dịch ${zone_lo / 1000:,.0f}k–{zone_hi / 1000:,.0f}k"]
+        target = len(grp)
+        fig = go.Figure(go.Sankey(
+            node=dict(label=labels, pad=14, thickness=16,
+                      color=[GREEN if k == "profit" else RED for k in grp.kind] + ["#f8fafc"]),
+            link=dict(source=list(range(len(grp))), target=[target] * len(grp), value=grp.btc.tolist(),
+                      color=["rgba(16,185,129,.35)" if k == "profit" else "rgba(239,68,68,.35)" for k in grp.kind],
+                      hovertemplate="%{source.label} → %{target.label}<br>%{value:,.0f} BTC<extra></extra>")))
+        fig.update_layout(height=360, paper_bgcolor=CHART_BG, font=dict(color="#e5e7eb", size=12),
+                          margin=dict(l=10, r=10, t=10, b=10))
+        show_fig(fig, "urpd_sankey")
+
+        top = dep.sort_values("delta").head(12)
+        rows = pd.DataFrame({
+            "Vùng rời đi": [f"${a / 1000:,.0f}k–{h / 1000:,.0f}k" for a, h in zip(top.low, top.high)],
+            "Δ BTC": top.delta.round(0),
+            "Trong đó LTH": top["lth"].round(0) if "lth" in top.columns else np.nan,
+            "Đi đến": f"${zone_lo / 1000:,.0f}k–{zone_hi / 1000:,.0f}k",
+            "Trạng thái khi di chuyển": np.where(top.kind == "profit", "🟢 đang lãi", "🔴 đang lỗ"),
+            "Lãi/lỗ ước tính": top.usd.map(lambda v: fmt_big_usd(v, signed=True)),
+        })
+        if "lth" not in top.columns:
+            rows = rows.drop(columns=["Trong đó LTH"])
+        dcols = [c for c in ("Δ BTC", "Trong đó LTH") if c in rows.columns]
+        st.dataframe(rows.style.map(_color_delta, subset=dcols).format({c: "{:+,.0f}" for c in dcols}, na_rep="—"),
+                     hide_index=True, **STRETCH)
+
+    lth_spent = float(-np.clip(dep["lth"].fillna(0), None, 0).sum()) if "lth" in dep.columns else None
+    lines = [f"Khoảng **{fmt_btc(moved)}** đã rời các vùng giá cũ. Theo cơ chế URPD, BTC nào di chuyển on-chain sẽ "
+             f"được ghi giá vốn mới bằng giá lúc di chuyển, nên toàn bộ lượng này **xuất hiện lại ở vùng "
+             f"${zone_lo / 1000:,.0f}k–{zone_hi / 1000:,.0f}k** (vùng này tăng {fmt_btc(arrivals, signed=True)}, gồm cả ≈{fmt_btc(mined)} mới đào)."]
+    if len(prof):
+        lines.append(f"🟢 **{fmt_btc(-prof.delta.sum())}** đến từ vùng đang lãi — nhiều khả năng **chốt lời**, "
+                     f"lãi ước tính **{fmt_big_usd(prof.usd.sum())}**.")
+    if len(loss):
+        lines.append(f"🔴 **{fmt_btc(-loss.delta.sum())}** đến từ vùng đang lỗ — có thể **cắt lỗ/bán hòa vốn**, "
+                     f"lỗ ước tính **{fmt_big_usd(-loss.usd.sum())}**.")
+    if lth_spent is not None:
+        lines.append(f"🧓 Trong đó ít nhất **{fmt_btc(lth_spent)}** là của **holder dài hạn (≥155 ngày)** — nhóm này bán "
+                     "thường là tín hiệu phân phối mạnh hơn holder ngắn hạn.")
+    elif "frames_lth" in store:
+        lines.append("🧓 Phần tách holder dài hạn/ngắn hạn sẽ có sau lần chạy GitHub Actions tới (đang bắt đầu lưu URPD của LTH).")
+    real = load_realized()
+    if not real.empty:
+        rr = real[(real.date > d0) & (real.date <= d1)]
+        if not rr.empty:
+            lines.append(f"🔁 Đối chiếu BGeometrics cùng kỳ: chốt lời thực tế {fmt_big_usd(rr.realized_profit.sum())}, "
+                         f"cắt lỗ thực tế {fmt_big_usd(rr.realized_loss.sum())} (số thực tế lớn hơn vì gồm cả coin "
+                         "di chuyển trong vùng giá giao dịch).")
+    mk("\n".join(f"- {x}" for x in lines))
+
+    with st.expander("❓ Có biết được BTC đó lên sàn bán hay chỉ chuyển ví không?"):
+        mk("\n".join([
+            "- **URPD chỉ cho biết coin đã di chuyển và giá vốn cũ của nó**, không cho biết ví đích là sàn hay ví cá nhân. "
+            "Coin có thể: nạp lên sàn để bán, chuyển sang ví lạnh/ví mới, gộp UTXO, hoặc sàn tự xoay ví nội bộ.",
+            "- **Dấu hiệu nghiêng về bán thật:** lượng lớn rời vùng đang lãi xa (chốt lời) hoặc ngay trên giá (bán hòa vốn), "
+            "kèm *Realized P/L* tăng mạnh cùng ngày (trang On-chain) và giá giảm.",
+            "- **Dấu hiệu chỉ là chuyển ví:** coin rời đi nhưng Realized P/L thấp, giá không phản ứng, "
+            "hoặc lượng lớn ở các vùng rất cũ (dưới $20k) — thường là sàn/tổ chức xoay ví lưu ký.",
+            "- **Biết chính xác nạp sàn** cần dữ liệu dòng tiền sàn (Exchange Netflow) — hiện chỉ có ở gói trả phí "
+            "(CryptoQuant, Glassnode, BGeometrics Advanced).",
+            "- Lãi/lỗ ước tính = lượng BTC × (giá trung bình kỳ − giá giữa vùng), chỉ là xấp xỉ.",
+        ]))
 
 
 def page_urpd():
@@ -1858,10 +2046,31 @@ def page_urpd():
     sth, _ = latest_value(onchain, "sth_realized_price", on_or_before=day)
     lth, _ = latest_value(onchain, "lth_realized_price", on_or_before=day)
     supports, resistances = find_sr_zones(frame, price)
-    show_fig(urpd_figure(frame, price, f"Snapshot {sel}", cmp_frame, f"Snapshot {cmp_date}", sth, lth,
-                         supports, resistances, ath), key="urpd_main")
+    lth_d = lth_delta_series(store, sel, cmp_date) if cmp_frame is not None else None
+    fig = urpd_figure(frame, price, f"Snapshot {sel}", cmp_frame, f"Snapshot {cmp_date}", sth, lth,
+                      supports, resistances, ath, lth_delta=lth_d)
+    if cmp_frame is not None:
+        left, right = st.columns([2.5, 1.5])
+        with left:
+            show_fig(fig, key="urpd_main")
+        with right:
+            only_big = st.toggle("Chỉ vùng thay đổi ≥ 1.000 BTC", value=True, key="urpd_only_big")
+            tbl = bucket_change_table(frame, cmp_frame, lth_d, only_big, price)
+            if tbl is None or tbl.empty:
+                cap("Không có vùng nào thay đổi đáng kể.")
+            else:
+                cols = [c for c in ("Δ BTC", "Δ LTH") if c in tbl.columns]
+                st.dataframe(tbl.style.map(_color_delta, subset=cols).format(
+                    {"BTC": "{:,.0f}", **{c: "{:+,.0f}" for c in cols}}, na_rep="—"),
+                    hide_index=True, height=640, **STRETCH)
+        cap("Hàng dưới biểu đồ = Δ BTC từng cột so với snapshot so sánh (♦ xanh = phần của holder dài hạn). "
+            "Bảng bên phải liệt kê đúng các cột đó theo giá từ cao xuống thấp.")
+    else:
+        show_fig(fig, key="urpd_main")
     cap("🟢 giá vốn dưới giá snapshot · 🔴 trên giá · nền xanh/đỏ = vùng hỗ trợ/kháng cự tự động · "
-               "chấm cam/xanh = giá vốn STH/LTH.")
+        "chấm cam/xanh = giá vốn STH/LTH.")
+    if cmp_frame is not None:
+        render_flow_analysis(store, sel, cmp_date, frame, cmp_frame, price, lth_d)
 
     # ---- Bảng biến động gộp (cùng mức giá tham chiếu)
     st.subheader("📋 Biến động theo khung thời gian")
@@ -1887,30 +2096,11 @@ def page_urpd():
     cap("Mọi Δ tính tại CÙNG mức giá của ngày đang xem cho cả hai snapshot, nên phản ánh thay đổi cấu trúc "
                "giá vốn chứ không bị nhiễu bởi việc giá di chuyển. '—' = history chưa có ngày đó.")
 
-    # ---- Bucket thay đổi mạnh nhất
+    # ---- Tải toàn bộ thay đổi theo bucket (bảng chi tiết đã nằm cạnh biểu đồ)
     if cmp_frame is not None:
         bd = bucket_deltas(frame, cmp_frame)
         if not bd.empty:
-            st.subheader(f"🔄 Bucket thay đổi mạnh nhất: {cmp_date} → {sel}")
-            up, dn = bd[bd.delta > 0], bd[bd.delta < 0]
-            m = st.columns(3)
-            m[0].metric("Tổng bucket tăng", fmt_btc(up.delta.sum()))
-            m[1].metric("Tổng bucket giảm", fmt_btc(dn.delta.sum()))
-            m[2].metric("Chênh lệch ròng", fmt_btc(bd.delta.sum(), signed=True))
-
-            def top(df, asc):
-                x = df.sort_values("delta", ascending=asc).head(10)
-                return pd.DataFrame({"Vùng giá": [f"{fmt_usd(a)} – {fmt_usd(b)}" for a, b in zip(x.low, x.high)],
-                                     "Thay đổi": [fmt_btc(v, signed=True) for v in x.delta],
-                                     "%": [f"{v:+.1f}%" if np.isfinite(v) else "—" for v in x.pct]})
-            a, b = st.columns(2)
-            with a:
-                mk("**🟢 Tăng nhiều nhất**")
-                show_df(top(up, False))
-            with b:
-                mk("**🔴 Giảm nhiều nhất**")
-                show_df(top(dn, True))
-            st.download_button("⬇️ Tải CSV toàn bộ bucket", bd.to_csv(index=False).encode("utf-8-sig"),
+            st.download_button("⬇️ Tải CSV thay đổi toàn bộ bucket", bd.to_csv(index=False).encode("utf-8-sig"),
                                file_name=f"urpd_delta_{cmp_date}_{sel}.csv", mime="text/csv")
 
     with st.expander("🧠 Cách đọc URPD"):
