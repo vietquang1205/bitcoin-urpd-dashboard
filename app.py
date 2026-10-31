@@ -222,44 +222,65 @@ def snapshot_changed(old, new):
 # =============================================================================
 # NGUỒN DỮ LIỆU: BITVIEW (URPD)
 # =============================================================================
+def _bitview_bucket_rows(buckets):
+    """Đọc buckets của Bitview ở cả 2 định dạng:
+    • cũ: [{"price_floor": 1000, "supply": 123.4}, ...]
+    • mới (từ 31/10/2026): {"price": [0, 1000, ...], "supply": [...], "realized_cap": [...], ...}"""
+    pairs = []
+    if isinstance(buckets, dict):
+        prices = buckets.get("price") or buckets.get("price_floor") or []
+        supplies = buckets.get("supply") or []
+        pairs = list(zip(prices, supplies))
+    elif isinstance(buckets, list):
+        for b in buckets:
+            if isinstance(b, dict):
+                pairs.append((b.get("price_floor", b.get("price")), b.get("supply")))
+            elif isinstance(b, (list, tuple)) and len(b) >= 2:
+                pairs.append((b[0], b[1]))
+    out = []
+    for p, v in pairs:
+        p, v = safe_float(p), safe_float(v)
+        if p is not None and v is not None and v >= 0:
+            out.append((p, v))
+    return out
+
+
 def fetch_bitview_urpd(day, agg="lin1000"):
-    """URPD từ Bitview / Bitcoin Research Kit. Trả (frame, url, close, total_supply)."""
+    """URPD từ Bitview / Bitcoin Research Kit. Trả (frame, url, close, total_supply).
+    Luôn quy về bucket cố định $1.000 để khớp với history cũ."""
     base_url = f"https://bitview.space/api/urpd/all/{day}"
-    attempts = [(base_url, {"agg": agg, "weight": "raw"}), (base_url, {})]
+    # Bitview đổi API ngày 31/10/2026: tham số weight=raw bị từ chối (lỗi 400) → thử agg=lin1000 trước.
+    attempts = [{"agg": agg}, {"agg": agg, "weight": "raw"}, {}]
     errors, response = [], None
-    for url, params in attempts:
+    for params in attempts:
         try:
-            r = requests.get(url, params=params, headers=HTTP_HEADERS, timeout=30)
+            r = requests.get(base_url, params=params, headers=HTTP_HEADERS, timeout=30)
             if r.status_code == 404:
                 errors.append("404: chưa có snapshot")
                 continue
             r.raise_for_status()
             payload = r.json()
-            if not isinstance(payload, dict) or not isinstance(payload.get("buckets"), list) or not payload["buckets"]:
-                raise ValueError("response không có buckets")
-            response = (r, payload)
+            rows = _bitview_bucket_rows(payload.get("buckets")) if isinstance(payload, dict) else []
+            if not rows:
+                raise ValueError("response không có buckets hợp lệ")
+            response = (r, payload, rows)
             break
         except Exception as e:
-            errors.append(f"{type(e).__name__}: {e}")
+            errors.append(f"{params or 'mặc định'} → {type(e).__name__}: {str(e)[:120]}")
     if response is None:
         raise RuntimeError(f"Bitview không lấy được {day}. " + " | ".join(errors))
 
-    r, payload = response
-    use_fixed_width = "agg=lin1000" in r.url
-    rows = []
-    for b in payload["buckets"]:
-        if not isinstance(b, dict):
-            continue
-        low = safe_float(b.get("price_floor"))
-        supply = safe_float(b.get("supply"))
-        if low is None or supply is None or supply < 0:
-            continue
-        rows.append({"price_low": low, "btc_amount": supply,
-                     "price_high": low + 1000.0 if use_fixed_width else low})
-    if not rows:
-        raise ValueError(f"Bitview trả buckets nhưng không có dòng hợp lệ cho {day}.")
-    out = normalize_urpd(pd.DataFrame(rows))
-    return out, r.url, payload.get("close"), payload.get("total_supply")
+    r, payload, rows = response
+    # Gộp về bucket $1.000 (nếu API trả dạng chi tiết/raw thì mỗi mức giá được dồn vào bucket chứa nó).
+    agg_map = {}
+    for p, v in rows:
+        low = float(np.floor(p / 1000.0) * 1000.0)
+        agg_map[low] = agg_map.get(low, 0.0) + v
+    frame = pd.DataFrame([{"price_low": k, "price_high": k + 1000.0, "btc_amount": v}
+                          for k, v in sorted(agg_map.items())])
+    out = normalize_urpd(frame)
+    total_supply = payload.get("total_supply", payload.get("supply"))
+    return out, r.url, payload.get("close"), total_supply if not isinstance(total_supply, (dict, list)) else None
 
 
 def fetch_bgeometrics_urpd(day):
@@ -857,8 +878,9 @@ def update_urpd(status):
     saved = sorted(k for k, v in hist.items() if is_day_key(k) and isinstance(v, dict) and v.get("urpd"))
     if saved:
         last = parse_day(saved[-1])
-        # Hôm nay/hôm qua có thể chưa chốt → luôn lấy lại; bù tối đa 30 ngày còn thiếu.
-        start = last if last >= today - timedelta(days=1) else last + timedelta(days=1)
+        # Luôn lấy lại 2 ngày gần nhất + hôm nay (snapshot lấy giữa ngày chưa chốt sẽ được thay bằng bản cuối ngày);
+        # đồng thời bù các ngày còn thiếu, tối đa 30 ngày.
+        start = min(last + timedelta(days=1), today - timedelta(days=2))
         start = max(start, today - timedelta(days=30))
     else:
         start = today - timedelta(days=URPD_INITIAL_DAYS - 1)
