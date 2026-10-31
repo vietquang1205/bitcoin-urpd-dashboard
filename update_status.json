@@ -1,38 +1,48 @@
 {
  "fatal": [],
- "last_run_utc": "2026-10-30 21:37",
+ "last_run_utc": "2026-10-31 07:06",
  "market": {
-  "total_mcap": 2610223208809.5317,
-  "total_mcap_change_24h": -4.204056757850758,
-  "btc_mcap": 1543554470870.992,
-  "btc_change_24h": -3.4680580383584214,
-  "usdt_usdc": 251987150052.51862,
-  "adjusted_btc_dom": 65.45377275269779,
-  "alt_ex_stables": 814681587886.0212,
-  "alt_change_24h": -6.774458200958211,
-  "fetched_at_utc": "2026-10-30 21:37"
+  "total_mcap": 2621048781844.4546,
+  "total_mcap_change_24h": -3.8260128399126,
+  "btc_mcap": 1554154811231.421,
+  "btc_change_24h": -1.4715592116351315,
+  "usdt_usdc": 251810332680.90155,
+  "adjusted_btc_dom": 65.59723069580046,
+  "alt_ex_stables": 815083637932.1322,
+  "alt_change_24h": -9.057877631535948,
+  "fetched_at_utc": "2026-10-31 07:06"
  },
  "urpd": {
   "latest_date": "2026-10-30",
   "changed": [],
   "errors": [
-   "2026-10-30: Bitview không lấy được 2026-10-30. HTTPError: 400 Client Error: Bad Request for url: https://bitview.space/api/urpd/all/2026-10-30?agg=lin1000&weight=raw | ValueError: response không có buckets"
+   "2026-10-30: Bitview không lấy được 2026-10-30. HTTPError: 400 Client Error: Bad Request for url: https://bitview.space/api/urpd/all/2026-10-30?agg=lin1000&weight=raw | ValueError: response không có buckets",
+   "2026-10-31: Bitview không lấy được 2026-10-31. HTTPError: 400 Client Error: Bad Request for url: https://bitview.space/api/urpd/all/2026-10-31?agg=lin1000&weight=raw | ValueError: response không có buckets"
   ]
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
+  "updated": {
+   "realized_profit": 1,
+   "realized_loss": 1,
+   "btc_price": 1
+  },
   "errors": [],
   "pending": []
  },
  "onchain": {
   "updated": {
-   "mvrv": 6,
-   "nupl": 6,
-   "sopr": 6
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
   },
   "errors": [],
   "pending": []
