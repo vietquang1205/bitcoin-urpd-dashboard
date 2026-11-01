@@ -4,7 +4,9 @@ name: Update BTC data
 
 on:
   schedule:
-    - cron: "23 1,9,17 * * *"   # 08:23, 16:23, 00:23 giờ Việt Nam
+    # Mỗi 2 giờ (phút 17). GitHub thường chạy lịch trễ 5 phút – vài giờ, chạy dày giúp dữ liệu luôn mới.
+    # Ngày URPD tính theo giờ UTC: ngày mới bắt đầu lúc 07:00 sáng giờ VN → lần chạy 07:17 VN có dữ liệu ngày mới.
+    - cron: "17 */2 * * *"
   workflow_dispatch:             # cho phép bấm "Run workflow" chạy tay
 
 permissions:
