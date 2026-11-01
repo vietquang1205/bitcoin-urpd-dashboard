@@ -1063,12 +1063,17 @@
    "realized_profit": 440113621.03,
    "realized_loss": -1135237085.76,
    "btc_price": 77109.5907473057
+  },
+  "2026-10-31": {
+   "realized_profit": 311080794.81,
+   "realized_loss": -159855241.11,
+   "btc_price": 77401.0172870368
   }
  },
- "updated_at_utc": "2026-10-31 07:06",
+ "updated_at_utc": "2026-11-01 11:15",
  "last_attempt": {
-  "realized_profit": "2026-10-31",
-  "realized_loss": "2026-10-31",
-  "btc_price": "2026-10-31"
+  "realized_profit": "2026-11-01",
+  "realized_loss": "2026-11-01",
+  "btc_price": "2026-11-01"
  }
 }
