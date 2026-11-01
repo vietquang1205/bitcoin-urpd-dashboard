@@ -1537,10 +1537,12 @@ def current_snapshot(store):
     if up is not None:
         return up["frame"], up["name"], None, "File tải lên"
     dates = store["dates"]
-    if not dates or parse_day(dates[-1]) < utc_today() - timedelta(days=1):
+    if not dates or parse_day(dates[-1]) < utc_today():
+        # Ngày UTC mới đã bắt đầu (07:00 giờ VN) nhưng GitHub Actions chưa chạy → lấy tạm trực tiếp từ Bitview.
         live = live_bitview_latest()
         if live and (not dates or live[0] > dates[-1]):
-            return records_to_urpd(live[1]), live[0], live[2], "Bitview trực tiếp (chưa lưu — GitHub Actions chưa chạy)"
+            return (records_to_urpd(live[1]), live[0], live[2],
+                    "Bitview trực tiếp — số tạm tính trong ngày, sẽ được lưu ở lần chạy GitHub Actions tới")
     if not dates:
         return None, None, None, "Chưa có dữ liệu"
     d = dates[-1]
