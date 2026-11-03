@@ -1195,6 +1195,152 @@ def update_market(status):
         _log(f"Vốn hóa thị trường lỗi: {e}")
 
 
+REPORT_FILE = "daily_report.json"
+
+
+def _r(x, nd=0):
+    v = safe_float(x)
+    return None if v is None else round(v, nd) if nd else round(v)
+
+
+def flow_summary(hist_frames, hist_lth, prices, sel, cmp_date, price):
+    """BTC rời vùng giá cũ đi đâu (pure) — cùng logic với trang URPD."""
+    cur, old = hist_frames.get(sel), hist_frames.get(cmp_date)
+    if cur is None or old is None:
+        return None
+    d0, d1 = parse_day(cmp_date), parse_day(sel)
+    closes = [p for k, p in prices.items() if d0 <= parse_day(k) <= d1 and p] or [price]
+    zone_lo = float(np.floor(min(closes) * 0.98 / 1000) * 1000)
+    zone_hi = float(np.ceil(max(closes) * 1.02 / 1000) * 1000)
+    avg_px = float(np.mean(closes))
+    bd = bucket_deltas(cur, old)
+    if bd.empty:
+        return None
+    bd["mid"] = (bd.low + bd.high) / 2
+    if hist_lth.get(sel) is not None and hist_lth.get(cmp_date) is not None:
+        lb = bucket_deltas(hist_lth[sel], hist_lth[cmp_date])
+        bd["lth"] = pd.Series(lb.delta.values, index=lb.low.values).reindex(bd.low).to_numpy(float)
+    in_zone = (bd.high > zone_lo) & (bd.low < zone_hi)
+    dep = bd[~in_zone & (bd.delta <= -50)].copy()
+    dep["usd"] = -dep.delta * (avg_px - dep.mid)
+    prof, loss = dep[dep.mid < zone_lo], dep[dep.mid >= zone_hi]
+    top = dep.sort_values("delta").head(8)
+    return {
+        "from": cmp_date, "to": sel, "zone": [zone_lo, zone_hi],
+        "moved_btc": _r(-dep.delta.sum()), "arrivals_in_zone_btc": _r(bd[in_zone].delta.sum()),
+        "profit_btc": _r(-prof.delta.sum()), "profit_usd_est": _r(prof.usd.sum()),
+        "loss_btc": _r(-loss.delta.sum()), "loss_usd_est": _r(-loss.usd.sum()),
+        "lth_spent_btc_min": _r(-np.clip(dep["lth"].fillna(0), None, 0).sum()) if "lth" in dep.columns else None,
+        "top_departures": [{"range": f"{a:.0f}-{h:.0f}", "delta": _r(dv),
+                            "lth": _r(l) if "lth" in top.columns else None,
+                            "state": "lãi" if m < zone_lo else "lỗ"}
+                           for a, h, dv, m, l in zip(top.low, top.high, top.delta, top.mid,
+                                                     top["lth"] if "lth" in top.columns else [None] * len(top))],
+        "biggest_bucket_changes": [{"range": f"{a:.0f}-{h:.0f}", "delta": _r(dv)}
+                                   for a, h, dv in bd.reindex(bd.delta.abs().sort_values(ascending=False).index)
+                                   .head(6)[["low", "high", "delta"]].itertuples(index=False)],
+    }
+
+
+def build_daily_report(status):
+    """Tóm tắt gọn mọi chỉ số chính vào daily_report.json — để báo cáo nhanh theo yêu cầu."""
+    hist = _load_json(URPD_FILE)
+    frames, lth, prices = {}, {}, {}
+    for k, v in hist.items():
+        if is_day_key(k) and isinstance(v, dict) and v.get("urpd"):
+            try:
+                frames[k] = records_to_urpd(v["urpd"])
+                if v.get("urpd_lth"):
+                    lth[k] = records_to_urpd(v["urpd_lth"])
+                if safe_float(v.get("price")):
+                    prices[k] = float(v["price"])
+            except Exception:
+                continue
+    dates = sorted(frames)
+    if not dates:
+        return
+    cur_date = dates[-1]
+    cur = frames[cur_date]
+    price = fetch_live_price() or prices.get(cur_date)
+    onchain = merge_onchain_frames(_daily_file_frame(RESEARCH_FILE), _daily_file_frame(ONCHAIN_FILE))
+    realized = _daily_file_frame(REALIZED_FILE)
+    if not realized.empty and "realized_loss" in realized.columns:
+        realized["realized_loss"] = realized["realized_loss"].abs()
+        realized = realized.dropna(subset=["realized_profit", "realized_loss"])
+    ath = safe_float(clean_secret(os.environ.get("ATH_USD", ""))) or DEFAULT_ATH
+
+    def prev(n):
+        k = day_str(parse_day(cur_date) - timedelta(days=n))
+        return k if k in frames else None
+
+    p1, p7 = prev(1), prev(7)
+    sup, res = find_sr_zones(cur, price)
+    rows, g, r, verdict = build_signals(price, onchain, realized, cur, frames.get(p7), ath)
+    loss_pct, loss_d = latest_value(onchain, "supply_in_loss_percent")
+    overhead = btc_in_range(cur, price, max(ath, price))
+
+    # Vùng theo dõi (mặc định 57.800–67.300; đổi bằng secret WATCH_ZONE_LOW/HIGH)
+    zlo = safe_float(clean_secret(os.environ.get("WATCH_ZONE_LOW", ""))) or WATCH_ZONE_DEFAULT[0]
+    zhi = safe_float(clean_secret(os.environ.get("WATCH_ZONE_HIGH", ""))) or WATCH_ZONE_DEFAULT[1]
+    zs = {d: btc_in_range(frames[d], zlo, zhi) for d in dates}
+    peak_d = max(zs, key=zs.get)
+
+    def zchg(n):
+        k = day_str(parse_day(cur_date) - timedelta(days=n))
+        older = [d for d in dates if d <= k]
+        return _r(zs[cur_date] - zs[older[-1]]) if older else None
+
+    rp = realized.iloc[-1] if not realized.empty else None
+    news = []
+    try:
+        for n in fetch_news_radar(days=2, max_items=8):
+            news.append({"title": n["title"], "title_vi": _translate_raw(n["title"]), "source": n["source"],
+                         "category": n["category"], "time_utc": n["published"].strftime("%Y-%m-%d %H:%M")})
+    except Exception:
+        pass
+    try:
+        events = [{k: e[k] for k in ("date", "time", "event", "impact")}
+                  for e in upcoming_btc_events(7, rows=fetch_economic_calendar_raw())]
+    except Exception:
+        events = []
+
+    btc = {
+        "price_live": _r(price), "urpd_latest_date": cur_date, "urpd_close": _r(prices.get(cur_date)),
+        "history_days": len(dates),
+        "supply_in_loss_pct": _r(loss_pct, 2), "supply_in_loss_date": day_str(loss_d) if loss_d else None,
+        "supply_in_loss_pct_chg_1d": _r(loss_pct - value_days_before(onchain, "supply_in_loss_percent", loss_d, 1), 2)
+        if loss_pct is not None and value_days_before(onchain, "supply_in_loss_percent", loss_d, 1) is not None else None,
+        "sth_cost_basis": _r(latest_value(onchain, "sth_realized_price")[0]),
+        "lth_cost_basis": _r(latest_value(onchain, "lth_realized_price")[0]),
+        "mvrv": _r(latest_value(onchain, "mvrv")[0], 3), "nupl": _r(latest_value(onchain, "nupl")[0], 3),
+        "overhead_to_ath_btc": _r(overhead),
+        "overhead_struct_chg_1d": _r(overhead - btc_in_range(frames[p1], price, max(ath, price))) if p1 else None,
+        "realized_last": {"date": day_str(rp.date), "profit": _r(rp.realized_profit), "loss": _r(rp.realized_loss),
+                          "net": _r(rp.realized_profit - rp.realized_loss)} if rp is not None else None,
+        "realized_net_7d": _r((realized.tail(7).realized_profit - realized.tail(7).realized_loss).sum())
+        if not realized.empty else None,
+        "supports": [{"range": f"{z['low']:.0f}-{z['high']:.0f}", "btc": _r(z["btc"]), "dist_pct": _r(z["distance_pct"], 1)} for z in sup],
+        "resistances": [{"range": f"{z['low']:.0f}-{z['high']:.0f}", "btc": _r(z["btc"]), "dist_pct": _r(z["distance_pct"], 1)} for z in res],
+        "signals": [{"name": x[0], "light": x[1], "value": x[2]} for x in rows],
+        "verdict": verdict, "greens": g, "reds": r,
+        "flow_1d": flow_summary(frames, lth, prices, cur_date, p1, price) if p1 else None,
+        "flow_7d": flow_summary(frames, lth, prices, cur_date, p7, price) if p7 else None,
+        "watch_zone": {"lo": zlo, "hi": zhi, "btc": _r(zs[cur_date]),
+                       "pct_supply": _r(zs[cur_date] / float(cur.btc_amount.sum()) * 100, 2),
+                       "chg_1d": zchg(1), "chg_7d": zchg(7), "chg_30d": zchg(30),
+                       "peak_date": peak_d, "peak_btc": _r(zs[peak_d]), "vs_peak": _r(zs[cur_date] - zs[peak_d])},
+        "market": {k: (_r(v, 2) if isinstance(v, float) else v) for k, v in (status.get("market") or {}).items()},
+        "events_7d": events, "news_48h": news,
+        "data_errors": {k: (status.get(k) or {}).get("errors") for k in ("urpd", "research", "realized", "onchain")
+                        if (status.get(k) or {}).get("errors")},
+    }
+    rep = _load_json(REPORT_FILE)
+    rep.update({"generated_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "btc": btc})
+    with open(REPORT_FILE, "w", encoding="utf-8") as f:
+        json.dump(rep, f, ensure_ascii=False, indent=1, default=str)
+    _log("Báo cáo tổng hợp: đã ghi daily_report.json")
+
+
 def run_update():
     _log(f"BTC URPD Monitor {APP_VERSION} — cập nhật dữ liệu")
     status = _load_json(STATUS_FILE)
@@ -1203,7 +1349,8 @@ def run_update():
     if isinstance(status.get("telegram"), dict):
         status["telegram"].pop("error", None)
     status["fatal"] = []
-    for step in (update_urpd, update_research, update_realized, update_onchain, update_market, send_telegram_report):
+    for step in (update_urpd, update_research, update_realized, update_onchain, update_market, send_telegram_report,
+                 build_daily_report):
         try:
             step(status)
         except Exception as e:  # một bước lỗi không làm hỏng các bước khác
