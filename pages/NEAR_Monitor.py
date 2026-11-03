@@ -1114,11 +1114,75 @@ def run_near_update():
     for k, v in errors.items():
         _log(f"  ⚠️ {k}: {v}")
     try:
+        write_near_report(data)
+    except Exception as e:
+        _log(f"  ⚠️ daily_report.json: {e}")
+    try:
         if send_near_telegram(data):
             with open(NEAR_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     except Exception as e:
         _log(f"  ⚠️ Telegram: {e}")
+
+
+def write_near_report(data):
+    """Ghi phần NEAR vào daily_report.json (dùng chung với BTC) để báo cáo nhanh theo yêu cầu."""
+    df = daily_frame(data)
+    live = {}
+    for fn in (fetch_coingecko_now, fetch_coinbase_now):
+        try:
+            live = fn()
+            if live.get("price"):
+                break
+        except Exception:
+            continue
+    price = live.get("price") or (float(df.price.dropna().iloc[-1]) if "price" in df.columns and df.price.notna().any() else None)
+    if not price:
+        return
+    model = cost_basis_model(df)
+    mm = model_metrics(model, price)
+    sup, res = find_zones(model, price)
+    wf = whale_frame(data)
+    rep = compute_report(df, mm.get("realized_price"), wf, data.get("news"))
+    qty = safe_float(clean_secret(os.environ.get("NEAR_HOLDINGS", ""))) or 5000.0
+
+    def lv(col):
+        v, _ = last_val(df, col)
+        return None if v is None else round(v, 4)
+    near = {
+        "price_live": round(price, 4), "change_24h": live.get("change_24h"), "holdings": qty,
+        "holdings_value_usd": round(qty * price, 2),
+        "cost_basis_est": round(mm["realized_price"], 4) if mm.get("realized_price") else None,
+        "supply_in_loss_est_pct": round(mm["loss_pct"], 1) if mm.get("loss_pct") is not None else None,
+        "tvl": lv("tvl"), "tvl_chg_30d_pct": change_pct(df, "tvl", 30), "stables": lv("stables"),
+        "staking_ratio": lv("staking_ratio"), "funding_apr": lv("funding_apr"), "oi_usd": lv("oi_usd"),
+        "long_short_ratio": lv("long_short_ratio"),
+        "whale_flow_7d": group_flow(wf, "whale", 7), "exchange_flow_7d": group_flow(wf, "exchange", 7),
+        "supports": [f"{z['low']:.3f}-{z['high']:.3f}" for z in sup],
+        "resistances": [f"{z['low']:.3f}-{z['high']:.3f}" for z in res],
+        "report": None,
+        "news": [{"title": n["title"], "title_vi": n.get("title_vi"), "tag": n.get("tag"), "time_utc": n.get("published")}
+                 for n in (data.get("news") or [])[:6]],
+    }
+    if rep:
+        head, cond, agree = outlook_text(rep, (sup, res))
+        near["report"] = {
+            "score": round(rep["score"]), "verdict": rep["verdict"], "agree": agree, "outlook": head,
+            "conditions": cond, "data_date": str(rep["date"]),
+            "categories": [{"name": c["name"], "score": None if c["score"] is None else round(c["score"], 2),
+                            "signals": [f"{x['label']}: {x['detail']}" for x in c["signals"]]}
+                           for c in rep["categories"]],
+        }
+    try:
+        with open("daily_report.json", "r", encoding="utf-8") as f:
+            out = json.load(f)
+        out = out if isinstance(out, dict) else {}
+    except Exception:
+        out = {}
+    out["near"] = near
+    out["near_generated_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
+    with open("daily_report.json", "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, indent=1, default=str)
 
 
 def _tg_html(text):
