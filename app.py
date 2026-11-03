@@ -52,6 +52,8 @@ DEFAULT_ATH = 126198.07
 HISTORY_MAX_DAYS = 365
 DAILY_MAX_DAYS = 730
 URPD_INITIAL_DAYS = 90          # lần đầu chạy updater: lấy 90 ngày URPD để có heatmap/xu hướng
+URPD_BACKFILL_PER_RUN = 40      # mỗi lần chạy bù thêm tối đa 40 ngày cũ cho tới khi đủ 365 ngày
+WATCH_ZONE_DEFAULT = (57800.0, 67300.0)   # vùng theo dõi mặc định (vùng đáy) — đổi được ngay trên app
 BG_INITIAL_DAYS = 365           # lần đầu: Realized P/L + MVRV/NUPL/SOPR 365 ngày (1 request/chỉ số)
 NEAR_PCT = 0.10                 # hỗ trợ/cản gần = ±10% quanh giá
 VN_TZ = timezone(timedelta(hours=7))
@@ -906,6 +908,29 @@ def update_urpd(status):
         except Exception as e:
             errors.append(f"{key}: {e}")
         d += timedelta(days=1)
+        time.sleep(0.3)
+
+    # Bù dần lịch sử cũ cho đủ HISTORY_MAX_DAYS ngày (tối đa URPD_BACKFILL_PER_RUN ngày mỗi lần chạy).
+    oldest_wanted = today - timedelta(days=HISTORY_MAX_DAYS - 1)
+    missing = []
+    d = start - timedelta(days=1)
+    while d >= oldest_wanted and len(missing) < URPD_BACKFILL_PER_RUN:
+        if day_str(d) not in hist:
+            missing.append(d)
+        d -= timedelta(days=1)
+    for d in missing:
+        key = day_str(d)
+        try:
+            frame, url, close, total_supply = fetch_bitview_urpd(key)
+            price = safe_float(close)
+            if price is None:
+                raise ValueError("Bitview không trả giá close")
+            hist[key] = {"date": key, "price": price, "total_urpd": float(frame.btc_amount.sum()),
+                         "urpd": urpd_to_records(frame), "source": "Bitview /api/urpd/all (lin1000)", "url": url,
+                         "bitview_total_supply": safe_float(total_supply)}
+            changed.append(key)
+        except Exception as e:
+            errors.append(f"bù {key}: {str(e)[:150]}")
         time.sleep(0.3)
 
     # URPD riêng của holder dài hạn (LTH ≥ 155 ngày) — để biết BTC rời vùng giá là của holder lâu năm hay mới.
@@ -2243,6 +2268,114 @@ def heatmap_cached(version, days):
     return build_heatmap_data(store["frames"], store["prices"], days)
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def zone_series(version, lo, hi):
+    """Lượng BTC có giá vốn trong [lo, hi] theo từng ngày + % tổng cung."""
+    store = get_urpd_store()
+    rows = []
+    for d in store["dates"]:
+        f = store["frames"][d]
+        total = float(f.btc_amount.sum())
+        v = btc_in_range(f, lo, hi)
+        rows.append({"date": parse_day(d), "btc": v, "pct": v / total * 100 if total else np.nan,
+                     "price": store["prices"].get(d, np.nan)})
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        df["chg"] = df.btc.diff()
+    return df
+
+
+def _zone_default():
+    """Vùng mặc định: tham số trên URL (?zlo=&zhi=) → secrets WATCH_ZONE_LOW/HIGH → WATCH_ZONE_DEFAULT."""
+    lo, hi = WATCH_ZONE_DEFAULT
+    lo = safe_float(_secret("WATCH_ZONE_LOW")) or lo
+    hi = safe_float(_secret("WATCH_ZONE_HIGH")) or hi
+    try:
+        qp = st.query_params
+        lo = safe_float(qp.get("zlo")) or lo
+        hi = safe_float(qp.get("zhi")) or hi
+    except Exception:
+        pass
+    return float(lo), float(hi)
+
+
+def render_watch_zone(store):
+    st.subheader("🎯 Vùng theo dõi tùy chọn")
+    dlo, dhi = _zone_default()
+    c = st.columns([1, 1, 1.4])
+    lo = c[0].number_input("Từ giá (USD)", min_value=0.0, value=dlo, step=100.0, format="%.0f", key="zone_lo")
+    hi = c[1].number_input("Đến giá (USD)", min_value=0.0, value=dhi, step=100.0, format="%.0f", key="zone_hi")
+    if hi <= lo:
+        st.warning("Giá 'Đến' phải lớn hơn giá 'Từ'.")
+        return
+    try:  # ghi vào URL để lần sau mở lại (hoặc lưu bookmark) vẫn giữ vùng đã chọn
+        if (lo, hi) != WATCH_ZONE_DEFAULT:
+            st.query_params.update({"zlo": f"{lo:.0f}", "zhi": f"{hi:.0f}"})
+    except Exception:
+        pass
+    z = zone_series(store["version"], lo, hi)
+    if z.empty:
+        st.info("Chưa có lịch sử URPD.")
+        return
+    peak = z.loc[z.btc.idxmax()]
+    ref_opts = ["Đỉnh của vùng trong lịch sử"] + [d.strftime("%Y-%m-%d") for d in reversed(list(z.date))]
+    ref_label = c[2].selectbox("Mốc so sánh", ref_opts, index=0, key="zone_ref")
+    ref = peak if ref_label == ref_opts[0] else z[z.date == parse_day(ref_label)].iloc[0]
+
+    last = z.iloc[-1]
+
+    def at(days):
+        old = z[z.date <= last.date - timedelta(days=days)]
+        return old.iloc[-1] if not old.empty else None
+
+    d1, d30 = at(1), at(30)
+    m = st.columns(4)
+    m[0].metric(_esc(f"Cung trong vùng ${lo:,.0f}–${hi:,.0f}"), fmt_btc(last.btc),
+                f"{last.pct:.2f}% tổng cung", delta_color="off")
+    for col, old, name in ((m[1], d1, "So với 1 ngày trước"), (m[3], d30, "So với 30 ngày trước")):
+        if old is not None:
+            col.metric(name, fmt_btc(last.btc - old.btc, signed=True), f"{old.date:%d/%m} · {old.btc:,.0f}",
+                       delta_color="off")
+        else:
+            col.metric(name, "—", "chưa đủ lịch sử", delta_color="off")
+    diff = last.btc - ref.btc
+    m[2].metric(f"So với mốc {ref.date:%d/%m}", fmt_btc(diff, signed=True),
+                f"{diff / ref.btc * 100:+.1f}% · {'đỉnh ' if ref_label == ref_opts[0] else ''}{ref.btc:,.0f} BTC"
+                if ref.btc else None, delta_color="normal")
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_scatter(x=z.date, y=z.btc, name=f"BTC có giá vốn trong ${lo:,.0f}–${hi:,.0f}", mode="lines",
+                    line=dict(color="#f5b942", width=2.4), fill="tozeroy", fillcolor="rgba(245,185,66,.12)",
+                    customdata=np.column_stack([z.price, z.pct, z.chg.fillna(0)]),
+                    hovertemplate="%{x|%d/%m/%Y}<br>Giá BTC: $%{customdata[0]:,.0f}<br>Trong vùng: %{y:,.0f} BTC · "
+                                  "%{customdata[1]:.2f}%<br>Δ so với hôm trước: %{customdata[2]:+,.0f} BTC<extra></extra>",
+                    secondary_y=False)
+    fig.add_scatter(x=z.date, y=z.pct, name="% tổng cung (trục phải)", mode="lines",
+                    line=dict(color=GREY, width=1.2, dash="dot"), hoverinfo="skip", secondary_y=True)
+    fig.add_vline(x=peak.date, line_dash="dot", line_color="#f5b942")
+    fig.add_annotation(x=peak.date, y=peak.btc, text=f"đỉnh {peak.date:%d/%m} · {peak.btc:,.0f}", showarrow=True,
+                       arrowhead=2, ax=-40, ay=-30, font=dict(color="#f5b942", size=11))
+    if ref_label != ref_opts[0]:
+        fig.add_vline(x=ref.date, line_dash="dash", line_color=CYAN)
+        fig.add_annotation(x=ref.date, y=ref.btc, text=f"mốc {ref.date:%d/%m}", showarrow=True, ax=40, ay=-30,
+                           font=dict(color=CYAN, size=11))
+    fig.add_annotation(x=last.date, y=last.btc, text=f"{last.date:%d/%m}: {last.btc:,.0f}", showarrow=True,
+                       ax=-50, ay=25, font=dict(color="#f8fafc", size=11))
+    style_fig(fig, 420)
+    span = max(float(z.btc.max() - z.btc.min()), float(z.btc.max()) * 0.02, 1.0)
+    fig.update_yaxes(title_text="BTC trong vùng", range=[max(0.0, float(z.btc.min()) - span * 0.25),
+                                                         float(z.btc.max()) + span * 0.15], secondary_y=False)
+    fig.update_yaxes(title_text="% tổng cung", ticksuffix="%", showgrid=False, secondary_y=True)
+    show_fig(fig, "watch_zone")
+    spot = live_price()
+    where = ("giá hiện tại đang **trong** vùng" if spot and lo <= spot <= hi else
+             f"giá hiện tại {'**trên**' if spot and spot > hi else '**dưới**'} vùng" if spot else "")
+    cap(f"Đường vàng = lượng BTC có giá vốn trong vùng này mỗi ngày (bucket cắt ngang biên được tính theo tỷ lệ). "
+        f"Tăng = coin được mua/di chuyển ở vùng giá này (tích lũy); giảm = coin trong vùng bị tiêu và chuyển sang giá khác. "
+        f"{where}. Lịch sử có {len(z)} ngày ({z.date.min():%d/%m/%Y} → {last.date:%d/%m/%Y}); "
+        "GitHub Actions bù dần tới đủ 365 ngày. Đổi vùng ở 2 ô trên — vùng đang chọn được lưu trên địa chỉ trang.")
+
+
 def page_history():
     ath = ath_value()
     store = get_urpd_store()
@@ -2250,6 +2383,8 @@ def page_history():
     if len(store["dates"]) < 2:
         st.info("Cần ít nhất 2 snapshot URPD trong history.")
         return
+    render_watch_zone(store)
+    st.divider()
     days = st.radio("Khoảng thời gian", [30, 90, 180, 365], index=1, horizontal=True, format_func=lambda x: f"{x} ngày")
     spot = live_price() or store["prices"].get(store["dates"][-1])
 
