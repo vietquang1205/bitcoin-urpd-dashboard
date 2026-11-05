@@ -30,11 +30,12 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V2"
+NEAR_VERSION = "V3"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
 WATCHLIST_FILE = "near_watchlist.txt"
+ETF_FILE = "etf_flows_history.json"   # app BTC lấy dòng tiền ETF (gồm ETF NEAR) từ SoSoValue
 BTC_PRICE_FILE = "bgeometrics_realized_pl_history.json"   # dùng lại giá BTC của app BTC để tính NEAR/BTC
 NEAR_CG_ID = "near"
 RPC_URLS = ["https://rpc.mainnet.fastnear.com", "https://free.rpc.fastnear.com", "https://rpc.mainnet.near.org"]
@@ -780,8 +781,63 @@ def group_flow(wf, kind, days):
 # =============================================================================
 # BÁO CÁO TỔNG HỢP HẰNG NGÀY — 6 nhóm tín hiệu → 1 đánh giá xu hướng
 # =============================================================================
+def near_etf_frame(etf_data):
+    """ETF NEAR giao ngay tại Mỹ (NRR…) từ file ETF của app BTC → DataFrame date,total,aum,cum,f_<quỹ>."""
+    d = ((etf_data or {}).get("alts") or {}).get("NEAR") or {}
+    rows = []
+    for k, rec in (d.get("daily") or {}).items():
+        if is_day_key(k) and isinstance(rec, dict) and safe_float(rec.get("total")) is not None:
+            rows.append({"date": parse_day(k), "total": float(rec["total"]), "aum": safe_float(rec.get("aum")),
+                         "cum": safe_float(rec.get("cum")),
+                         **{f"f_{t}": safe_float(v) for t, v in (rec.get("funds") or {}).items()}})
+    if not rows:
+        return pd.DataFrame(columns=["date", "total", "aum", "cum"])
+    return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+
+
+def etf_summary(edf, end=None):
+    """Tóm tắt ETF NEAR đến ngày end (không nhìn trước)."""
+    if edf is None or edf.empty:
+        return None
+    e = edf[edf.date <= end] if end is not None else edf
+    if e.empty:
+        return None
+    last = e.iloc[-1]
+    sign, streak = np.sign(last.total), 0
+    for v in reversed(e.total.tolist()):
+        if v != 0 and np.sign(v) == sign:
+            streak += 1
+        else:
+            break
+    fc = [c for c in e.columns if c.startswith("f_")]
+    has = e[fc].notna().any(axis=1) if fc else pd.Series(False, index=e.index)
+    fl = e[has].iloc[-1] if has.any() else last          # quỹ báo số từng quỹ muộn 1 phiên
+    funds = {c[2:]: float(fl[c]) for c in fc if safe_float(fl[c]) not in (None, 0.0)}
+    return {"date": last.date, "last": float(last.total), "sum5": float(e.total.tail(5).sum()),
+            "sum20": float(e.total.tail(20).sum()), "aum": safe_float(last.aum), "cum": safe_float(last.cum),
+            "streak": int(streak * (sign or 1)), "n": len(e), "funds": funds}
+
+
+def etf_line(es):
+    if not es:
+        return None
+    k = es["streak"]
+    return (f"🏦 ETF NEAR phiên {es['date']:%d/%m}: **{fmt_big_usd(es['last'], signed=True)}** · 5 phiên "
+            f"{fmt_big_usd(es['sum5'], signed=True)}" + (f" · {abs(k)} phiên {'vào' if k > 0 else 'ra'} liên tiếp" if abs(k) >= 2 else "")
+            + (f" · tổng tài sản {fmt_big_usd(es['aum'])}" if es.get("aum") else ""))
+
+
+def _local_json(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
 REPORT_WEIGHTS = {"Giá & xu hướng": 0.25, "Khối lượng": 0.15, "Hệ sinh thái": 0.15,
-                  "Phái sinh": 0.20, "Dòng tiền ví (cá voi/sàn)": 0.15, "Tin tức": 0.10}
+                  "Phái sinh": 0.20, "Dòng tiền (ETF · cá voi · sàn)": 0.15, "Tin tức": 0.10}
 
 
 def rsi(series, n=14):
@@ -803,7 +859,7 @@ def _pct(a, b):
     return (a / b - 1) * 100 if a is not None and b not in (None, 0) else None
 
 
-def compute_report(df, realized_price=None, wf=None, news=None, as_of=None):
+def compute_report(df, realized_price=None, wf=None, news=None, as_of=None, etf=None):
     """Trả {'categories': [...], 'score': 0–100, 'verdict', 'agree', 'ret7'} — chỉ dùng dữ liệu đến ngày as_of."""
     if df is None or df.empty or "price" not in df.columns:
         return None
@@ -905,8 +961,16 @@ def compute_report(df, realized_price=None, wf=None, news=None, as_of=None):
                          f"{ratio:.2f}"))
     cats.append(("Phái sinh", s))
 
-    # E. Dòng tiền ví
+    # E. Dòng tiền: ETF NEAR (tổ chức Mỹ) + ví cá voi/sàn
     s = []
+    es = etf_summary(etf, end)
+    if es and es["n"] >= 3 and (end - es["date"]).days <= 7:
+        rel = es["sum5"] / es["aum"] * 100 if es.get("aum") else None
+        val = ((1 if rel > 1 else (-1 if rel < -1 else 0)) if rel is not None
+               else (1 if es["sum5"] > 2e6 else (-1 if es["sum5"] < -2e6 else 0)))
+        s.append(sig("ETF NEAR giao ngay (Mỹ) — 5 phiên", val,
+                     f"{fmt_big_usd(es['sum5'], signed=True)}" + (f" ({rel:+.1f}% tổng tài sản)" if rel is not None else "")
+                     + f" · phiên {es['date']:%d/%m}: {fmt_big_usd(es['last'], signed=True)}"))
     if wf is not None and not wf.empty:
         w = wf[wf.date <= end] if as_of is not None else wf
         for kind, label, sign in (("whale", "Ví cá voi — dòng ròng 7 ngày", 1), ("exchange", "Ví sàn — nạp/rút ròng 7 ngày", -1)):
@@ -924,7 +988,7 @@ def compute_report(df, realized_price=None, wf=None, news=None, as_of=None):
             else:
                 word = "tăng" if fl > 0 else "giảm"
             s.append(sig(label, val, f"{fmt_near(fl, signed=True)} ({rel:+.2f}%) — {word}"))
-    cats.append(("Dòng tiền ví (cá voi/sàn)", s))
+    cats.append(("Dòng tiền (ETF · cá voi · sàn)", s))
 
     # F. Tin tức (chỉ ảnh hưởng nhẹ)
     s = []
@@ -974,7 +1038,7 @@ def outlook_text(rep, zones):
     return head, cond, f"{rep['agree']}/{rep['n_cats']} nhóm dữ liệu cùng chiều với đánh giá chung."
 
 
-def score_history(df, mseries, wf, days=120):
+def score_history(df, mseries, wf, days=120, etf=None):
     """Điểm tổng hợp tính lại cho từng ngày quá khứ (không gồm tin tức) — để xem độ tin cậy của chỉ báo."""
     if df is None or df.empty or "price" not in df.columns:
         return pd.DataFrame()
@@ -983,7 +1047,7 @@ def score_history(df, mseries, wf, days=120):
     rp = dict(zip(mseries.date, mseries.realized_price)) if mseries is not None and not mseries.empty else {}
     rows = []
     for d in dates:
-        rep = compute_report(df, rp.get(d), wf, None, as_of=d)
+        rep = compute_report(df, rp.get(d), wf, None, as_of=d, etf=etf)
         if rep:
             rows.append({"date": d, "score": rep["score"], "price": rep["price"]})
     out = pd.DataFrame(rows)
@@ -1143,7 +1207,9 @@ def write_near_report(data):
     mm = model_metrics(model, price)
     sup, res = find_zones(model, price)
     wf = whale_frame(data)
-    rep = compute_report(df, mm.get("realized_price"), wf, data.get("news"))
+    etf = near_etf_frame(_local_json(ETF_FILE))
+    es = etf_summary(etf)
+    rep = compute_report(df, mm.get("realized_price"), wf, data.get("news"), etf=etf)
     qty = safe_float(clean_secret(os.environ.get("NEAR_HOLDINGS", ""))) or 5000.0
 
     def lv(col):
@@ -1158,6 +1224,13 @@ def write_near_report(data):
         "staking_ratio": lv("staking_ratio"), "funding_apr": lv("funding_apr"), "oi_usd": lv("oi_usd"),
         "long_short_ratio": lv("long_short_ratio"),
         "whale_flow_7d": group_flow(wf, "whale", 7), "exchange_flow_7d": group_flow(wf, "exchange", 7),
+        "etf": ({"latest_date": day_str(es["date"]), "latest_usd": round(es["last"]), "sum_5d_usd": round(es["sum5"]),
+                 "sum_20d_usd": round(es["sum20"]), "streak": es["streak"],
+                 "aum_usd": round(es["aum"]) if es.get("aum") else None,
+                 "cum_usd": round(es["cum"]) if es.get("cum") is not None else None,
+                 "funds_latest": {k: round(v) for k, v in es["funds"].items()},
+                 "last_5": [{"date": day_str(r.date), "usd": round(r.total)} for r in etf.tail(5).itertuples()]}
+                if es else None),
         "supports": [f"{z['low']:.3f}-{z['high']:.3f}" for z in sup],
         "resistances": [f"{z['low']:.3f}-{z['high']:.3f}" for z in res],
         "report": None,
@@ -1212,7 +1285,8 @@ def send_near_telegram(data):
     model = cost_basis_model(df)
     mm = model_metrics(model, price)
     zones = find_zones(model, price)
-    rep = compute_report(df, mm.get("realized_price"), whale_frame(data), data.get("news"))
+    etf = near_etf_frame(_local_json(ETF_FILE))
+    rep = compute_report(df, mm.get("realized_price"), whale_frame(data), data.get("news"), etf=etf)
     if not rep:
         return False
     qty = safe_float(clean_secret(os.environ.get("NEAR_HOLDINGS", ""))) or 5000.0
@@ -1221,7 +1295,10 @@ def send_near_telegram(data):
              _tg_html(f"Giá **{fmt_price(price)}**" + (f" ({live['change_24h']:+.2f}% 24h)" if live.get("change_24h") is not None else "")
                       + f" · {qty:,.0f} NEAR ≈ **{fmt_big_usd(qty * price)}**"),
              _tg_html(f"Đánh giá: **{rep['verdict']}** — {rep['score']:.0f}/100 · {agree}"),
-             _tg_html(head), _tg_html(cond), ""]
+             _tg_html(head), _tg_html(cond)]
+    if etf_line(etf_summary(etf)):
+        lines.append(_tg_html(etf_line(etf_summary(etf))))
+    lines.append("")
     for c in rep["categories"]:
         if c["score"] is None:
             continue
@@ -1283,6 +1360,12 @@ def load_near():
 
 
 @st.cache_data(ttl=900, show_spinner=False)
+def load_near_etf():
+    data, _ = read_data_file(ETF_FILE)
+    return near_etf_frame(data)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
 def load_btc_prices():
     data, _ = read_data_file(BTC_PRICE_FILE)
     rows = [(parse_day(d), safe_float(r.get("btc_price"))) for d, r in (data.get("daily") or {}).items()
@@ -1324,7 +1407,7 @@ def history_cached(version):
     data, _ = load_near()
     df = daily_frame(data)
     model = cost_basis_model(df, alpha=0.2)
-    return score_history(df, model_series(model), whale_frame(data))
+    return score_history(df, model_series(model), whale_frame(data), etf=load_near_etf())
 
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -1401,12 +1484,14 @@ def zones_table(zones):
 
 
 # ----------------------------------------------------------------------------- Tổng quan
-def tab_overview(live, df, mm, mseries, zones, wf, near_btc_30, events_note):
+def tab_overview(live, df, mm, mseries, zones, wf, near_btc_30, events_note, etf=None):
     price = live.get("price")
     w1, w7 = group_flow(wf, "whale", 1), group_flow(wf, "whale", 7)
 
     mk("### 📰 Hôm nay có gì thay đổi")
     brief = daily_brief(live, df, mm, mseries, zones, w1)
+    if etf_line(etf_summary(etf)):
+        brief.append(etf_line(etf_summary(etf)))
     mk("\n".join(f"- {b}" for b in brief) if brief else "Chưa đủ dữ liệu.")
 
     c = st.columns(4)
@@ -1770,9 +1855,9 @@ def _cat_light(score):
     return "🟢" if score > 0.2 else ("🔴" if score < -0.2 else "🟡")
 
 
-def tab_report(live, df, mm, mseries, zones, wf, news, version):
+def tab_report(live, df, mm, mseries, zones, wf, news, version, etf=None):
     price = live["price"]
-    rep = compute_report(df, mm.get("realized_price"), wf, news)
+    rep = compute_report(df, mm.get("realized_price"), wf, news, etf=etf)
     if not rep:
         st.info("Cần ít nhất 30 ngày dữ liệu giá để lập báo cáo.")
         return
@@ -1935,12 +2020,13 @@ def main_near():
     prices = df.dropna(subset=["price"])[["date", "price"]] if "price" in df.columns else pd.DataFrame()
 
     news = data.get("news") or news_cached()
+    etf = load_near_etf()
     tabs = st.tabs(["🧭 Báo cáo hằng ngày", "📊 Tổng quan", "🧱 Giá vốn ước tính", "🏦 Hệ sinh thái & Staking",
                     "📈 Phái sinh", "🐋 Cá voi", "📉 Giá & xu hướng"])
     with tabs[0]:
-        tab_report(live, df, mm, mseries, zones, wf, news, version)
+        tab_report(live, df, mm, mseries, zones, wf, news, version, etf)
     with tabs[1]:
-        tab_overview(live, df, mm, mseries, zones, wf, nb30, None)
+        tab_overview(live, df, mm, mseries, zones, wf, nb30, None, etf)
     with tabs[2]:
         tab_cost_basis(version, price, df)
     with tabs[3]:
