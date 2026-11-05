@@ -1,5 +1,5 @@
 """
-BTC URPD Monitor V70
+BTC URPD Monitor V71
 ====================
 
 Một file, hai chế độ chạy:
@@ -10,14 +10,15 @@ Một file, hai chế độ chạy:
 
   • Cập nhật dữ liệu (GitHub Actions):   python app.py --update-data
       → Lấy URPD (Bitview), Supply in Loss + giá vốn STH/LTH (ResearchBitcoin),
-        Realized P/L + MVRV/NUPL/SOPR (BGeometrics), ghi vào các file JSON,
+        Realized P/L + MVRV/NUPL/SOPR (BGeometrics), dòng tiền ETF BTC (SoSoValue/Farside), ghi vào các file JSON,
         gửi tóm tắt Telegram (nếu có cấu hình). Workflow sẽ commit các file này.
 
 Secrets/biến môi trường:
-  Streamlit:  GITHUB_REPO (vd "vietquang1105/bitcoin-urpd-dashboard"), GITHUB_BRANCH (mặc định "main"),
+  Streamlit:  GITHUB_REPO (vd "vietquang1205/bitcoin-urpd-dashboard"), GITHUB_BRANCH (mặc định "main"),
               GITHUB_TOKEN (tùy chọn, chỉ cần quyền đọc nếu repo private).
   Actions:    RESEARCHBITCOIN_API_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (tùy chọn),
-              TELEGRAM_LOSS_ALERT_PCT (mặc định 50), RB_BACKFILL_DAYS (mặc định 90).
+              TELEGRAM_LOSS_ALERT_PCT (mặc định 50), RB_BACKFILL_DAYS (mặc định 90),
+              SOSOVALUE_API_KEY / ETF_FLOWS_API_KEY (tùy chọn — nguồn dòng tiền ETF ổn định hơn Farside).
 """
 import os
 import sys
@@ -39,7 +40,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-APP_VERSION = "V70"
+APP_VERSION = "V71"
 UPDATE_MODE = "--update-data" in sys.argv
 
 URPD_FILE = "urpd_history.json"
@@ -664,7 +665,7 @@ def value_days_before(df, col, ref_date, days):
     return v
 
 
-def build_signals(price, onchain_df, realized_df, cur_frame, frame_7d_ago, ath):
+def build_signals(price, onchain_df, realized_df, cur_frame, frame_7d_ago, ath, etf=None):
     """Bảng đèn tín hiệu — thay cho 4 điểm số cũ. Mỗi dòng: tín hiệu, đèn, giá trị, cách đọc."""
     rows = []
     sth, _ = latest_value(onchain_df, "sth_realized_price")
@@ -718,6 +719,12 @@ def build_signals(price, onchain_df, realized_df, cur_frame, frame_7d_ago, ath):
             rows.append(["SOPR trung bình 7 ngày", light(v, good_above=1.005, bad_below=0.995), f"{v:.3f}",
                          "> 1: coin được bán có lãi. < 1: bán lỗ."])
 
+    if etf and etf.get("sessions", 0) >= 5:
+        v = etf["sum_5"]
+        rows.append(["Dòng tiền ETF BTC 5 phiên", light(v / 1e6, good_above=250, bad_below=-250),
+                     f"{fmt_big_usd(v, signed=True)} (phiên {etf['date']:%d/%m}: {fmt_big_usd(etf['last'], signed=True)})",
+                     "Hút ròng: tổ chức/quỹ đang mua BTC thật qua ETF. Rút ròng kéo dài thường đi cùng pha giá yếu."])
+
     greens = sum(1 for r in rows if r[1] == "🟢")
     reds = sum(1 for r in rows if r[1] == "🔴")
     if not rows:
@@ -748,7 +755,7 @@ def scenario_text(price, supports, resistances):
 
 
 def daily_brief(price, price_chg_24h, onchain_df, realized_df, cur_date, cur_frame, prev_frame,
-                supports, resistances, events):
+                supports, resistances, events, etf=None):
     """Khối 'Hôm nay có gì thay đổi' — danh sách câu ngắn (markdown)."""
     out = []
     if price:
@@ -780,6 +787,8 @@ def daily_brief(price, price_chg_24h, onchain_df, realized_df, cur_date, cur_fra
             net = last.realized_profit - abs(last.realized_loss)
             out.append(f"💰 Realized {day_str(last.date)}: chốt lời {fmt_big_usd(last.realized_profit)}, "
                        f"cắt lỗ {fmt_big_usd(abs(last.realized_loss))} → ròng **{fmt_big_usd(net, signed=True)}**.")
+    if etf:
+        out.append(etf_brief_line(etf))
     if supports or resistances:
         s = f"{fmt_usd(supports[0]['low'])}–{fmt_usd(supports[0]['high'])}" if supports else "N/A"
         r = f"{fmt_usd(resistances[0]['low'])}–{fmt_usd(resistances[0]['high'])}" if resistances else "N/A"
@@ -1143,7 +1152,8 @@ def send_telegram_report(status):
         supports, resistances = find_sr_zones(cur, price)
         k7 = day_str(parse_day(cur_date) - timedelta(days=7))
         f7 = records_to_urpd(hist[k7]["urpd"]) if k7 in hist and hist[k7].get("urpd") else None
-        _, greens, reds, verdict = build_signals(price, onchain, realized, cur, f7, DEFAULT_ATH)
+        etf = etf_stats(etf_frame(_load_json(ETF_FILE)))
+        _, greens, reds, verdict = build_signals(price, onchain, realized, cur, f7, DEFAULT_ATH, etf)
 
         tg = status.setdefault("telegram", {})
         alerts = []
@@ -1170,7 +1180,7 @@ def send_telegram_report(status):
         lines += [_telegram_html(a) for a in alerts]
         if send_daily:
             brief = daily_brief(price, None, onchain, realized, cur_date, cur, prev, supports, resistances,
-                                upcoming_btc_events(7, rows=fetch_economic_calendar_raw()))
+                                upcoming_btc_events(7, rows=fetch_economic_calendar_raw()), etf)
             lines += ["• " + _telegram_html(b) for b in brief]
             lines.append(_telegram_html(f"Tín hiệu: **{verdict}** ({greens} 🟢 / {reds} 🔴)"))
         r = requests.post(f"https://api.telegram.org/bot{bot}/sendMessage",
@@ -1193,6 +1203,305 @@ def update_market(status):
         _log("Vốn hóa thị trường: OK")
     except Exception as e:
         _log(f"Vốn hóa thị trường lỗi: {e}")
+
+
+# =============================================================================
+# DÒNG TIỀN ETF BTC GIAO NGAY (Mỹ)
+# =============================================================================
+ETF_FILE = "etf_flows_history.json"
+ETF_ORDER = ["IBIT", "FBTC", "GBTC", "BTC", "ARKB", "BITB", "HODL", "BRRR", "EZBC", "BTCO", "BTCW", "DEFI", "MSBT"]
+ETF_NAMES = {"IBIT": "BlackRock", "FBTC": "Fidelity", "GBTC": "Grayscale", "BTC": "Grayscale Mini", "ARKB": "Ark 21Shares",
+             "BITB": "Bitwise", "HODL": "VanEck", "BRRR": "CoinShares/Valkyrie", "EZBC": "Franklin", "BTCO": "Invesco",
+             "BTCW": "WisdomTree", "DEFI": "Hashdex", "MSBT": "Morgan Stanley"}
+ETF_REFRESH_DAYS = 10           # mỗi lần chạy ghi đè 10 phiên gần nhất (quỹ báo số muộn T+1)
+SOSO_BASE = "https://openapi.sosovalue.com/openapi/v1"
+FARSIDE_URL = "https://farside.co.uk/bitcoin-etf-flow-all-data/"
+YASIN_URL = "https://yasinozen.com/etf-flows/api/v1/flows"
+BROWSER_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                                 "Chrome/124.0 Safari/537.36",
+                   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                   "Accept-Language": "en-GB,en;q=0.9"}
+
+
+def _etf_day(text):
+    """'2026-11-04', '04 Nov 2026', '4 November 2026', epoch ms → 'YYYY-MM-DD'."""
+    if text is None:
+        return None
+    if isinstance(text, (int, float)) and text > 1e11:
+        return day_str(datetime.fromtimestamp(text / 1000, tz=timezone.utc).date())
+    s = re.sub(r"\s+", " ", str(text)).strip()
+    for fmt in ("%Y-%m-%d", "%d %b %Y", "%d %B %Y", "%b %d, %Y", "%Y/%m/%d"):
+        try:
+            return day_str(datetime.strptime(s[:20].strip(), fmt).date())
+        except ValueError:
+            continue
+    m = re.match(r"(\d{4}-\d{2}-\d{2})", s)
+    return m.group(1) if m else None
+
+
+def _etf_num(text):
+    """'(123.4)' → -123.4 · '1,234.5' → 1234.5 · '-' / '' → None."""
+    if text is None:
+        return None
+    if isinstance(text, (int, float)):
+        return safe_float(text)
+    s = str(text).strip().replace(",", "").replace("$", "").replace("−", "-")
+    if s in ("", "-", "–", "—", "n/a", "N/A", "null"):
+        return None
+    neg = s.startswith("(") and s.endswith(")")
+    v = safe_float(s.strip("()"))
+    return -v if (v is not None and neg) else v
+
+
+def _etf_scale(days):
+    """Nguồn trả đơn vị triệu USD → đổi sang USD (dòng tiền 1 phiên luôn ≥ vài trăm nghìn USD)."""
+    totals = [abs(r["total"]) for r in days.values() if r.get("total")]
+    if totals and max(totals) < 1e5:
+        for r in days.values():
+            for k in ("total", "aum", "cum"):
+                if r.get(k) is not None:
+                    r[k] *= 1e6
+            r["funds"] = {t: v * 1e6 for t, v in (r.get("funds") or {}).items()}
+    return days
+
+
+def _soso_rows(payload):
+    if isinstance(payload, dict):
+        if payload.get("code") not in (None, 0, "0", 200):
+            raise RuntimeError(f"SoSoValue: {payload.get('msg') or payload.get('code')}")
+        payload = payload.get("data", payload)
+        if isinstance(payload, dict):
+            payload = payload.get("list") or payload.get("items") or []
+    return payload if isinstance(payload, list) else []
+
+
+def fetch_etf_sosovalue(api_key, tickers=ETF_ORDER):
+    """SoSoValue OpenAPI (cần key miễn phí, header x-soso-api-key). Lịch sử tối đa ~1 tháng."""
+    h = {"x-soso-api-key": api_key, "Accept": "application/json"}
+    r = requests.get(f"{SOSO_BASE}/etfs/summary-history", headers=h,
+                     params={"symbol": "BTC", "country_code": "US", "limit": 300}, timeout=30)
+    r.raise_for_status()
+    days = {}
+    for row in _soso_rows(r.json()):
+        d = _etf_day(row.get("date"))
+        tot = safe_float(row.get("total_net_inflow"))
+        if d and tot is not None:
+            days[d] = {"total": tot, "funds": {}, "aum": safe_float(row.get("total_net_assets")),
+                       "cum": safe_float(row.get("cum_net_inflow")), "traded": safe_float(row.get("total_value_traded"))}
+    for t in tickers:
+        try:
+            rr = requests.get(f"{SOSO_BASE}/etfs/{t}/history", headers=h, timeout=20)
+            if rr.status_code != 200:
+                continue
+            for row in _soso_rows(rr.json()):
+                d, v = _etf_day(row.get("date")), safe_float(row.get("net_inflow"))
+                if d in days and v is not None:
+                    days[d]["funds"][t] = v
+            time.sleep(0.4)
+        except Exception:
+            continue
+    return days
+
+
+def parse_farside_html(html):
+    """Bảng Farside: hàng tiêu đề có mã quỹ (IBIT, FBTC…, Total); mỗi hàng dữ liệu bắt đầu bằng ngày '04 Nov 2026';
+    số âm viết '(12.3)', đơn vị US$ triệu."""
+    days, header = {}, None
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, flags=re.S | re.I):
+        cells = [re.sub(r"<[^>]+>", "", c).replace("&nbsp;", " ").strip()
+                 for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", tr, flags=re.S | re.I)]
+        if not cells:
+            continue
+        up = [c.upper() for c in cells]
+        if "IBIT" in up and "TOTAL" in up:
+            header = up
+            continue
+        d = _etf_day(cells[0])
+        if not header or not d or len(cells) != len(header):
+            continue
+        funds = {}
+        for name, val in zip(header[1:], cells[1:]):
+            v = _etf_num(val)
+            if name != "TOTAL" and re.fullmatch(r"[A-Z]{2,5}", name) and v is not None:
+                funds[name] = v
+        if "TOTAL" in header:
+            t = _etf_num(cells[header.index("TOTAL")])
+            if t is None and funds:
+                t = sum(funds.values())
+            if t is not None:
+                days[d] = {"total": t * 1e6, "funds": {k: v * 1e6 for k, v in funds.items()}}
+    return days
+
+
+def fetch_etf_farside():
+    r = requests.get(FARSIDE_URL, headers=BROWSER_HEADERS, timeout=40)
+    r.raise_for_status()
+    days = parse_farside_html(r.text)
+    if not days:
+        raise RuntimeError("Farside: không đọc được bảng (có thể bị chặn bot)")
+    return days
+
+
+def fetch_etf_yasinozen(api_key=""):
+    """API miễn phí dựng từ bảng Farside (không key: ~7 phiên tổng; key miễn phí: 90 phiên + từng quỹ)."""
+    h = {"Accept": "application/json", "User-Agent": HTTP_HEADERS["User-Agent"]}
+    if api_key:
+        h["X-API-Key"] = api_key
+    r = requests.get(YASIN_URL, headers=h, params={"asset": "BTC", "limit": 200, "include_funds": "true"}, timeout=30)
+    r.raise_for_status()
+    js = r.json()
+    rows = js.get("data") if isinstance(js, dict) else js
+    days = {}
+    for row in rows or []:
+        d = _etf_day(row.get("flow_date") or row.get("date"))
+        if not d:
+            continue
+        rec = days.setdefault(d, {"total": None, "funds": {}})
+        tk = str(row.get("ticker") or row.get("fund") or "").upper()
+        v = _etf_num(row.get("net_flow_usd", row.get("net_flow")))
+        if isinstance(row.get("funds"), dict):
+            rec["total"] = v
+            rec["funds"].update({k.upper(): _etf_num(x) for k, x in row["funds"].items() if _etf_num(x) is not None})
+        elif isinstance(row.get("funds"), list):
+            rec["total"] = v
+            for f in row["funds"]:
+                fv = _etf_num(f.get("net_flow_usd", f.get("net_flow")))
+                if f.get("ticker") and fv is not None:
+                    rec["funds"][str(f["ticker"]).upper()] = fv
+        elif tk in ("", "TOTAL", "ALL"):
+            rec["total"] = v
+        elif v is not None:
+            rec["funds"][tk] = v
+    for rec in days.values():
+        if rec["total"] is None and rec["funds"]:
+            rec["total"] = sum(rec["funds"].values())
+    return {d: r for d, r in days.items() if r["total"] is not None}
+
+
+def update_etf(status):
+    """Thử lần lượt: SoSoValue (nếu có SOSOVALUE_API_KEY) → Farside → yasinozen API. Nguồn nào được thì dùng."""
+    st_etf = status.setdefault("etf", {"errors": []})
+    data = _load_json(ETF_FILE)
+    daily = data.get("daily", {}) if isinstance(data.get("daily"), dict) else {}
+    sources = []
+    soso = clean_secret(os.environ.get("SOSOVALUE_API_KEY", ""))
+    if soso:
+        sources.append(("SoSoValue", lambda: fetch_etf_sosovalue(soso)))
+    sources.append(("Farside", fetch_etf_farside))
+    sources.append(("yasinozen (Farside)", lambda: fetch_etf_yasinozen(clean_secret(os.environ.get("ETF_FLOWS_API_KEY", "")))))
+    got, used, notes = {}, None, []
+    for name, fn in sources:
+        try:
+            got = _etf_scale(fn())
+            if got:
+                used = name
+                break
+            notes.append(f"{name}: rỗng")
+        except Exception as e:
+            notes.append(f"{name}: {redact(e)[:140]}")
+    if not got:
+        st_etf["errors"] = notes or ["không có nguồn nào"]
+        _log("ETF lỗi: " + " | ".join(notes))
+        return
+    if used != "Farside" and len(set(daily) | set(got)) < 60:
+        try:  # nguồn chính chỉ có ~1 tháng → thử lấy thêm lịch sử cũ từ Farside (chỉ điền ngày còn thiếu)
+            for d, rec in _etf_scale(fetch_etf_farside()).items():
+                if d not in got and d not in daily:
+                    daily[d] = rec
+        except Exception:
+            pass
+    keep_from = sorted(daily)[-ETF_REFRESH_DAYS] if len(daily) >= ETF_REFRESH_DAYS else ""
+    for d, rec in got.items():
+        old = daily.get(d)
+        # phiên cũ đã chốt: chỉ bổ sung khi chưa có; 10 phiên gần nhất: ghi đè (số liệu quỹ báo muộn)
+        if old is None or d >= keep_from or (not old.get("funds") and rec.get("funds")):
+            merged = dict(old or {})
+            merged.update({k: v for k, v in rec.items() if v not in (None, {})})
+            daily[d] = merged
+    for rec in daily.values():  # làm tròn về USD
+        for k in ("total", "aum", "cum", "traded"):
+            if safe_float(rec.get(k)) is not None:
+                rec[k] = round(float(rec[k]))
+        if isinstance(rec.get("funds"), dict):
+            rec["funds"] = {t: round(float(v)) for t, v in rec["funds"].items() if safe_float(v) is not None}
+    cut = day_str(utc_today() - timedelta(days=DAILY_MAX_DAYS))
+    daily = {d: daily[d] for d in sorted(daily) if d >= cut}
+    _save_json(ETF_FILE, {"updated_at_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "source": used, "daily": daily})
+    st_etf.update({"source": used, "latest": max(daily), "sessions": len(daily), "notes": notes})
+    _log(f"ETF: {used} — {len(got)} phiên, mới nhất {max(got)}")
+
+
+def etf_frame(data):
+    """dict file → DataFrame: date, total, aum, cum + 1 cột/quỹ (USD)."""
+    daily = data.get("daily", {}) if isinstance(data, dict) else {}
+    rows = []
+    for d, rec in daily.items():
+        if not is_day_key(d) or not isinstance(rec, dict) or safe_float(rec.get("total")) is None:
+            continue
+        row = {"date": parse_day(d), "total": float(rec["total"]),
+               "aum": safe_float(rec.get("aum")), "cum": safe_float(rec.get("cum"))}
+        for t, v in (rec.get("funds") or {}).items():
+            row[f"f_{t}"] = safe_float(v)
+        rows.append(row)
+    if not rows:
+        return pd.DataFrame(columns=["date", "total", "aum", "cum"])
+    return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+
+
+def etf_fund_cols(df):
+    cols = [c for c in df.columns if c.startswith("f_")]
+    order = {t: i for i, t in enumerate(ETF_ORDER)}
+    return sorted(cols, key=lambda c: (order.get(c[2:], 99), c))
+
+
+def etf_stats(df):
+    """Số liệu tóm tắt cho thẻ số, tín hiệu, báo cáo."""
+    if df is None or df.empty:
+        return None
+    s = df.total
+    last = df.iloc[-1]
+    sign = np.sign(last.total)
+    streak = 0
+    for v in reversed(s.tolist()):
+        if np.sign(v) == sign and v != 0:
+            streak += 1
+        else:
+            break
+    out = {"date": last.date, "last": float(last.total), "sum_5": float(s.tail(5).sum()),
+           "sum_20": float(s.tail(20).sum()), "streak": streak * int(sign or 1), "sessions": len(df),
+           "aum": safe_float(last.get("aum")), "cum": safe_float(last.get("cum")), "funds_last": {}, "funds_5": {}}
+    fc = etf_fund_cols(df)
+    has = df[fc].notna().any(axis=1) if fc else pd.Series(False, index=df.index)
+    flast = df[has].iloc[-1] if has.any() else last   # quỹ báo muộn T+1 → lấy phiên gần nhất đã đủ số từng quỹ
+    out["funds_date"] = flast.date
+    for c in fc:
+        v = safe_float(flast.get(c))
+        if v is not None:
+            out["funds_last"][c[2:]] = v
+        v5 = df[c].tail(5).sum(min_count=1)
+        if safe_float(v5) is not None:
+            out["funds_5"][c[2:]] = float(v5)
+    return out
+
+
+def etf_brief_line(stt):
+    if not stt:
+        return None
+    streak = stt["streak"]
+    sline = f"chuỗi {abs(streak)} phiên {'hút ròng' if streak > 0 else 'rút ròng'}" if abs(streak) >= 2 else ""
+    top = ""
+    if stt["funds_last"]:
+        best = max(stt["funds_last"].items(), key=lambda kv: kv[1])
+        worst = min(stt["funds_last"].items(), key=lambda kv: kv[1])
+        parts = []
+        if best[1] > 0:
+            parts.append(f"{best[0]} {fmt_big_usd(best[1], signed=True)}")
+        if worst[1] < 0:
+            parts.append(f"{worst[0]} {fmt_big_usd(worst[1], signed=True)}")
+        when = "" if stt.get("funds_date") == stt["date"] else f" phiên {stt['funds_date']:%d/%m}"
+        top = f" ({', '.join(parts)}{when})" if parts else ""
+    return (f"🏦 ETF BTC phiên {stt['date']:%d/%m}: **{fmt_big_usd(stt['last'], signed=True)}**{top}; "
+            f"5 phiên {fmt_big_usd(stt['sum_5'], signed=True)}" + (f", {sline}" if sline else "") + ".")
 
 
 REPORT_FILE = "daily_report.json"
@@ -1242,6 +1551,29 @@ def flow_summary(hist_frames, hist_lth, prices, sel, cmp_date, price):
     }
 
 
+def etf_report(df, stt, source, prices):
+    """Khối ETF trong daily_report.json."""
+    if not stt:
+        return None
+    px = {parse_day(k): v for k, v in prices.items()}
+
+    def btc_eq(row):
+        p = px.get(row.date) or next((px[d] for d in sorted(px, reverse=True) if d <= row.date), None)
+        return _r(row.total / p) if p else None
+
+    last10 = [{"date": day_str(row.date), "usd": _r(row.total), "btc_est": btc_eq(row)}
+              for row in df.tail(10).itertuples()]
+    f5 = sorted(stt["funds_5"].items(), key=lambda kv: kv[1])
+    return {"source": source, "latest_date": day_str(stt["date"]), "latest_usd": _r(stt["last"]),
+            "funds_date": day_str(stt["funds_date"]),
+            "sum_5d_usd": _r(stt["sum_5"]), "sum_20d_usd": _r(stt["sum_20"]), "streak": stt["streak"],
+            "aum_usd": _r(stt["aum"]), "cum_usd": _r(stt["cum"]), "sessions": stt["sessions"],
+            "funds_latest": {k: _r(v) for k, v in stt["funds_last"].items()},
+            "top_in_5d": [{"fund": k, "usd": _r(v)} for k, v in reversed(f5[-3:]) if v > 0],
+            "top_out_5d": [{"fund": k, "usd": _r(v)} for k, v in f5[:3] if v < 0],
+            "last_10": last10}
+
+
 def build_daily_report(status):
     """Tóm tắt gọn mọi chỉ số chính vào daily_report.json — để báo cáo nhanh theo yêu cầu."""
     hist = _load_json(URPD_FILE)
@@ -1275,7 +1607,9 @@ def build_daily_report(status):
 
     p1, p7 = prev(1), prev(7)
     sup, res = find_sr_zones(cur, price)
-    rows, g, r, verdict = build_signals(price, onchain, realized, cur, frames.get(p7), ath)
+    etf_df = etf_frame(_load_json(ETF_FILE))
+    etf = etf_stats(etf_df)
+    rows, g, r, verdict = build_signals(price, onchain, realized, cur, frames.get(p7), ath, etf)
     loss_pct, loss_d = latest_value(onchain, "supply_in_loss_percent")
     overhead = btc_in_range(cur, price, max(ath, price))
 
@@ -1330,8 +1664,9 @@ def build_daily_report(status):
                        "chg_1d": zchg(1), "chg_7d": zchg(7), "chg_30d": zchg(30),
                        "peak_date": peak_d, "peak_btc": _r(zs[peak_d]), "vs_peak": _r(zs[cur_date] - zs[peak_d])},
         "market": {k: (_r(v, 2) if isinstance(v, float) else v) for k, v in (status.get("market") or {}).items()},
+        "etf": etf_report(etf_df, etf, (status.get("etf") or {}).get("source"), prices),
         "events_7d": events, "news_48h": news,
-        "data_errors": {k: (status.get(k) or {}).get("errors") for k in ("urpd", "research", "realized", "onchain")
+        "data_errors": {k: (status.get(k) or {}).get("errors") for k in ("urpd", "research", "realized", "onchain", "etf")
                         if (status.get(k) or {}).get("errors")},
     }
     rep = _load_json(REPORT_FILE)
@@ -1344,12 +1679,13 @@ def build_daily_report(status):
 def run_update():
     _log(f"BTC URPD Monitor {APP_VERSION} — cập nhật dữ liệu")
     status = _load_json(STATUS_FILE)
-    for k in ("urpd", "research", "realized", "onchain"):
+    for k in ("urpd", "research", "realized", "onchain", "etf"):
         status.pop(k, None)
     if isinstance(status.get("telegram"), dict):
         status["telegram"].pop("error", None)
     status["fatal"] = []
-    for step in (update_urpd, update_research, update_realized, update_onchain, update_market, send_telegram_report,
+    for step in (update_urpd, update_research, update_realized, update_onchain, update_market, update_etf,
+                 send_telegram_report,
                  build_daily_report):
         try:
             step(status)
@@ -1806,7 +2142,7 @@ def render_sidebar():
         if status.get("last_run_utc"):
             last = datetime.strptime(status["last_run_utc"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
             cap(f"GitHub Actions cập nhật lần cuối: **{last.astimezone(VN_TZ):%d/%m %H:%M}** giờ VN")
-            for step in ("urpd", "research", "realized", "onchain"):
+            for step in ("urpd", "research", "realized", "onchain", "etf"):
                 errs = (status.get(step) or {}).get("errors") or []
                 if errs:
                     cap(f"⚠️ {step}: {redact(errs[-1])[:120]}")
@@ -1855,6 +2191,8 @@ def page_overview():
     market, market_err = live_market()
     onchain, realized = load_onchain(), load_realized()
     events = upcoming_btc_events(7)
+    etf_df = load_etf()[0]
+    etf = etf_stats(etf_df)
 
     st.title("Bitcoin — bảng theo dõi hằng ngày")
     cap(f"URPD {cur_date or 'N/A'} ({source}) • giá trực tiếp Coinbase/CoinGecko • on-chain: ResearchBitcoin + BGeometrics")
@@ -1874,7 +2212,7 @@ def page_overview():
     chg = market.get("btc_change_24h") if market else None
 
     st.subheader("📰 Hôm nay có gì thay đổi")
-    brief = daily_brief(price, chg, onchain, realized, cur_date, frame, prev_frame, supports, resistances, events)
+    brief = daily_brief(price, chg, onchain, realized, cur_date, frame, prev_frame, supports, resistances, events, etf)
     mk("\n".join(f"- {b}" for b in brief) if brief else "Chưa đủ dữ liệu.")
 
     # ---- Thẻ số chính
@@ -1934,6 +2272,11 @@ def page_overview():
     elif market_err:
         cap(f"Chưa lấy được vốn hóa thị trường: {market_err[:150]}")
 
+    if etf:
+        mk("#### 🏦 Dòng tiền ETF BTC giao ngay")
+        render_etf_cards(etf, _etf_btc_equiv(etf_df.tail(1), store).iloc[-1])
+        cap("Chi tiết từng quỹ và biểu đồ ở trang **Dòng tiền ETF**.")
+
     # ---- Hỗ trợ / kháng cự
     st.subheader("🎯 Vùng hỗ trợ / kháng cự tự động (cụm giá vốn URPD)")
     cap("Mỗi vùng rộng $3.000, chọn từ các cụm BTC có giá vốn dày nhất trong ±35% quanh giá hiện tại. "
@@ -1963,7 +2306,7 @@ def page_overview():
 
     # ---- Tín hiệu
     st.subheader("🚦 Tín hiệu tổng hợp")
-    rows, g, r, verdict = build_signals(price, onchain, realized, frame, f7, ath)
+    rows, g, r, verdict = build_signals(price, onchain, realized, frame, f7, ath, etf)
     mk(f"### {verdict}")
     cap(f"{g} 🟢 · {len(rows) - g - r} 🟡 · {r} 🔴 trên {len(rows)} tín hiệu. "
                "Chỉ báo này đếm tín hiệu, không phải xác suất, dự báo hay khuyến nghị mua/bán.")
@@ -2627,10 +2970,132 @@ def page_news():
 
 
 # =============================================================================
+# TRANG — DÒNG TIỀN ETF
+# =============================================================================
+@st.cache_data(ttl=900, show_spinner=False)
+def load_etf():
+    data, source = read_data_file(ETF_FILE)
+    return etf_frame(data), source, (data.get("source") if isinstance(data, dict) else None), \
+        (data.get("updated_at_utc") if isinstance(data, dict) else None)
+
+
+def _etf_btc_equiv(df, store):
+    """Quy đổi USD → BTC theo giá đóng cửa ngày (từ lịch sử URPD) — ước tính."""
+    px = pd.Series({parse_day(k): v for k, v in store["prices"].items()}).sort_index()
+    if px.empty:
+        return pd.Series(np.nan, index=df.index)
+    idx = pd.to_datetime(pd.Series(px.index))
+    p = pd.merge_asof(pd.DataFrame({"d": pd.to_datetime(df.date)}).reset_index(),
+                      pd.DataFrame({"d": idx, "p": px.values}), on="d", direction="backward")
+    return pd.Series((df.total.values / p.p.values), index=df.index)
+
+
+def render_etf_cards(stt, btc_last=None):
+    c = st.columns(4)
+    c[0].metric(f"Phiên {stt['date']:%d/%m}", fmt_big_usd(stt["last"], signed=True),
+                f"≈ {btc_last:+,.0f} BTC" if btc_last is not None and np.isfinite(btc_last) else None,
+                delta_color="normal" if stt["last"] >= 0 else "inverse")
+    c[1].metric("5 phiên gần nhất", fmt_big_usd(stt["sum_5"], signed=True))
+    c[2].metric("20 phiên gần nhất", fmt_big_usd(stt["sum_20"], signed=True))
+    k = stt["streak"]
+    c[3].metric("Chuỗi liên tiếp", f"{abs(k)} phiên {'hút ròng' if k > 0 else 'rút ròng'}",
+                (f"Tổng tài sản {fmt_big_usd(stt['aum'])}" if stt.get("aum") else None), delta_color="off")
+
+
+def page_etf():
+    st.title("🏦 Dòng tiền ETF Bitcoin giao ngay (Mỹ)")
+    df, file_src, data_src, upd = load_etf()
+    store = get_urpd_store()
+    status = load_status()
+    if df.empty:
+        st.info("Chưa có dữ liệu ETF. Chạy workflow **Update BTC data** (tab Actions → Run workflow). "
+                "Nếu vẫn trống: thêm secret `SOSOVALUE_API_KEY` (đăng ký miễn phí tại sosovalue.com/developer) "
+                "hoặc `ETF_FLOWS_API_KEY` (yasinozen.com/etf-flows).")
+        errs = (status.get("etf") or {}).get("errors") or []
+        if errs:
+            cap("Lỗi lần chạy gần nhất: " + " | ".join(redact(e)[:160] for e in errs))
+        return
+    upd_vn = ""
+    if upd:
+        upd_vn = datetime.strptime(upd, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone(VN_TZ).strftime("%d/%m %H:%M")
+    cap(f"Nguồn số liệu: {data_src or 'N/A'} • cập nhật {upd_vn} giờ VN • {len(df)} phiên • file: {file_src}. "
+        "Quỹ công bố sau giờ đóng cửa Mỹ → số của phiên hôm qua thường đủ vào sáng hôm sau (giờ VN).")
+    stale_warning("Phiên ETF", df.date.iloc[-1], 4)
+
+    df = df.copy()
+    df["btc_eq"] = _etf_btc_equiv(df, store)
+    stt = etf_stats(df)
+    render_etf_cards(stt, df.btc_eq.iloc[-1])
+
+    n = st.radio("Khoảng hiển thị", [30, 60, 120, 0], index=1, horizontal=True,
+                 format_func=lambda x: "Tất cả" if x == 0 else f"{x} phiên", key="etf_n")
+    v = df.tail(n) if n else df
+    v = v.assign(cum_view=v.total.cumsum())
+
+    # ---- Biểu đồ dòng tiền ngày + lũy kế
+    st.subheader("📊 Dòng tiền ròng mỗi phiên & lũy kế")
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_bar(x=v.date, y=v.total, name="Ròng / phiên", marker_color=[GREEN if x >= 0 else RED for x in v.total],
+                customdata=np.stack([v.btc_eq.fillna(0)], axis=-1),
+                hovertemplate="%{x|%d/%m/%Y}<br>%{y:$,.0f}<br>≈ %{customdata[0]:+,.0f} BTC<extra></extra>",
+                secondary_y=False)
+    fig.add_scatter(x=v.date, y=v.cum_view, name="Lũy kế trong khoảng", mode="lines",
+                    line=dict(color=AMBER, width=2.2), secondary_y=True)
+    prices = price_series(load_realized(), store)
+    if not prices.empty:
+        pp = prices[prices.date >= v.date.min()]
+        fig.add_scatter(x=pp.date, y=pp.price, name="Giá BTC", mode="lines", line=dict(color="#f8fafc", width=1.4, dash="dot"),
+                        secondary_y=True, visible="legendonly")
+    style_fig(fig, 460)
+    fig.update_yaxes(title_text="USD/phiên", tickprefix="$", secondary_y=False)
+    fig.update_yaxes(title_text="Lũy kế (USD)", tickprefix="$", showgrid=False, secondary_y=True)
+    show_fig(fig, "etf_flows")
+    cap("Thanh xanh = tiền vào ETF (quỹ phải mua BTC), đỏ = tiền rút (quỹ bán BTC). Bấm 'Giá BTC' ở chú thích để hiện giá.")
+
+    # ---- Từng quỹ
+    fcols = etf_fund_cols(df)
+    if fcols:
+        st.subheader("🏷️ Theo từng quỹ")
+        a, b = st.columns([1, 1.4])
+        with a:
+            tot = v[fcols].sum(min_count=1).dropna().sort_values()
+            tot.index = [c[2:] for c in tot.index]
+            fig2 = go.Figure(go.Bar(x=tot.values, y=[f"{t} · {ETF_NAMES.get(t, '')}" for t in tot.index], orientation="h",
+                                    marker_color=[GREEN if x >= 0 else RED for x in tot.values],
+                                    hovertemplate="%{y}<br>%{x:$,.0f}<extra></extra>"))
+            style_fig(fig2, 40 + 28 * len(tot), hovermode="closest")
+            fig2.update_layout(title=dict(text=f"Tổng {'toàn bộ' if not n else f'{n} phiên'}", font=dict(size=14)))
+            fig2.update_xaxes(tickprefix="$")
+            show_fig(fig2, "etf_funds")
+        with b:
+            tail = df.tail(10).iloc[::-1]
+            tbl = pd.DataFrame({"Ngày": tail.date.map(lambda d: f"{d:%d/%m}"), "Tổng": tail.total / 1e6})
+            show = [c for c in fcols if tail[c].notna().any()]
+            for c in show:
+                tbl[c[2:]] = tail[c].values / 1e6
+            num = [c for c in tbl.columns if c != "Ngày"]
+            mk("**10 phiên gần nhất (triệu USD)**")
+            st.dataframe(tbl.style.map(_color_delta, subset=num).format({c: "{:+,.1f}" for c in num}, na_rep="—"),
+                         hide_index=True, **STRETCH)
+    else:
+        cap("Nguồn hiện tại chỉ có tổng toàn thị trường, chưa có số từng quỹ.")
+
+    with st.expander("📖 Cách đọc dòng tiền ETF"):
+        mk("- ETF giao ngay phải **mua BTC thật** khi có tiền vào và **bán BTC** khi bị rút → đây là cầu/cung trực tiếp "
+           "từ nhà đầu tư tổ chức Mỹ.\n"
+           "- Một phiên lẻ ít ý nghĩa; nhìn **tổng 5–20 phiên** và **chuỗi** hút/rút liên tiếp.\n"
+           "- Rút ròng kéo dài + URPD cho thấy cắt lỗ ở vùng giá cao → áp lực bán đến từ cả tổ chức và holder ngắn hạn.\n"
+           "- Hút ròng trong lúc giá giảm = có người mua đỡ giá ở vùng đó.\n"
+           "- GBTC phí cao nên thường bị rút đều; chú ý **IBIT** (lớn nhất) và **FBTC**.\n"
+           "- Quy đổi sang BTC dùng giá đóng cửa ngày, chỉ là ước tính.")
+
+
+# =============================================================================
 # ĐIỂM VÀO
 # =============================================================================
 BTC_PAGES = [
     (page_overview, "Tổng quan", "📊", "tong-quan"),
+    (page_etf, "Dòng tiền ETF", "🏦", "etf"),
     (page_urpd, "URPD", "🧱", "urpd"),
     (page_onchain, "On-chain", "⛓️", "on-chain"),
     (page_history, "Lịch sử", "🗓️", "lich-su"),
