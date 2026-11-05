@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-05 12:56",
+ "last_run_utc": "2026-11-05 13:09",
  "market": {
-  "total_mcap": 2663313895035.342,
-  "total_mcap_change_24h": -2.180307206962027,
-  "btc_mcap": 1599297535480.8418,
-  "btc_change_24h": 1.8086348981388656,
-  "usdt_usdc": 249052416658.50018,
-  "adjusted_btc_dom": 66.24375817635473,
-  "alt_ex_stables": 814963942895.9999,
-  "alt_change_24h": -9.734134975675723,
-  "fetched_at_utc": "2026-11-05 12:56"
+  "total_mcap": 2690972402876.602,
+  "total_mcap_change_24h": -0.8207115809633809,
+  "btc_mcap": 1602305414537.731,
+  "btc_change_24h": 1.7467068720600953,
+  "usdt_usdc": 249050915361.8333,
+  "adjusted_btc_dom": 65.61658197162001,
+  "alt_ex_stables": 839616072977.0378,
+  "alt_change_24h": -5.606990696793357,
+  "fetched_at_utc": "2026-11-05 13:08"
  },
  "urpd": {
   "latest_date": "2026-11-05",
@@ -38,9 +38,10 @@
   ]
  },
  "etf": {
-  "errors": [
-   "Farside: 403 Client Error: Forbidden for url: https://farside.co.uk/bitcoin-etf-flow-all-data/",
-   "yasinozen (Farside): HTTPSConnectionPool(host='yasinozen.com', port=443): Max retries exceeded with url: /etf-flows/api/v1/flows?asset=BTC&limit=200&include_fund"
-  ]
+  "errors": [],
+  "source": "SoSoValue",
+  "latest": "2026-11-04",
+  "sessions": 22,
+  "notes": []
  }
 }
