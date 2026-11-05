@@ -1,38 +1,21 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-05 12:47",
+ "last_run_utc": "2026-11-05 12:56",
  "market": {
-  "total_mcap": 2665752908514.5015,
-  "total_mcap_change_24h": -2.0006449281476386,
-  "btc_mcap": 1602544205454.048,
-  "btc_change_24h": 2.0159547498467547,
-  "usdt_usdc": 249045773614.93317,
-  "adjusted_btc_dom": 66.311063608485,
-  "alt_ex_stables": 814162929445.5203,
-  "alt_change_24h": -9.572788592465098,
-  "fetched_at_utc": "2026-11-05 12:47"
+  "total_mcap": 2663313895035.342,
+  "total_mcap_change_24h": -2.180307206962027,
+  "btc_mcap": 1599297535480.8418,
+  "btc_change_24h": 1.8086348981388656,
+  "usdt_usdc": 249052416658.50018,
+  "adjusted_btc_dom": 66.24375817635473,
+  "alt_ex_stables": 814963942895.9999,
+  "alt_change_24h": -9.734134975675723,
+  "fetched_at_utc": "2026-11-05 12:56"
  },
  "urpd": {
   "latest_date": "2026-11-05",
   "changed": [
-   "2026-11-05",
-   "2025-11-22",
-   "2025-11-21",
-   "2025-11-20",
-   "2025-11-19",
-   "2025-11-18",
-   "2025-11-17",
-   "2025-11-16",
-   "2025-11-15",
-   "2025-11-14",
-   "2025-11-13",
-   "2025-11-12",
-   "2025-11-11",
-   "2025-11-10",
-   "2025-11-09",
-   "2025-11-08",
-   "2025-11-07",
-   "2025-11-06"
+   "2026-11-05"
   ],
   "errors": []
  },
@@ -57,7 +40,7 @@
  "etf": {
   "errors": [
    "Farside: 403 Client Error: Forbidden for url: https://farside.co.uk/bitcoin-etf-flow-all-data/",
-   "yasinozen (Farside): 410 Client Error: Gone for url: https://yasinozen.com/etf-flows/api/v1/flows?asset=BTC&limit=200&include_funds=true"
+   "yasinozen (Farside): HTTPSConnectionPool(host='yasinozen.com', port=443): Max retries exceeded with url: /etf-flows/api/v1/flows?asset=BTC&limit=200&include_fund"
   ]
  }
 }
