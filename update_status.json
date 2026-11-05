@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-05 13:09",
+ "last_run_utc": "2026-11-05 14:54",
  "market": {
-  "total_mcap": 2690972402876.602,
-  "total_mcap_change_24h": -0.8207115809633809,
-  "btc_mcap": 1602305414537.731,
-  "btc_change_24h": 1.7467068720600953,
-  "usdt_usdc": 249050915361.8333,
-  "adjusted_btc_dom": 65.61658197162001,
-  "alt_ex_stables": 839616072977.0378,
-  "alt_change_24h": -5.606990696793357,
-  "fetched_at_utc": "2026-11-05 13:08"
+  "total_mcap": 2656776404074.726,
+  "total_mcap_change_24h": -1.91741193634135,
+  "btc_mcap": 1580391129600.05,
+  "btc_change_24h": -0.9029917413821189,
+  "usdt_usdc": 249252056803.005,
+  "adjusted_btc_dom": 65.64382750234682,
+  "alt_ex_stables": 827133217671.6711,
+  "alt_change_24h": -4.3562159154665885,
+  "fetched_at_utc": "2026-11-05 14:53"
  },
  "urpd": {
   "latest_date": "2026-11-05",
@@ -42,6 +42,13 @@
   "source": "SoSoValue",
   "latest": "2026-11-04",
   "sessions": 22,
-  "notes": []
+  "notes": [],
+  "alts": {
+   "NEAR": "400 Client Error: Bad Request for url: https://openapi.sosovalue.com/openapi/v1/etfs/summary-history?symbol=NEAR&country_code=US&limit=300",
+   "LINK": "22 phiên",
+   "ETH": "22 phiên",
+   "SOL": "22 phiên",
+   "XRP": "22 phiên"
+  }
  }
 }
