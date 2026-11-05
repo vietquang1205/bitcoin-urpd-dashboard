@@ -1,5 +1,5 @@
 """
-BTC URPD Monitor V71
+BTC URPD Monitor V72
 ====================
 
 Một file, hai chế độ chạy:
@@ -40,7 +40,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-APP_VERSION = "V71"
+APP_VERSION = "V72"
 UPDATE_MODE = "--update-data" in sys.argv
 
 URPD_FILE = "urpd_history.json"
@@ -755,7 +755,7 @@ def scenario_text(price, supports, resistances):
 
 
 def daily_brief(price, price_chg_24h, onchain_df, realized_df, cur_date, cur_frame, prev_frame,
-                supports, resistances, events, etf=None):
+                supports, resistances, events, etf=None, etf_alts=None):
     """Khối 'Hôm nay có gì thay đổi' — danh sách câu ngắn (markdown)."""
     out = []
     if price:
@@ -789,6 +789,9 @@ def daily_brief(price, price_chg_24h, onchain_df, realized_df, cur_date, cur_fra
                        f"cắt lỗ {fmt_big_usd(abs(last.realized_loss))} → ròng **{fmt_big_usd(net, signed=True)}**.")
     if etf:
         out.append(etf_brief_line(etf))
+    if etf_alts:
+        out.append(etf_alts_line(etf_alts) or "")
+        out = [x for x in out if x]
     if supports or resistances:
         s = f"{fmt_usd(supports[0]['low'])}–{fmt_usd(supports[0]['high'])}" if supports else "N/A"
         r = f"{fmt_usd(resistances[0]['low'])}–{fmt_usd(resistances[0]['high'])}" if resistances else "N/A"
@@ -1152,7 +1155,8 @@ def send_telegram_report(status):
         supports, resistances = find_sr_zones(cur, price)
         k7 = day_str(parse_day(cur_date) - timedelta(days=7))
         f7 = records_to_urpd(hist[k7]["urpd"]) if k7 in hist and hist[k7].get("urpd") else None
-        etf = etf_stats(etf_frame(_load_json(ETF_FILE)))
+        etf_data = _load_json(ETF_FILE)
+        etf = etf_stats(etf_frame(etf_data))
         _, greens, reds, verdict = build_signals(price, onchain, realized, cur, f7, DEFAULT_ATH, etf)
 
         tg = status.setdefault("telegram", {})
@@ -1180,7 +1184,7 @@ def send_telegram_report(status):
         lines += [_telegram_html(a) for a in alerts]
         if send_daily:
             brief = daily_brief(price, None, onchain, realized, cur_date, cur, prev, supports, resistances,
-                                upcoming_btc_events(7, rows=fetch_economic_calendar_raw()), etf)
+                                upcoming_btc_events(7, rows=fetch_economic_calendar_raw()), etf, etf_alt_frames(etf_data))
             lines += ["• " + _telegram_html(b) for b in brief]
             lines.append(_telegram_html(f"Tín hiệu: **{verdict}** ({greens} 🟢 / {reds} 🔴)"))
         r = requests.post(f"https://api.telegram.org/bot{bot}/sendMessage",
@@ -1214,6 +1218,12 @@ ETF_NAMES = {"IBIT": "BlackRock", "FBTC": "Fidelity", "GBTC": "Grayscale", "BTC"
              "BITB": "Bitwise", "HODL": "VanEck", "BRRR": "CoinShares/Valkyrie", "EZBC": "Franklin", "BTCO": "Invesco",
              "BTCW": "WisdomTree", "DEFI": "Hashdex", "MSBT": "Morgan Stanley"}
 ETF_REFRESH_DAYS = 10           # mỗi lần chạy ghi đè 10 phiên gần nhất (quỹ báo số muộn T+1)
+ETF_MIN_INTERVAL_H = 6          # SoSoValue gói Demo 10.000 lượt/tháng → chỉ gọi lại sau 6 giờ (dữ liệu ETF đổi 1 lần/ngày)
+# ETF altcoin giao ngay tại Mỹ (SoSoValue). Mã quỹ biết trước; app tự dò thêm mã mới cho NEAR/LINK.
+ETF_ALTS = {"NEAR": ["NRR", "GSNR"], "LINK": ["GLNK", "CLNK"], "ETH": [], "SOL": [], "XRP": []}
+ETF_ALT_FUNDS_FOR = ("NEAR", "LINK")   # chỉ lấy số từng quỹ cho các coin ưu tiên (tiết kiệm lượt gọi)
+ETF_ALT_LABEL = {"NEAR": "Ⓝ NEAR", "LINK": "🔗 Chainlink", "ETH": "Ξ Ethereum", "SOL": "◎ Solana", "XRP": "✕ XRP"}
+ETF_NAMES.update({"NRR": "Bitwise", "GSNR": "Grayscale", "GLNK": "Grayscale", "CLNK": "Bitwise"})
 SOSO_BASE = "https://openapi.sosovalue.com/openapi/v1"
 FARSIDE_URL = "https://farside.co.uk/bitcoin-etf-flow-all-data/"
 YASIN_URL = "https://yasinozen.com/etf-flows/api/v1/flows"
@@ -1275,11 +1285,28 @@ def _soso_rows(payload):
     return payload if isinstance(payload, list) else []
 
 
-def fetch_etf_sosovalue(api_key, tickers=ETF_ORDER):
+def soso_list_tickers(api_key, symbol):
+    """Dò danh sách mã ETF của 1 coin (nếu API hỗ trợ) — lỗi thì trả rỗng."""
+    try:
+        r = requests.get(f"{SOSO_BASE}/etfs", headers={"x-soso-api-key": api_key, "Accept": "application/json"},
+                         params={"symbol": symbol, "country_code": "US"}, timeout=20)
+        if r.status_code != 200:
+            return []
+        out = []
+        for row in _soso_rows(r.json()):
+            t = str((row or {}).get("ticker") or "").upper() if isinstance(row, dict) else ""
+            if re.fullmatch(r"[A-Z]{2,6}", t) and t not in out:
+                out.append(t)
+        return out[:8]
+    except Exception:
+        return []
+
+
+def fetch_etf_sosovalue(api_key, tickers=ETF_ORDER, symbol="BTC"):
     """SoSoValue OpenAPI (cần key miễn phí, header x-soso-api-key). Lịch sử tối đa ~1 tháng."""
     h = {"x-soso-api-key": api_key, "Accept": "application/json"}
     r = requests.get(f"{SOSO_BASE}/etfs/summary-history", headers=h,
-                     params={"symbol": "BTC", "country_code": "US", "limit": 300}, timeout=30)
+                     params={"symbol": symbol, "country_code": "US", "limit": 300}, timeout=30)
     r.raise_for_status()
     days = {}
     for row in _soso_rows(r.json()):
@@ -1297,7 +1324,7 @@ def fetch_etf_sosovalue(api_key, tickers=ETF_ORDER):
                 d, v = _etf_day(row.get("date")), safe_float(row.get("net_inflow"))
                 if d in days and v is not None:
                     days[d]["funds"][t] = v
-            time.sleep(0.4)
+            time.sleep(0.7)
         except Exception:
             continue
     return days
@@ -1385,14 +1412,26 @@ def update_etf(status):
     daily = data.get("daily", {}) if isinstance(data.get("daily"), dict) else {}
     sources = []
     soso = clean_secret(os.environ.get("SOSOVALUE_API_KEY", ""))
+    try:
+        age_h = (utc_now() - datetime.strptime(data["updated_at_utc"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+                 ).total_seconds() / 3600
+    except Exception:
+        age_h = 999
+    have_alts = set((data.get("alts") or {}).keys()) >= set(ETF_ALTS) or not soso
+    if daily and have_alts and age_h < ETF_MIN_INTERVAL_H and os.environ.get("ETF_FORCE") != "1":
+        st_etf.update({"source": data.get("source"), "latest": max(daily), "sessions": len(daily),
+                       "skipped": f"đã lấy {age_h:.1f} giờ trước"})
+        _log(f"ETF: bỏ qua (đã lấy {age_h:.1f} giờ trước, chờ đủ {ETF_MIN_INTERVAL_H} giờ)")
+        return
     if soso:
         sources.append(("SoSoValue", lambda: fetch_etf_sosovalue(soso)))
     sources.append(("Farside", fetch_etf_farside))
-    sources.append(("yasinozen (Farside)", lambda: fetch_etf_yasinozen(clean_secret(os.environ.get("ETF_FLOWS_API_KEY", "")))))
+    sources.append(("yasinozen (Farside)",
+                    lambda: _etf_scale(fetch_etf_yasinozen(clean_secret(os.environ.get("ETF_FLOWS_API_KEY", ""))))))
     got, used, notes = {}, None, []
     for name, fn in sources:
         try:
-            got = _etf_scale(fn())
+            got = fn()
             if got:
                 used = name
                 break
@@ -1405,15 +1444,28 @@ def update_etf(status):
         return
     if used != "Farside" and len(set(daily) | set(got)) < 60:
         try:  # nguồn chính chỉ có ~1 tháng → thử lấy thêm lịch sử cũ từ Farside (chỉ điền ngày còn thiếu)
-            for d, rec in _etf_scale(fetch_etf_farside()).items():
+            for d, rec in fetch_etf_farside().items():
                 if d not in got and d not in daily:
                     daily[d] = rec
         except Exception:
             pass
+    daily = _merge_etf_daily(daily, got)
+    alts = data.get("alts") if isinstance(data.get("alts"), dict) else {}
+    if soso:
+        alts = update_etf_alts(soso, alts)
+    _save_json(ETF_FILE, {"updated_at_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "source": used, "daily": daily,
+                          "alts": alts})
+    st_etf.update({"source": used, "latest": max(daily), "sessions": len(daily), "notes": notes,
+                   "alts": {s: (v.get("error") or f"{len(v.get('daily', {}))} phiên") for s, v in alts.items()}})
+    _log(f"ETF: {used} — {len(got)} phiên, mới nhất {max(got)}")
+
+
+def _merge_etf_daily(daily, got):
+    """Gộp dữ liệu mới vào lịch sử: 10 phiên gần nhất ghi đè (số quỹ báo muộn), phiên cũ chỉ bổ sung."""
+    daily = dict(daily)
     keep_from = sorted(daily)[-ETF_REFRESH_DAYS] if len(daily) >= ETF_REFRESH_DAYS else ""
     for d, rec in got.items():
         old = daily.get(d)
-        # phiên cũ đã chốt: chỉ bổ sung khi chưa có; 10 phiên gần nhất: ghi đè (số liệu quỹ báo muộn)
         if old is None or d >= keep_from or (not old.get("funds") and rec.get("funds")):
             merged = dict(old or {})
             merged.update({k: v for k, v in rec.items() if v not in (None, {})})
@@ -1425,10 +1477,31 @@ def update_etf(status):
         if isinstance(rec.get("funds"), dict):
             rec["funds"] = {t: round(float(v)) for t, v in rec["funds"].items() if safe_float(v) is not None}
     cut = day_str(utc_today() - timedelta(days=DAILY_MAX_DAYS))
-    daily = {d: daily[d] for d in sorted(daily) if d >= cut}
-    _save_json(ETF_FILE, {"updated_at_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "source": used, "daily": daily})
-    st_etf.update({"source": used, "latest": max(daily), "sessions": len(daily), "notes": notes})
-    _log(f"ETF: {used} — {len(got)} phiên, mới nhất {max(got)}")
+    return {d: daily[d] for d in sorted(daily) if d >= cut}
+
+
+def update_etf_alts(api_key, alts):
+    """ETF altcoin (NEAR, LINK ưu tiên; ETH/SOL/XRP chỉ lấy tổng)."""
+    alts = dict(alts)
+    for sym, known in ETF_ALTS.items():
+        cur = dict(alts.get(sym) or {})
+        try:
+            tickers = []
+            if sym in ETF_ALT_FUNDS_FOR:
+                tickers = list(dict.fromkeys(list(known) + soso_list_tickers(api_key, sym) + cur.get("tickers", [])))
+            got = fetch_etf_sosovalue(api_key, tickers=tickers, symbol=sym)   # SoSoValue luôn trả USD
+            if not got:
+                raise RuntimeError("SoSoValue chưa có dữ liệu ETF cho coin này")
+            seen = sorted({t for r in got.values() for t, v in (r.get("funds") or {}).items()})
+            cur.update({"daily": _merge_etf_daily(cur.get("daily") or {}, got), "error": None,
+                        "tickers": seen or cur.get("tickers", [])})
+            _log(f"ETF {sym}: {len(got)} phiên, mới nhất {max(got)}")
+        except Exception as e:
+            cur["error"] = redact(e)[:140]
+            _log(f"ETF {sym} lỗi: {cur['error']}")
+        alts[sym] = cur
+        time.sleep(0.7)
+    return alts
 
 
 def etf_frame(data):
@@ -1505,6 +1578,22 @@ def etf_brief_line(stt):
 
 
 REPORT_FILE = "daily_report.json"
+
+
+def etf_alt_frames(data):
+    return {s: etf_frame(v) for s, v in ((data or {}).get("alts") or {}).items() if isinstance(v, dict)}
+
+
+def etf_alts_line(frames):
+    """🪙 1 dòng tóm tắt ETF altcoin: NEAR, LINK trước."""
+    parts = []
+    for sym in ETF_ALTS:
+        stt = etf_stats(frames.get(sym)) if frames.get(sym) is not None and not frames[sym].empty else None
+        if stt:
+            parts.append(f"{sym} {fmt_big_usd(stt['last'], signed=True)} ({stt['date']:%d/%m}; 5 phiên "
+                         f"{fmt_big_usd(stt['sum_5'], signed=True)})" if sym in ETF_ALT_FUNDS_FOR
+                         else f"{sym} 5 phiên {fmt_big_usd(stt['sum_5'], signed=True)}")
+    return ("🪙 ETF altcoin: " + " · ".join(parts) + ".") if parts else None
 
 
 def _r(x, nd=0):
@@ -1607,8 +1696,19 @@ def build_daily_report(status):
 
     p1, p7 = prev(1), prev(7)
     sup, res = find_sr_zones(cur, price)
-    etf_df = etf_frame(_load_json(ETF_FILE))
+    etf_data = _load_json(ETF_FILE)
+    etf_df = etf_frame(etf_data)
     etf = etf_stats(etf_df)
+    alt_rep = {}
+    for sym, adf in etf_alt_frames(etf_data).items():
+        a_st = etf_stats(adf)
+        alt_rep[sym] = etf_report(adf, a_st, "SoSoValue", {}) if a_st else None
+        if alt_rep[sym]:
+            alt_rep[sym].pop("last_10", None)
+            alt_rep[sym]["last_5"] = [{"date": day_str(r_.date), "usd": _r(r_.total)} for r_ in adf.tail(5).itertuples()]
+        err = ((etf_data.get("alts") or {}).get(sym) or {}).get("error")
+        if err:
+            alt_rep[sym] = {**(alt_rep[sym] or {}), "error": err}
     rows, g, r, verdict = build_signals(price, onchain, realized, cur, frames.get(p7), ath, etf)
     loss_pct, loss_d = latest_value(onchain, "supply_in_loss_percent")
     overhead = btc_in_range(cur, price, max(ath, price))
@@ -1664,7 +1764,8 @@ def build_daily_report(status):
                        "chg_1d": zchg(1), "chg_7d": zchg(7), "chg_30d": zchg(30),
                        "peak_date": peak_d, "peak_btc": _r(zs[peak_d]), "vs_peak": _r(zs[cur_date] - zs[peak_d])},
         "market": {k: (_r(v, 2) if isinstance(v, float) else v) for k, v in (status.get("market") or {}).items()},
-        "etf": etf_report(etf_df, etf, (status.get("etf") or {}).get("source"), prices),
+        "etf": etf_report(etf_df, etf, (status.get("etf") or {}).get("source") or etf_data.get("source"), prices),
+        "etf_alts": alt_rep,
         "events_7d": events, "news_48h": news,
         "data_errors": {k: (status.get(k) or {}).get("errors") for k in ("urpd", "research", "realized", "onchain", "etf")
                         if (status.get(k) or {}).get("errors")},
@@ -2191,8 +2292,9 @@ def page_overview():
     market, market_err = live_market()
     onchain, realized = load_onchain(), load_realized()
     events = upcoming_btc_events(7)
-    etf_df = load_etf()[0]
+    etf_df, _, _, _, etf_alts = load_etf()
     etf = etf_stats(etf_df)
+    etf_alt_df = {s: v[0] for s, v in etf_alts.items()}
 
     st.title("Bitcoin — bảng theo dõi hằng ngày")
     cap(f"URPD {cur_date or 'N/A'} ({source}) • giá trực tiếp Coinbase/CoinGecko • on-chain: ResearchBitcoin + BGeometrics")
@@ -2212,7 +2314,8 @@ def page_overview():
     chg = market.get("btc_change_24h") if market else None
 
     st.subheader("📰 Hôm nay có gì thay đổi")
-    brief = daily_brief(price, chg, onchain, realized, cur_date, frame, prev_frame, supports, resistances, events, etf)
+    brief = daily_brief(price, chg, onchain, realized, cur_date, frame, prev_frame, supports, resistances, events, etf,
+                        etf_alt_df)
     mk("\n".join(f"- {b}" for b in brief) if brief else "Chưa đủ dữ liệu.")
 
     # ---- Thẻ số chính
@@ -2275,7 +2378,10 @@ def page_overview():
     if etf:
         mk("#### 🏦 Dòng tiền ETF BTC giao ngay")
         render_etf_cards(etf, _etf_btc_equiv(etf_df.tail(1), store).iloc[-1])
-        cap("Chi tiết từng quỹ và biểu đồ ở trang **Dòng tiền ETF**.")
+        alt_line = etf_alts_line(etf_alt_df)
+        if alt_line:
+            mk(alt_line)
+        cap("Chi tiết từng quỹ, NEAR/LINK/ETH/SOL/XRP ở trang **Dòng tiền ETF**.")
 
     # ---- Hỗ trợ / kháng cự
     st.subheader("🎯 Vùng hỗ trợ / kháng cự tự động (cụm giá vốn URPD)")
@@ -2975,14 +3081,15 @@ def page_news():
 @st.cache_data(ttl=900, show_spinner=False)
 def load_etf():
     data, source = read_data_file(ETF_FILE)
-    return etf_frame(data), source, (data.get("source") if isinstance(data, dict) else None), \
-        (data.get("updated_at_utc") if isinstance(data, dict) else None)
+    data = data if isinstance(data, dict) else {}
+    alts = {s: (etf_frame(v), v.get("error")) for s, v in (data.get("alts") or {}).items() if isinstance(v, dict)}
+    return etf_frame(data), source, data.get("source"), data.get("updated_at_utc"), alts
 
 
 def _etf_btc_equiv(df, store):
     """Quy đổi USD → BTC theo giá đóng cửa ngày (từ lịch sử URPD) — ước tính."""
     px = pd.Series({parse_day(k): v for k, v in store["prices"].items()}).sort_index()
-    if px.empty:
+    if px.empty or df.empty:
         return pd.Series(np.nan, index=df.index)
     idx = pd.to_datetime(pd.Series(px.index))
     p = pd.merge_asof(pd.DataFrame({"d": pd.to_datetime(df.date)}).reset_index(),
@@ -2998,13 +3105,110 @@ def render_etf_cards(stt, btc_last=None):
     c[1].metric("5 phiên gần nhất", fmt_big_usd(stt["sum_5"], signed=True))
     c[2].metric("20 phiên gần nhất", fmt_big_usd(stt["sum_20"], signed=True))
     k = stt["streak"]
-    c[3].metric("Chuỗi liên tiếp", f"{abs(k)} phiên {'hút ròng' if k > 0 else 'rút ròng'}",
-                (f"Tổng tài sản {fmt_big_usd(stt['aum'])}" if stt.get("aum") else None), delta_color="off")
+    c[3].metric("Chuỗi liên tiếp", f"{abs(k)} phiên {'hút ròng' if k > 0 else 'rút ròng'}")
+    if stt.get("aum"):
+        cap(f"Tổng tài sản các quỹ: **{fmt_big_usd(stt['aum'])}**"
+            + (f" · lũy kế tiền vào từ khi ra mắt: **{fmt_big_usd(stt['cum'], signed=True)}**" if stt.get("cum") is not None else "")
+            + f" · 5 phiên = {stt['sum_5'] / stt['aum'] * 100:+.2f}% tổng tài sản.")
+
+
+def signed_table(df, cols, digits=2):
+    """Số có dấu dạng chuỗi (ô trống hiện '—') + tô xanh/đỏ theo dấu."""
+    out = df.copy()
+    for c in cols:
+        out[c] = [("—" if v is None or not np.isfinite(v) else f"{v:+,.{digits}f}") for v in pd.to_numeric(out[c], errors="coerce")]
+
+    def color(v):
+        if not isinstance(v, str) or v == "—" or v.strip("+-0.,") == "":
+            return ""
+        return "color: #34d399; font-weight: 600" if v.startswith("+") else "color: #f87171; font-weight: 600"
+    return out.style.map(color, subset=cols)
+
+
+def etf_compare_table(btc_df, alts):
+    rows = []
+    for sym, (df, err) in [("BTC", (btc_df, None))] + [(s, alts.get(s, (pd.DataFrame(), "chưa lấy"))) for s in ETF_ALTS]:
+        stt = etf_stats(df) if df is not None and not df.empty else None
+        label = "₿ Bitcoin" if sym == "BTC" else ETF_ALT_LABEL.get(sym, sym)
+        if not stt:
+            rows.append({"Coin": label, "Phiên": "—", "Ròng phiên": np.nan, "5 phiên": np.nan, "20 phiên": np.nan,
+                         "Chuỗi": err or "chưa có dữ liệu", "Tổng tài sản": "—", "Lũy kế từ đầu": "—"})
+            continue
+        k = stt["streak"]
+        rows.append({"Coin": label, "Phiên": f"{stt['date']:%d/%m}", "Ròng phiên": stt["last"] / 1e6,
+                     "5 phiên": stt["sum_5"] / 1e6, "20 phiên": stt["sum_20"] / 1e6,
+                     "Chuỗi": f"{abs(k)} phiên {'vào' if k > 0 else 'ra'}",
+                     "Tổng tài sản": fmt_big_usd(stt["aum"]) if stt.get("aum") else "—",
+                     "Lũy kế từ đầu": fmt_big_usd(stt["cum"], signed=True) if stt.get("cum") is not None else "—"})
+    return signed_table(pd.DataFrame(rows), ["Ròng phiên", "5 phiên", "20 phiên"])
+
+
+def render_etf_asset(df, key, coin="BTC", store=None):
+    """Thẻ số + biểu đồ + bảng từng quỹ cho 1 coin."""
+    df = df.copy()
+    has_btc = coin == "BTC" and store is not None
+    df["coin_eq"] = _etf_btc_equiv(df, store) if has_btc else np.nan
+    stt = etf_stats(df)
+    render_etf_cards(stt, df.coin_eq.iloc[-1] if has_btc else None)
+    stale_warning(f"Phiên ETF {coin}", df.date.iloc[-1], 4)
+
+    n = st.radio("Khoảng hiển thị", [30, 60, 120, 0], index=1, horizontal=True,
+                 format_func=lambda x: "Tất cả" if x == 0 else f"{x} phiên", key=f"etf_n_{key}")
+    v = df.tail(n) if n else df
+    v = v.assign(cum_view=v.total.cumsum())
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    if has_btc:
+        fig.add_bar(x=v.date, y=v.total, name="Ròng / phiên", marker_color=[GREEN if x >= 0 else RED for x in v.total],
+                    customdata=np.stack([v.coin_eq.fillna(0)], axis=-1),
+                    hovertemplate="%{x|%d/%m/%Y}<br>%{y:$,.0f}<br>≈ %{customdata[0]:+,.0f} BTC<extra></extra>",
+                    secondary_y=False)
+    else:
+        fig.add_bar(x=v.date, y=v.total, name="Ròng / phiên", marker_color=[GREEN if x >= 0 else RED for x in v.total],
+                    hovertemplate="%{x|%d/%m/%Y}<br>%{y:$,.0f}<extra></extra>", secondary_y=False)
+    fig.add_scatter(x=v.date, y=v.cum_view, name="Lũy kế trong khoảng", mode="lines",
+                    line=dict(color=AMBER, width=2.2), secondary_y=True)
+    if has_btc:
+        prices = price_series(load_realized(), store)
+        if not prices.empty:
+            pp = prices[prices.date >= v.date.min()]
+            fig.add_scatter(x=pp.date, y=pp.price, name="Giá BTC", mode="lines",
+                            line=dict(color="#f8fafc", width=1.4, dash="dot"), secondary_y=True, visible="legendonly")
+    style_fig(fig, 430)
+    fig.update_yaxes(title_text="USD/phiên", tickprefix="$", secondary_y=False)
+    fig.update_yaxes(title_text="Lũy kế (USD)", tickprefix="$", showgrid=False, secondary_y=True)
+    show_fig(fig, f"etf_flows_{key}")
+    cap(f"Thanh xanh = tiền vào ETF (quỹ phải mua {coin} thật), đỏ = tiền rút (quỹ bán {coin}).")
+
+    fcols = [c for c in etf_fund_cols(df) if df[c].fillna(0).abs().sum() > 0]
+    if not fcols:
+        cap("Chưa có số liệu từng quỹ cho coin này (chỉ có tổng).")
+        return
+    a, b = st.columns([1, 1.4])
+    with a:
+        tot = v[fcols].sum(min_count=1).dropna().sort_values()
+        tot.index = [c[2:] for c in tot.index]
+        fig2 = go.Figure(go.Bar(x=tot.values, y=[f"{t} · {ETF_NAMES.get(t, '')}" for t in tot.index], orientation="h",
+                                marker_color=[GREEN if x >= 0 else RED for x in tot.values],
+                                hovertemplate="%{y}<br>%{x:$,.0f}<extra></extra>"))
+        style_fig(fig2, 90 + 28 * len(tot), hovermode="closest")
+        fig2.update_layout(title=dict(text=f"Theo quỹ — {'toàn bộ' if not n else f'{n} phiên'}", font=dict(size=14)))
+        fig2.update_xaxes(tickprefix="$")
+        show_fig(fig2, f"etf_funds_{key}")
+    with b:
+        tail = df.tail(10).iloc[::-1]
+        tbl = pd.DataFrame({"Ngày": tail.date.map(lambda d: f"{d:%d/%m}"), "Tổng": tail.total.values / 1e6})
+        for c in fcols:
+            tbl[c[2:]] = tail[c].values / 1e6
+        num = [c for c in tbl.columns if c != "Ngày"]
+        mk("**10 phiên gần nhất (triệu USD)**")
+        st.dataframe(signed_table(tbl, num), hide_index=True, **STRETCH)
+        if tbl[num[1:]].iloc[0].isna().all() and len(num) > 1:
+            cap("Phiên mới nhất: SoSoValue chưa có số từng quỹ (thường bổ sung sau 1 phiên).")
 
 
 def page_etf():
-    st.title("🏦 Dòng tiền ETF Bitcoin giao ngay (Mỹ)")
-    df, file_src, data_src, upd = load_etf()
+    st.title("🏦 Dòng tiền ETF giao ngay (Mỹ)")
+    df, file_src, data_src, upd, alts = load_etf()
     store = get_urpd_store()
     status = load_status()
     if df.empty:
@@ -3018,75 +3222,38 @@ def page_etf():
     upd_vn = ""
     if upd:
         upd_vn = datetime.strptime(upd, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone(VN_TZ).strftime("%d/%m %H:%M")
-    cap(f"Nguồn số liệu: {data_src or 'N/A'} • cập nhật {upd_vn} giờ VN • {len(df)} phiên • file: {file_src}. "
-        "Quỹ công bố sau giờ đóng cửa Mỹ → số của phiên hôm qua thường đủ vào sáng hôm sau (giờ VN).")
-    stale_warning("Phiên ETF", df.date.iloc[-1], 4)
+    cap(f"Nguồn số liệu: {data_src or 'N/A'} • cập nhật {upd_vn} giờ VN • file: {file_src}. "
+        "Quỹ công bố sau giờ đóng cửa Mỹ → số của phiên hôm qua thường đủ vào sáng hôm sau (giờ VN). "
+        f"Lấy lại tối đa mỗi {ETF_MIN_INTERVAL_H} giờ để tiết kiệm lượt gọi SoSoValue.")
 
-    df = df.copy()
-    df["btc_eq"] = _etf_btc_equiv(df, store)
-    stt = etf_stats(df)
-    render_etf_cards(stt, df.btc_eq.iloc[-1])
+    st.subheader("📋 So sánh các coin (triệu USD)")
+    st.dataframe(etf_compare_table(df, alts), hide_index=True, **STRETCH)
+    cap("ETF altcoin còn nhỏ: vài triệu USD/phiên đã là đáng kể. So với quy mô quỹ (Tổng tài sản) để thấy mức độ.")
+    if not alts:
+        cap("Chưa có dữ liệu ETF altcoin — cần secret `SOSOVALUE_API_KEY` và chạy lại workflow.")
 
-    n = st.radio("Khoảng hiển thị", [30, 60, 120, 0], index=1, horizontal=True,
-                 format_func=lambda x: "Tất cả" if x == 0 else f"{x} phiên", key="etf_n")
-    v = df.tail(n) if n else df
-    v = v.assign(cum_view=v.total.cumsum())
-
-    # ---- Biểu đồ dòng tiền ngày + lũy kế
-    st.subheader("📊 Dòng tiền ròng mỗi phiên & lũy kế")
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_bar(x=v.date, y=v.total, name="Ròng / phiên", marker_color=[GREEN if x >= 0 else RED for x in v.total],
-                customdata=np.stack([v.btc_eq.fillna(0)], axis=-1),
-                hovertemplate="%{x|%d/%m/%Y}<br>%{y:$,.0f}<br>≈ %{customdata[0]:+,.0f} BTC<extra></extra>",
-                secondary_y=False)
-    fig.add_scatter(x=v.date, y=v.cum_view, name="Lũy kế trong khoảng", mode="lines",
-                    line=dict(color=AMBER, width=2.2), secondary_y=True)
-    prices = price_series(load_realized(), store)
-    if not prices.empty:
-        pp = prices[prices.date >= v.date.min()]
-        fig.add_scatter(x=pp.date, y=pp.price, name="Giá BTC", mode="lines", line=dict(color="#f8fafc", width=1.4, dash="dot"),
-                        secondary_y=True, visible="legendonly")
-    style_fig(fig, 460)
-    fig.update_yaxes(title_text="USD/phiên", tickprefix="$", secondary_y=False)
-    fig.update_yaxes(title_text="Lũy kế (USD)", tickprefix="$", showgrid=False, secondary_y=True)
-    show_fig(fig, "etf_flows")
-    cap("Thanh xanh = tiền vào ETF (quỹ phải mua BTC), đỏ = tiền rút (quỹ bán BTC). Bấm 'Giá BTC' ở chú thích để hiện giá.")
-
-    # ---- Từng quỹ
-    fcols = etf_fund_cols(df)
-    if fcols:
-        st.subheader("🏷️ Theo từng quỹ")
-        a, b = st.columns([1, 1.4])
-        with a:
-            tot = v[fcols].sum(min_count=1).dropna().sort_values()
-            tot.index = [c[2:] for c in tot.index]
-            fig2 = go.Figure(go.Bar(x=tot.values, y=[f"{t} · {ETF_NAMES.get(t, '')}" for t in tot.index], orientation="h",
-                                    marker_color=[GREEN if x >= 0 else RED for x in tot.values],
-                                    hovertemplate="%{y}<br>%{x:$,.0f}<extra></extra>"))
-            style_fig(fig2, 40 + 28 * len(tot), hovermode="closest")
-            fig2.update_layout(title=dict(text=f"Tổng {'toàn bộ' if not n else f'{n} phiên'}", font=dict(size=14)))
-            fig2.update_xaxes(tickprefix="$")
-            show_fig(fig2, "etf_funds")
-        with b:
-            tail = df.tail(10).iloc[::-1]
-            tbl = pd.DataFrame({"Ngày": tail.date.map(lambda d: f"{d:%d/%m}"), "Tổng": tail.total / 1e6})
-            show = [c for c in fcols if tail[c].notna().any()]
-            for c in show:
-                tbl[c[2:]] = tail[c].values / 1e6
-            num = [c for c in tbl.columns if c != "Ngày"]
-            mk("**10 phiên gần nhất (triệu USD)**")
-            st.dataframe(tbl.style.map(_color_delta, subset=num).format({c: "{:+,.1f}" for c in num}, na_rep="—"),
-                         hide_index=True, **STRETCH)
-    else:
-        cap("Nguồn hiện tại chỉ có tổng toàn thị trường, chưa có số từng quỹ.")
+    tabs = st.tabs(["₿ Bitcoin"] + [ETF_ALT_LABEL.get(s, s) for s in ETF_ALTS])
+    with tabs[0]:
+        render_etf_asset(df, "btc", "BTC", store)
+    for tab, sym in zip(tabs[1:], ETF_ALTS):
+        with tab:
+            adf, err = alts.get(sym, (pd.DataFrame(), None))
+            if adf is None or adf.empty:
+                st.info(f"Chưa có dữ liệu ETF {sym}." + (f" Lỗi: {err}" if err else ""))
+                continue
+            if err:
+                cap(f"⚠️ Lần lấy gần nhất lỗi ({err}) — đang hiển thị dữ liệu đã lưu.")
+            render_etf_asset(adf, sym.lower(), sym)
 
     with st.expander("📖 Cách đọc dòng tiền ETF"):
-        mk("- ETF giao ngay phải **mua BTC thật** khi có tiền vào và **bán BTC** khi bị rút → đây là cầu/cung trực tiếp "
+        mk("- ETF giao ngay phải **mua coin thật** khi có tiền vào và **bán coin** khi bị rút → đây là cầu/cung trực tiếp "
            "từ nhà đầu tư tổ chức Mỹ.\n"
            "- Một phiên lẻ ít ý nghĩa; nhìn **tổng 5–20 phiên** và **chuỗi** hút/rút liên tiếp.\n"
            "- Rút ròng kéo dài + URPD cho thấy cắt lỗ ở vùng giá cao → áp lực bán đến từ cả tổ chức và holder ngắn hạn.\n"
            "- Hút ròng trong lúc giá giảm = có người mua đỡ giá ở vùng đó.\n"
-           "- GBTC phí cao nên thường bị rút đều; chú ý **IBIT** (lớn nhất) và **FBTC**.\n"
+           "- BTC: chú ý **IBIT** (lớn nhất) và **FBTC**; GBTC phí cao nên thường bị rút đều.\n"
+           "- NEAR: quỹ chính là **NRR** (Bitwise). LINK: **GLNK** (Grayscale) và **CLNK** (Bitwise). "
+           "Quỹ altcoin nhỏ nên 1 lệnh lớn có thể làm số nhảy mạnh — xem cùng tỉ lệ so với tổng tài sản.\n"
            "- Quy đổi sang BTC dùng giá đóng cửa ngày, chỉ là ước tính.")
 
 
