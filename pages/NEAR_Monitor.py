@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V3"
+NEAR_VERSION = "V4"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
@@ -348,15 +348,24 @@ def fetch_derivatives():
                 out.setdefault(d, {})["long_short_ratio"] = float(row[1])
     except Exception as e:
         errors.append(f"OKX long/short: {e}")
-    try:  # khối lượng chủ động mua/bán (taker) trên hợp đồng: [ts, sellVol, buyVol]
-        j = _get(f"{okx}/rubik/stat/taker-volume", params={"ccy": "NEAR", "instType": "CONTRACT", "period": "1D"})
-        for row in j.get("data", []) or []:
-            d = _to_date(row[0])
-            sell, buy = safe_float(row[1]), safe_float(row[2])
-            if d and sell is not None and buy is not None:
-                out.setdefault(d, {}).update({"taker_sell": sell, "taker_buy": buy})
-    except Exception as e:
-        errors.append(f"OKX taker: {e}")
+    taker_err = []   # khối lượng chủ động mua/bán (taker) trên hợp đồng: [ts, sellVol, buyVol]
+    for path, prm in (("taker-volume-contract", {"instId": "NEAR-USDT-SWAP", "period": "1D", "unit": "1"}),
+                      ("taker-volume", {"ccy": "NEAR", "instType": "CONTRACTS", "period": "1D"})):
+        try:
+            j = _get(f"{okx}/rubik/stat/{path}", params=prm)
+            n = 0
+            for row in j.get("data", []) or []:
+                d = _to_date(row[0])
+                sell, buy = safe_float(row[1]), safe_float(row[2])
+                if d and sell is not None and buy is not None:
+                    out.setdefault(d, {}).update({"taker_sell": sell, "taker_buy": buy})
+                    n += 1
+            if n:
+                taker_err = []
+                break
+        except Exception as e:
+            taker_err.append(f"OKX taker ({path}): {e}")
+    errors += taker_err
     try:
         j = _get(f"{okx}/public/funding-rate-history", params={"instId": "NEAR-USDT-SWAP", "limit": 100})
         rows = [(int(r["fundingTime"]), safe_float(r.get("realizedRate") or r.get("fundingRate")))
