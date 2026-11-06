@@ -1,22 +1,20 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-06 15:55",
+ "last_run_utc": "2026-11-06 16:11",
  "market": {
-  "total_mcap": 2569075965271.6074,
-  "total_mcap_change_24h": -5.273232888253632,
-  "btc_mcap": 1522982839485.6523,
-  "btc_change_24h": 0.26543999018612185,
-  "usdt_usdc": 247841099777.68298,
-  "adjusted_btc_dom": 65.61088936433774,
-  "alt_ex_stables": 798252026008.2721,
-  "alt_change_24h": -15.548842797320805,
-  "fetched_at_utc": "2026-11-06 15:55"
+  "total_mcap": 2567525611295.282,
+  "total_mcap_change_24h": -2.760552943738748,
+  "btc_mcap": 1521328345384.9314,
+  "btc_change_24h": -0.3105130188805876,
+  "usdt_usdc": 247844143232.3938,
+  "adjusted_btc_dom": 65.58350214589407,
+  "alt_ex_stables": 798353122677.957,
+  "alt_change_24h": -7.8575902642310735,
+  "fetched_at_utc": "2026-11-06 16:11"
  },
  "urpd": {
   "latest_date": "2026-11-06",
-  "changed": [
-   "2026-11-06"
-  ],
+  "changed": [],
   "errors": []
  },
  "research": {
@@ -35,25 +33,24 @@
    "mvrv",
    "nupl",
    "sopr"
-  ]
+  ],
+  "mvrv_estimate": {
+   "k": 1.0098,
+   "calib_days": 30,
+   "bg_last": "2026-10-31",
+   "est_days": 6
+  }
  },
  "etf": {
   "errors": [],
   "source": "SoSoValue",
   "latest": "2026-11-05",
   "sessions": 23,
-  "notes": [],
-  "alts": {
-   "NEAR": "22 phiên",
-   "LINK": "23 phiên",
-   "ETH": "23 phiên",
-   "SOL": "23 phiên",
-   "XRP": "23 phiên"
-  }
+  "skipped": "đã lấy 0.3 giờ trước"
  },
  "market_extra": {
   "done": {
-   "phái sinh": 181,
+   "phái sinh": 180,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
