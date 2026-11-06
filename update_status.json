@@ -1,30 +1,40 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-05 23:38",
+ "last_run_utc": "2026-11-06 02:35",
  "market": {
-  "total_mcap": 2574418265329.895,
-  "total_mcap_change_24h": -7.94170273788897,
-  "btc_mcap": 1525745269962.4075,
-  "btc_change_24h": -5.714324156726497,
-  "usdt_usdc": 247858080060.51852,
-  "adjusted_btc_dom": 65.57944555325362,
-  "alt_ex_stables": 800814915306.969,
-  "alt_change_24h": -13.921861451717287,
-  "fetched_at_utc": "2026-11-05 23:37"
+  "total_mcap": 2572789927067.7944,
+  "total_mcap_change_24h": -7.496344981352414,
+  "btc_mcap": 1527674671626.4832,
+  "btc_change_24h": -5.661892665216495,
+  "usdt_usdc": 248068162988.4733,
+  "adjusted_btc_dom": 65.71430160940145,
+  "alt_ex_stables": 797047092452.838,
+  "alt_change_24h": -12.77320068161375,
+  "fetched_at_utc": "2026-11-06 02:35"
  },
  "urpd": {
-  "latest_date": "2026-11-05",
+  "latest_date": "2026-11-06",
   "changed": [
-   "2026-11-05"
+   "2026-11-05",
+   "2026-11-06"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
+  "updated": {
+   "realized_profit": 1,
+   "realized_loss": 1,
+   "btc_price": 1
+  },
   "errors": [],
   "pending": []
  },
@@ -42,13 +52,17 @@
   "source": "SoSoValue",
   "latest": "2026-11-04",
   "sessions": 22,
-  "notes": [],
-  "alts": {
-   "NEAR": "400 Client Error: Bad Request for url: https://openapi.sosovalue.com/openapi/v1/etfs/summary-history?symbol=NEAR&country_code=US&limit=300",
-   "LINK": "22 phiên",
-   "ETH": "22 phiên",
-   "SOL": "22 phiên",
-   "XRP": "22 phiên"
-  }
+  "skipped": "đã lấy 3.0 giờ trước"
+ },
+ "market_extra": {
+  "done": {
+   "phái sinh": 181,
+   "stablecoin": 400,
+   "coinbase premium": 13,
+   "sợ hãi & tham lam": 400
+  },
+  "errors": [
+   "OKX taker: 400 Client Error: Bad Request for url: https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy=BTC&instType=CONTRACT&peri"
+  ]
  }
 }

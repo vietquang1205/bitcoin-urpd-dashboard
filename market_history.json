@@ -1,0 +1,3514 @@
+{
+ "updated_at_utc": "2026-11-06 02:35",
+ "daily": {
+  "2025-10-03": {
+   "stables_total": 298069179501.0,
+   "usdt": 176246763815.0,
+   "usdc": 74085017539.0,
+   "fng": 63.0,
+   "fng_class": "Greed"
+  },
+  "2025-10-04": {
+   "stables_total": 299618607622.0,
+   "usdt": 176679508043.0,
+   "usdc": 75161367617.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2025-10-05": {
+   "stables_total": 300144745036.0,
+   "usdt": 177019405309.0,
+   "usdc": 75090825323.0,
+   "fng": 74.0,
+   "fng_class": "Greed"
+  },
+  "2025-10-06": {
+   "stables_total": 299673104613.0,
+   "usdt": 176929008734.0,
+   "usdc": 74890602075.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2025-10-07": {
+   "stables_total": 300354722727.0,
+   "usdt": 177463715230.0,
+   "usdc": 75126805349.0,
+   "fng": 70.0,
+   "fng_class": "Greed"
+  },
+  "2025-10-08": {
+   "stables_total": 301152603124.0,
+   "usdt": 177909580029.0,
+   "usdc": 75319397628.0,
+   "fng": 60.0,
+   "fng_class": "Greed"
+  },
+  "2025-10-09": {
+   "stables_total": 301166608494.0,
+   "usdt": 178140779842.0,
+   "usdc": 75296418058.0,
+   "fng": 70.0,
+   "fng_class": "Greed"
+  },
+  "2025-10-10": {
+   "stables_total": 301401270231.0,
+   "usdt": 178036230155.0,
+   "usdc": 75323637592.0,
+   "fng": 64.0,
+   "fng_class": "Greed"
+  },
+  "2025-10-11": {
+   "stables_total": 301737536968.0,
+   "usdt": 179331179688.0,
+   "usdc": 74767477012.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-12": {
+   "stables_total": 301299724504.0,
+   "usdt": 180064084550.0,
+   "usdc": 75128531239.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-10-13": {
+   "stables_total": 301360944825.0,
+   "usdt": 180185446251.0,
+   "usdc": 75278775420.0,
+   "fng": 38.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-14": {
+   "stables_total": 302235131061.0,
+   "usdt": 180246122371.0,
+   "usdc": 75343659791.0,
+   "fng": 38.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-15": {
+   "stables_total": 303471065934.0,
+   "usdt": 180716279786.0,
+   "usdc": 75852901759.0,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-16": {
+   "stables_total": 304287308661.0,
+   "usdt": 181396775161.0,
+   "usdc": 75665418235.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-17": {
+   "stables_total": 304327837092.0,
+   "usdt": 181555469430.0,
+   "usdc": 75667741034.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-10-18": {
+   "stables_total": 304586664267.0,
+   "usdt": 181734385615.0,
+   "usdc": 75715960340.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-10-19": {
+   "stables_total": 304616365274.0,
+   "usdt": 181941057560.0,
+   "usdc": 75633823386.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-20": {
+   "stables_total": 304882915664.0,
+   "usdt": 181923069831.0,
+   "usdc": 75602599526.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-21": {
+   "stables_total": 304852679466.0,
+   "usdt": 182138675951.0,
+   "usdc": 75817051985.0,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-22": {
+   "stables_total": 305811325482.0,
+   "usdt": 182601500509.0,
+   "usdc": 76291062089.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-10-23": {
+   "stables_total": 305213310923.0,
+   "usdt": 182562751850.0,
+   "usdc": 76039309349.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-24": {
+   "stables_total": 305410932086.0,
+   "usdt": 182792886387.0,
+   "usdc": 76027416081.0,
+   "fng": 30.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-25": {
+   "stables_total": 306011983736.0,
+   "usdt": 183101507882.0,
+   "usdc": 75985558245.0,
+   "fng": 37.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-26": {
+   "stables_total": 305769865626.0,
+   "usdt": 183079500410.0,
+   "usdc": 75869017979.0,
+   "fng": 40.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-27": {
+   "stables_total": 305630276133.0,
+   "usdt": 183154451545.0,
+   "usdc": 75824423318.0,
+   "fng": 51.0,
+   "fng_class": "Neutral"
+  },
+  "2025-10-28": {
+   "stables_total": 305276907853.0,
+   "usdt": 183245574379.0,
+   "usdc": 75680138187.0,
+   "fng": 50.0,
+   "fng_class": "Neutral"
+  },
+  "2025-10-29": {
+   "stables_total": 305402552875.0,
+   "usdt": 183472999907.0,
+   "usdc": 75756646243.0,
+   "fng": 51.0,
+   "fng_class": "Neutral"
+  },
+  "2025-10-30": {
+   "stables_total": 304704344701.0,
+   "usdt": 183409474077.0,
+   "usdc": 75824172319.0,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2025-10-31": {
+   "stables_total": 304345409015.0,
+   "usdt": 183303971620.0,
+   "usdc": 75544585729.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2025-11-01": {
+   "stables_total": 304297613409.0,
+   "usdt": 183393224146.0,
+   "usdc": 75507624036.0,
+   "fng": 33.0,
+   "fng_class": "Fear"
+  },
+  "2025-11-02": {
+   "stables_total": 304449295206.0,
+   "usdt": 183463980411.0,
+   "usdc": 75481073547.0,
+   "fng": 37.0,
+   "fng_class": "Fear"
+  },
+  "2025-11-03": {
+   "stables_total": 304194948757.0,
+   "usdt": 183555515016.0,
+   "usdc": 75313725928.0,
+   "fng": 42.0,
+   "fng_class": "Fear"
+  },
+  "2025-11-04": {
+   "stables_total": 304156836594.0,
+   "usdt": 183555461585.0,
+   "usdc": 74960968584.0,
+   "fng": 21.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-05": {
+   "stables_total": 302937004511.0,
+   "usdt": 183343560327.0,
+   "usdc": 74639102897.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-06": {
+   "stables_total": 302787402883.0,
+   "usdt": 183464373075.0,
+   "usdc": 74788067398.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2025-11-07": {
+   "stables_total": 302161516354.0,
+   "usdt": 183383441824.0,
+   "usdc": 74920724301.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-08": {
+   "stables_total": 302487959923.0,
+   "usdt": 183599119128.0,
+   "usdc": 75399309900.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-09": {
+   "stables_total": 301954724714.0,
+   "usdt": 183366455745.0,
+   "usdc": 75242061368.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-10": {
+   "stables_total": 301895351459.0,
+   "usdt": 183375955885.0,
+   "usdc": 75263899355.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2025-11-11": {
+   "stables_total": 302104307271.0,
+   "usdt": 183395444251.0,
+   "usdc": 75531420041.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2025-11-12": {
+   "stables_total": 302447065105.0,
+   "usdt": 183547300353.0,
+   "usdc": 75491080978.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-13": {
+   "stables_total": 302484848213.0,
+   "usdt": 184075638825.0,
+   "usdc": 75466512614.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-14": {
+   "stables_total": 301890517277.0,
+   "usdt": 183940205609.0,
+   "usdc": 75023530547.0,
+   "fng": 16.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-15": {
+   "stables_total": 301193385614.0,
+   "usdt": 183901863026.0,
+   "usdc": 74498880845.0,
+   "fng": 10.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-16": {
+   "stables_total": 301074104633.0,
+   "usdt": 183985483688.0,
+   "usdc": 74366699969.0,
+   "fng": 10.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-17": {
+   "stables_total": 300736680785.0,
+   "usdt": 183853042319.0,
+   "usdc": 74322829055.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-18": {
+   "stables_total": 300367034549.0,
+   "usdt": 183929638153.0,
+   "usdc": 74337465415.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-19": {
+   "stables_total": 300224824733.0,
+   "usdt": 183705250687.0,
+   "usdc": 74356596893.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-20": {
+   "stables_total": 299879058730.0,
+   "usdt": 183674741976.0,
+   "usdc": 74105188519.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-21": {
+   "stables_total": 299828750520.0,
+   "usdt": 184675398945.0,
+   "usdc": 73306577107.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-22": {
+   "stables_total": 299569006616.0,
+   "usdt": 184487293452.0,
+   "usdc": 73568552011.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-23": {
+   "stables_total": 299753713111.0,
+   "usdt": 184533511239.0,
+   "usdc": 73561358292.0,
+   "fng": 13.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-24": {
+   "stables_total": 299509560265.0,
+   "usdt": 184331338289.0,
+   "usdc": 73490904347.0,
+   "fng": 19.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-25": {
+   "stables_total": 300817723298.0,
+   "usdt": 184474703182.0,
+   "usdc": 74293658142.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-26": {
+   "stables_total": 301396064358.0,
+   "usdt": 184492141326.0,
+   "usdc": 74741934618.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-27": {
+   "stables_total": 302225146520.0,
+   "usdt": 184549453883.0,
+   "usdc": 75487107802.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-28": {
+   "stables_total": 302616266549.0,
+   "usdt": 184606393163.0,
+   "usdc": 75715206539.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-11-29": {
+   "stables_total": 303170261577.0,
+   "usdt": 184652369485.0,
+   "usdc": 76209721918.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2025-11-30": {
+   "stables_total": 303336688351.0,
+   "usdt": 184591649934.0,
+   "usdc": 76239412574.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2025-12-01": {
+   "stables_total": 303022180456.0,
+   "usdt": 184616288292.0,
+   "usdc": 76090158695.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-02": {
+   "stables_total": 303880809280.0,
+   "usdt": 184628089623.0,
+   "usdc": 76987116932.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-03": {
+   "stables_total": 304660136807.0,
+   "usdt": 184714757749.0,
+   "usdc": 77362074696.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2025-12-04": {
+   "stables_total": 304610368522.0,
+   "usdt": 185310328872.0,
+   "usdc": 77552380536.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2025-12-05": {
+   "stables_total": 305026204347.0,
+   "usdt": 185530759937.0,
+   "usdc": 77604577459.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2025-12-06": {
+   "stables_total": 305216669623.0,
+   "usdt": 185719839718.0,
+   "usdc": 77800303028.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-07": {
+   "stables_total": 305166285460.0,
+   "usdt": 185648284849.0,
+   "usdc": 77759088927.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-08": {
+   "stables_total": 305364897496.0,
+   "usdt": 185638105464.0,
+   "usdc": 77742378699.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-09": {
+   "stables_total": 305727969056.0,
+   "usdt": 185714865071.0,
+   "usdc": 78123040372.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-10": {
+   "stables_total": 305826900405.0,
+   "usdt": 186210167994.0,
+   "usdc": 78002417599.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2025-12-11": {
+   "stables_total": 305923416441.0,
+   "usdt": 186114181046.0,
+   "usdc": 78177180094.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2025-12-12": {
+   "stables_total": 306903300720.0,
+   "usdt": 186176063765.0,
+   "usdc": 78560840151.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2025-12-13": {
+   "stables_total": 306976019409.0,
+   "usdt": 186273559735.0,
+   "usdc": 78419795847.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-14": {
+   "stables_total": 306854544116.0,
+   "usdt": 186262597088.0,
+   "usdc": 78361282948.0,
+   "fng": 21.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-15": {
+   "stables_total": 306559392987.0,
+   "usdt": 186229715569.0,
+   "usdc": 78315866074.0,
+   "fng": 16.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-16": {
+   "stables_total": 306340989418.0,
+   "usdt": 186291244968.0,
+   "usdc": 78207270620.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-17": {
+   "stables_total": 306264836979.0,
+   "usdt": 186266504280.0,
+   "usdc": 78165193854.0,
+   "fng": 16.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-18": {
+   "stables_total": 306191775755.0,
+   "usdt": 186224509088.0,
+   "usdc": 77971910455.0,
+   "fng": 17.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-19": {
+   "stables_total": 305646489124.0,
+   "usdt": 186164596860.0,
+   "usdc": 77329969851.0,
+   "fng": 16.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-20": {
+   "stables_total": 306139651665.0,
+   "usdt": 186315187597.0,
+   "usdc": 77109201575.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-21": {
+   "stables_total": 307210078826.0,
+   "usdt": 186763629145.0,
+   "usdc": 77090120915.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-22": {
+   "stables_total": 305978179139.0,
+   "usdt": 186718492732.0,
+   "usdc": 77024281678.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-23": {
+   "stables_total": 306068394978.0,
+   "usdt": 186786276346.0,
+   "usdc": 77045515267.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-24": {
+   "stables_total": 305578874906.0,
+   "usdt": 187011537799.0,
+   "usdc": 76838638293.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-25": {
+   "stables_total": 305063888217.0,
+   "usdt": 186765362824.0,
+   "usdc": 76540301305.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-26": {
+   "stables_total": 305228351117.0,
+   "usdt": 186742397072.0,
+   "usdc": 76469696157.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-27": {
+   "stables_total": 305167261738.0,
+   "usdt": 186761616943.0,
+   "usdc": 76453901074.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-28": {
+   "stables_total": 305047202005.0,
+   "usdt": 186696095167.0,
+   "usdc": 76376303132.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-29": {
+   "stables_total": 304882498025.0,
+   "usdt": 186602151653.0,
+   "usdc": 76252278796.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-30": {
+   "stables_total": 304765192894.0,
+   "usdt": 187119499494.0,
+   "usdc": 76002343002.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2025-12-31": {
+   "stables_total": 304427076517.0,
+   "usdt": 187061547680.0,
+   "usdc": 75986067409.0,
+   "fng": 21.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-01": {
+   "stables_total": 303709002572.0,
+   "usdt": 187038867742.0,
+   "usdc": 75302045206.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-02": {
+   "stables_total": 303737508816.0,
+   "usdt": 186996609505.0,
+   "usdc": 75121831919.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-03": {
+   "stables_total": 304516151653.0,
+   "usdt": 187132794196.0,
+   "usdc": 75283340693.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-04": {
+   "stables_total": 304411127593.0,
+   "usdt": 187010743268.0,
+   "usdc": 75303435323.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-05": {
+   "stables_total": 304756522558.0,
+   "usdt": 187078709065.0,
+   "usdc": 75355267792.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-06": {
+   "stables_total": 305309978836.0,
+   "usdt": 187226396749.0,
+   "usdc": 75662391962.0,
+   "fng": 44.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-07": {
+   "stables_total": 304882778006.0,
+   "usdt": 186902400040.0,
+   "usdc": 75466338903.0,
+   "fng": 42.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-08": {
+   "stables_total": 304623082685.0,
+   "usdt": 186937858905.0,
+   "usdc": 75058420569.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-09": {
+   "stables_total": 304269622795.0,
+   "usdt": 185932051789.0,
+   "usdc": 74907827583.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-10": {
+   "stables_total": 304588897213.0,
+   "usdt": 186713145864.0,
+   "usdc": 74648239738.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-11": {
+   "stables_total": 304443556140.0,
+   "usdt": 186792471438.0,
+   "usdc": 74559067209.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-12": {
+   "stables_total": 304450188800.0,
+   "usdt": 186749668721.0,
+   "usdc": 74539715709.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-13": {
+   "stables_total": 303931326216.0,
+   "usdt": 186823168034.0,
+   "usdc": 73948195302.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-14": {
+   "stables_total": 305318046036.0,
+   "usdt": 186815867748.0,
+   "usdc": 74860314558.0,
+   "fng": 48.0,
+   "fng_class": "Neutral"
+  },
+  "2026-01-15": {
+   "stables_total": 306202943942.0,
+   "usdt": 186727589699.0,
+   "usdc": 75674134410.0,
+   "fng": 61.0,
+   "fng_class": "Greed"
+  },
+  "2026-01-16": {
+   "stables_total": 307029285104.0,
+   "usdt": 186590104041.0,
+   "usdc": 76707865435.0,
+   "fng": 49.0,
+   "fng_class": "Neutral"
+  },
+  "2026-01-17": {
+   "stables_total": 307523364501.0,
+   "usdt": 186583939615.0,
+   "usdc": 77092715423.0,
+   "fng": 50.0,
+   "fng_class": "Neutral"
+  },
+  "2026-01-18": {
+   "stables_total": 307814403964.0,
+   "usdt": 186595013507.0,
+   "usdc": 77015887810.0,
+   "fng": 49.0,
+   "fng_class": "Neutral"
+  },
+  "2026-01-19": {
+   "stables_total": 307629697318.0,
+   "usdt": 186841416161.0,
+   "usdc": 76745482799.0,
+   "fng": 44.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-20": {
+   "stables_total": 307430561788.0,
+   "usdt": 186736847182.0,
+   "usdc": 76414550214.0,
+   "fng": 32.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-21": {
+   "stables_total": 305594817302.0,
+   "usdt": 186840328976.0,
+   "usdc": 74482032818.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-22": {
+   "stables_total": 304816052835.0,
+   "usdt": 186711771816.0,
+   "usdc": 74204287468.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-23": {
+   "stables_total": 304368237406.0,
+   "usdt": 186658093333.0,
+   "usdc": 73608112130.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-24": {
+   "stables_total": 304717571704.0,
+   "usdt": 186599941732.0,
+   "usdc": 72908246945.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-25": {
+   "stables_total": 304685879816.0,
+   "usdt": 186682404659.0,
+   "usdc": 72531306749.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-26": {
+   "stables_total": 304675812347.0,
+   "usdt": 186658598123.0,
+   "usdc": 72354088945.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-27": {
+   "stables_total": 304112308836.0,
+   "usdt": 186280893427.0,
+   "usdc": 72000799088.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-28": {
+   "stables_total": 303999448803.0,
+   "usdt": 186129444279.0,
+   "usdc": 71512500577.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-29": {
+   "stables_total": 303581934846.0,
+   "usdt": 186017474700.0,
+   "usdc": 71265871394.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-01-30": {
+   "stables_total": 302279023775.0,
+   "usdt": 185531975517.0,
+   "usdc": 70229662871.0,
+   "fng": 16.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-01-31": {
+   "stables_total": 301225949269.0,
+   "usdt": 185362510319.0,
+   "usdc": 69991420269.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-01": {
+   "stables_total": 300615224113.0,
+   "usdt": 185125202425.0,
+   "usdc": 70059231846.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-02": {
+   "stables_total": 300936674511.0,
+   "usdt": 185249445937.0,
+   "usdc": 70326285331.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-03": {
+   "stables_total": 301178560999.0,
+   "usdt": 185070808609.0,
+   "usdc": 70693770811.0,
+   "fng": 17.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-04": {
+   "stables_total": 301404253236.0,
+   "usdt": 184768279488.0,
+   "usdc": 70844871156.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-05": {
+   "stables_total": 301577021269.0,
+   "usdt": 185352053740.0,
+   "usdc": 70772790638.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-06": {
+   "stables_total": 300879919452.0,
+   "usdt": 185129905487.0,
+   "usdc": 70542213830.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-07": {
+   "stables_total": 301277298114.0,
+   "usdt": 183475514411.0,
+   "usdc": 72547161048.0,
+   "fng": 6.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-08": {
+   "stables_total": 301806993897.0,
+   "usdt": 183360328029.0,
+   "usdc": 72711967145.0,
+   "fng": 7.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-09": {
+   "stables_total": 303034913297.0,
+   "usdt": 184456026529.0,
+   "usdc": 72837522586.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-10": {
+   "stables_total": 302738557891.0,
+   "usdt": 184393776694.0,
+   "usdc": 73028517602.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-11": {
+   "stables_total": 302311928290.0,
+   "usdt": 184269644689.0,
+   "usdc": 73198966436.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-12": {
+   "stables_total": 302196514696.0,
+   "usdt": 183873507813.0,
+   "usdc": 73346705751.0,
+   "fng": 5.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-13": {
+   "stables_total": 301979356494.0,
+   "usdt": 183840801523.0,
+   "usdc": 73251235992.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-14": {
+   "stables_total": 302854018435.0,
+   "usdt": 183715889423.0,
+   "usdc": 73555404323.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-15": {
+   "stables_total": 302922053118.0,
+   "usdt": 183712088744.0,
+   "usdc": 73569678626.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-16": {
+   "stables_total": 303052148004.0,
+   "usdt": 183680576387.0,
+   "usdc": 73704068625.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-17": {
+   "stables_total": 303200450256.0,
+   "usdt": 183657406390.0,
+   "usdc": 73740804198.0,
+   "fng": 10.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-18": {
+   "stables_total": 302812434426.0,
+   "usdt": 183647130868.0,
+   "usdc": 73551358310.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-19": {
+   "stables_total": 303066839387.0,
+   "usdt": 183652782045.0,
+   "usdc": 73634522464.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-20": {
+   "stables_total": 303066703644.0,
+   "usdt": 183651661298.0,
+   "usdc": 73794576087.0,
+   "fng": 7.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-21": {
+   "stables_total": 302621021113.0,
+   "usdt": 182556719988.0,
+   "usdc": 74496755741.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-22": {
+   "stables_total": 302556554679.0,
+   "usdt": 182548090466.0,
+   "usdc": 74403276044.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-23": {
+   "stables_total": 303707914223.0,
+   "usdt": 183553308457.0,
+   "usdc": 74462061832.0,
+   "fng": 5.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-24": {
+   "stables_total": 303524272765.0,
+   "usdt": 183611388170.0,
+   "usdc": 74773662424.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-25": {
+   "stables_total": 303751766973.0,
+   "usdt": 183647519566.0,
+   "usdc": 74994211544.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-26": {
+   "stables_total": 304300364249.0,
+   "usdt": 183678752344.0,
+   "usdc": 75423798549.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-27": {
+   "stables_total": 303816169107.0,
+   "usdt": 183450440591.0,
+   "usdc": 75338114445.0,
+   "fng": 13.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-02-28": {
+   "stables_total": 304020233084.0,
+   "usdt": 183642358323.0,
+   "usdc": 75287298250.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-01": {
+   "stables_total": 304309447291.0,
+   "usdt": 183473328258.0,
+   "usdc": 75219001243.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-02": {
+   "stables_total": 303941259624.0,
+   "usdt": 183624044149.0,
+   "usdc": 75222883302.0,
+   "fng": 10.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-03": {
+   "stables_total": 304983588697.0,
+   "usdt": 183653134880.0,
+   "usdc": 75928136892.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-04": {
+   "stables_total": 305245073428.0,
+   "usdt": 183701134201.0,
+   "usdc": 76372520626.0,
+   "fng": 10.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-05": {
+   "stables_total": 306177550133.0,
+   "usdt": 183878725555.0,
+   "usdc": 77051319822.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-06": {
+   "stables_total": 307227579179.0,
+   "usdt": 183996961785.0,
+   "usdc": 77202697435.0,
+   "fng": 18.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-07": {
+   "stables_total": 307307063388.0,
+   "usdt": 183934349760.0,
+   "usdc": 77390994956.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-08": {
+   "stables_total": 307324744739.0,
+   "usdt": 183955299576.0,
+   "usdc": 77301625288.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-09": {
+   "stables_total": 307487363362.0,
+   "usdt": 183880021613.0,
+   "usdc": 77284446616.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-10": {
+   "stables_total": 308519919756.0,
+   "usdt": 184098808361.0,
+   "usdc": 78252916270.0,
+   "fng": 13.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-11": {
+   "stables_total": 308839428460.0,
+   "usdt": 183875626058.0,
+   "usdc": 78733640750.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-12": {
+   "stables_total": 309050413775.0,
+   "usdt": 183935217036.0,
+   "usdc": 78796833378.0,
+   "fng": 18.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-13": {
+   "stables_total": 309491911172.0,
+   "usdt": 183961636460.0,
+   "usdc": 78940562877.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-14": {
+   "stables_total": 309932574535.0,
+   "usdt": 184003710227.0,
+   "usdc": 79241500481.0,
+   "fng": 16.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-15": {
+   "stables_total": 309858359919.0,
+   "usdt": 184020963275.0,
+   "usdc": 79214056758.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-16": {
+   "stables_total": 309822778419.0,
+   "usdt": 183988737024.0,
+   "usdc": 79189558417.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-17": {
+   "stables_total": 309879709234.0,
+   "usdt": 184062612412.0,
+   "usdc": 79291667696.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-03-18": {
+   "stables_total": 309891826023.0,
+   "usdt": 184062143960.0,
+   "usdc": 79620206990.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-03-19": {
+   "stables_total": 309414060430.0,
+   "usdt": 183313214438.0,
+   "usdc": 79404884927.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-20": {
+   "stables_total": 309766451568.0,
+   "usdt": 184133852683.0,
+   "usdc": 79258467088.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-21": {
+   "stables_total": 309860357957.0,
+   "usdt": 184124130284.0,
+   "usdc": 79094879347.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-22": {
+   "stables_total": 309861800041.0,
+   "usdt": 184172718587.0,
+   "usdc": 79041784342.0,
+   "fng": 10.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-23": {
+   "stables_total": 309831560394.0,
+   "usdt": 184095403242.0,
+   "usdc": 79005620863.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-24": {
+   "stables_total": 309281356960.0,
+   "usdt": 184059715705.0,
+   "usdc": 78680805398.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-25": {
+   "stables_total": 309403910079.0,
+   "usdt": 184128331053.0,
+   "usdc": 78688894309.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-26": {
+   "stables_total": 309386548771.0,
+   "usdt": 184071158214.0,
+   "usdc": 78685319038.0,
+   "fng": 10.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-27": {
+   "stables_total": 308549835330.0,
+   "usdt": 184053953191.0,
+   "usdc": 78089037321.0,
+   "fng": 13.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-28": {
+   "stables_total": 308399180014.0,
+   "usdt": 184026240217.0,
+   "usdc": 77724212236.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-29": {
+   "stables_total": 308321428845.0,
+   "usdt": 184026578528.0,
+   "usdc": 77673073489.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-30": {
+   "stables_total": 308455382020.0,
+   "usdt": 184016535221.0,
+   "usdc": 77592094534.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-03-31": {
+   "stables_total": 308543312878.0,
+   "usdt": 184028745852.0,
+   "usdc": 77359057031.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-01": {
+   "stables_total": 309173677489.0,
+   "usdt": 184159950539.0,
+   "usdc": 77125806930.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-02": {
+   "stables_total": 309252812692.0,
+   "usdt": 184118772798.0,
+   "usdc": 77176836346.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-03": {
+   "stables_total": 309416486012.0,
+   "usdt": 183911609411.0,
+   "usdc": 77225124079.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-04": {
+   "stables_total": 309799135247.0,
+   "usdt": 184121482443.0,
+   "usdc": 77491328959.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-05": {
+   "stables_total": 309748642336.0,
+   "usdt": 184071591160.0,
+   "usdc": 77486965006.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-06": {
+   "stables_total": 309739734933.0,
+   "usdt": 184114071471.0,
+   "usdc": 77487491721.0,
+   "fng": 13.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-07": {
+   "stables_total": 309310945375.0,
+   "usdt": 184048975184.0,
+   "usdc": 77838919850.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-08": {
+   "stables_total": 309980830799.0,
+   "usdt": 184581326840.0,
+   "usdc": 77794803983.0,
+   "fng": 17.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-09": {
+   "stables_total": 310002670659.0,
+   "usdt": 184090007364.0,
+   "usdc": 78189295374.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-10": {
+   "stables_total": 310420064939.0,
+   "usdt": 184161605086.0,
+   "usdc": 78344318910.0,
+   "fng": 16.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-11": {
+   "stables_total": 311127450253.0,
+   "usdt": 184303056042.0,
+   "usdc": 78762802608.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-12": {
+   "stables_total": 311204554096.0,
+   "usdt": 184369546310.0,
+   "usdc": 78742402530.0,
+   "fng": 16.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-13": {
+   "stables_total": 311301536327.0,
+   "usdt": 184473344541.0,
+   "usdc": 78676379476.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-14": {
+   "stables_total": 311438602177.0,
+   "usdt": 184783169539.0,
+   "usdc": 78711936438.0,
+   "fng": 21.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-15": {
+   "stables_total": 312492676437.0,
+   "usdt": 185489007357.0,
+   "usdc": 78861960562.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-16": {
+   "stables_total": 312338430286.0,
+   "usdt": 185475308322.0,
+   "usdc": 78628189944.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-17": {
+   "stables_total": 312844940613.0,
+   "usdt": 185821418387.0,
+   "usdc": 78783137646.0,
+   "fng": 21.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-04-18": {
+   "stables_total": 313656083090.0,
+   "usdt": 186635325383.0,
+   "usdc": 78632712047.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-19": {
+   "stables_total": 313802799643.0,
+   "usdt": 186894729169.0,
+   "usdc": 78582709734.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-20": {
+   "stables_total": 312892942738.0,
+   "usdt": 187236297938.0,
+   "usdc": 78288040656.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-21": {
+   "stables_total": 312943266375.0,
+   "usdt": 187923234519.0,
+   "usdc": 78349313622.0,
+   "fng": 33.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-22": {
+   "stables_total": 313690751025.0,
+   "usdt": 188803849201.0,
+   "usdc": 78362783947.0,
+   "fng": 32.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-23": {
+   "stables_total": 313278799071.0,
+   "usdt": 188819383286.0,
+   "usdc": 78411463016.0,
+   "fng": 46.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-24": {
+   "stables_total": 313015481868.0,
+   "usdt": 189676027713.0,
+   "usdc": 78116190456.0,
+   "fng": 39.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-25": {
+   "stables_total": 312847404285.0,
+   "usdt": 189667328061.0,
+   "usdc": 77873324700.0,
+   "fng": 31.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-26": {
+   "stables_total": 312945573007.0,
+   "usdt": 189796007280.0,
+   "usdc": 77823384974.0,
+   "fng": 33.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-27": {
+   "stables_total": 312937637415.0,
+   "usdt": 189728350178.0,
+   "usdc": 77881007018.0,
+   "fng": 47.0,
+   "fng_class": "Neutral"
+  },
+  "2026-04-28": {
+   "stables_total": 312720735691.0,
+   "usdt": 189677443846.0,
+   "usdc": 77730159086.0,
+   "fng": 33.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-29": {
+   "stables_total": 312857999737.0,
+   "usdt": 189585888350.0,
+   "usdc": 77596010010.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-04-30": {
+   "stables_total": 312059316892.0,
+   "usdt": 189473893602.0,
+   "usdc": 77338168145.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-01": {
+   "stables_total": 312735226633.0,
+   "usdt": 189505305839.0,
+   "usdc": 77260188524.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-02": {
+   "stables_total": 312963815463.0,
+   "usdt": 189523141424.0,
+   "usdc": 77351497139.0,
+   "fng": 39.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-03": {
+   "stables_total": 313364823959.0,
+   "usdt": 189520130983.0,
+   "usdc": 77344446571.0,
+   "fng": 47.0,
+   "fng_class": "Neutral"
+  },
+  "2026-05-04": {
+   "stables_total": 313378347251.0,
+   "usdt": 189518223893.0,
+   "usdc": 77353437151.0,
+   "fng": 40.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-05": {
+   "stables_total": 313890281870.0,
+   "usdt": 189516819950.0,
+   "usdc": 77910319208.0,
+   "fng": 50.0,
+   "fng_class": "Neutral"
+  },
+  "2026-05-06": {
+   "stables_total": 314786980421.0,
+   "usdt": 189516730271.0,
+   "usdc": 78274891504.0,
+   "fng": 46.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-07": {
+   "stables_total": 314960171534.0,
+   "usdt": 189598356788.0,
+   "usdc": 78360036122.0,
+   "fng": 47.0,
+   "fng_class": "Neutral"
+  },
+  "2026-05-08": {
+   "stables_total": 315234805796.0,
+   "usdt": 189659039254.0,
+   "usdc": 78457144646.0,
+   "fng": 38.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-09": {
+   "stables_total": 313880840623.0,
+   "usdt": 189626653913.0,
+   "usdc": 78017883698.0,
+   "fng": 38.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-10": {
+   "oi_usd": 3532054275.38,
+   "perp_volume_usd": 2763836893.0053,
+   "long_short_ratio": 0.8,
+   "stables_total": 314617345622.0,
+   "usdt": 189607901586.0,
+   "usdc": 77949114347.0,
+   "fng": 47.0,
+   "fng_class": "Neutral"
+  },
+  "2026-05-11": {
+   "oi_usd": 3511509079.8679,
+   "perp_volume_usd": 7556896147.2034,
+   "long_short_ratio": 0.83,
+   "stables_total": 314902752605.0,
+   "usdt": 189607901586.0,
+   "usdc": 77949114347.0,
+   "fng": 48.0,
+   "fng_class": "Neutral"
+  },
+  "2026-05-12": {
+   "oi_usd": 3493632545.5021,
+   "perp_volume_usd": 6757032556.5265,
+   "long_short_ratio": 0.88,
+   "stables_total": 315119611178.0,
+   "usdt": 189750569539.0,
+   "usdc": 77551109591.0,
+   "fng": 49.0,
+   "fng_class": "Neutral"
+  },
+  "2026-05-13": {
+   "oi_usd": 3512598491.0108,
+   "perp_volume_usd": 7328230243.0611,
+   "long_short_ratio": 1.15,
+   "stables_total": 314872029149.0,
+   "usdt": 189698522645.0,
+   "usdc": 77181236057.0,
+   "fng": 42.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-14": {
+   "oi_usd": 3504963010.3979,
+   "perp_volume_usd": 7532822482.8851,
+   "long_short_ratio": 0.85,
+   "stables_total": 314439397202.0,
+   "usdt": 189778927182.0,
+   "usdc": 76854772870.0,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-15": {
+   "oi_usd": 3382429911.203,
+   "perp_volume_usd": 10513708982.8194,
+   "long_short_ratio": 1.29,
+   "stables_total": 314548186559.0,
+   "usdt": 189712008952.0,
+   "usdc": 76730373776.0,
+   "fng": 43.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-16": {
+   "oi_usd": 3422611240.7347,
+   "perp_volume_usd": 4657861907.4414,
+   "long_short_ratio": 1.47,
+   "stables_total": 315244950168.0,
+   "usdt": 189704860767.0,
+   "usdc": 77065957868.0,
+   "fng": 31.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-17": {
+   "oi_usd": 3420321934.7466,
+   "perp_volume_usd": 2847535216.9115,
+   "long_short_ratio": 1.49,
+   "stables_total": 315536063405.0,
+   "usdt": 189681810030.0,
+   "usdc": 77056026104.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-18": {
+   "oi_usd": 3468276281.763,
+   "perp_volume_usd": 8362491482.5119,
+   "long_short_ratio": 1.61,
+   "stables_total": 315453660442.0,
+   "usdt": 189651127199.0,
+   "usdc": 76997492774.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-19": {
+   "oi_usd": 3367962902.4859,
+   "perp_volume_usd": 6041666217.3091,
+   "long_short_ratio": 1.51,
+   "stables_total": 315189626704.0,
+   "usdt": 189646051796.0,
+   "usdc": 77023551660.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-05-20": {
+   "oi_usd": 3328450728.0873,
+   "perp_volume_usd": 5405814012.7296,
+   "long_short_ratio": 1.3,
+   "stables_total": 314678227678.0,
+   "usdt": 190240489246.0,
+   "usdc": 76367797495.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-21": {
+   "oi_usd": 3327407389.4365,
+   "perp_volume_usd": 5997595170.8715,
+   "long_short_ratio": 1.38,
+   "stables_total": 314167362154.0,
+   "usdt": 189623712705.0,
+   "usdc": 76281950061.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-22": {
+   "oi_usd": 3371700119.6847,
+   "perp_volume_usd": 5169900817.1725,
+   "long_short_ratio": 1.49,
+   "stables_total": 314920801460.0,
+   "usdt": 189588520426.0,
+   "usdc": 77070429730.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-23": {
+   "oi_usd": 3404162635.1109,
+   "perp_volume_usd": 7461114443.4589,
+   "long_short_ratio": 1.62,
+   "stables_total": 314985312168.0,
+   "usdt": 189444911276.0,
+   "usdc": 76618009441.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-24": {
+   "oi_usd": 3217562158.4053,
+   "perp_volume_usd": 5839736230.3869,
+   "long_short_ratio": 1.3,
+   "stables_total": 314918896532.0,
+   "usdt": 189456166223.0,
+   "usdc": 76529381214.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-05-25": {
+   "oi_usd": 3248658126.3526,
+   "perp_volume_usd": 4694766425.1291,
+   "long_short_ratio": 1.08,
+   "stables_total": 314660821703.0,
+   "usdt": 189425056560.0,
+   "usdc": 76486988861.0,
+   "fng": 30.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-26": {
+   "oi_usd": 3189865859.4579,
+   "perp_volume_usd": 7036135829.4867,
+   "long_short_ratio": 1.27,
+   "stables_total": 314808614801.0,
+   "usdt": 189332397121.0,
+   "usdc": 76622707131.0,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2026-05-27": {
+   "oi_usd": 3409469391.9809,
+   "perp_volume_usd": 6619161805.8309,
+   "long_short_ratio": 1.72,
+   "stables_total": 314473744556.0,
+   "usdt": 189274715004.0,
+   "usdc": 76597761928.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-05-28": {
+   "oi_usd": 3486008116.207,
+   "perp_volume_usd": 8755557568.4017,
+   "long_short_ratio": 1.94,
+   "stables_total": 313853175875.0,
+   "usdt": 189142623561.0,
+   "usdc": 76450622761.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-05-29": {
+   "oi_usd": 3322873495.7137,
+   "perp_volume_usd": 6636086825.3425,
+   "long_short_ratio": 1.67,
+   "stables_total": 312902847795.0,
+   "usdt": 188687496658.0,
+   "usdc": 76275819934.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-05-30": {
+   "oi_usd": 3273961174.8667,
+   "perp_volume_usd": 3903028523.9844,
+   "long_short_ratio": 1.62,
+   "stables_total": 312463852417.0,
+   "usdt": 188167164090.0,
+   "usdc": 76084357754.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-05-31": {
+   "oi_usd": 3277637200.2835,
+   "perp_volume_usd": 2233508736.4891,
+   "long_short_ratio": 1.59,
+   "stables_total": 312256749328.0,
+   "usdt": 188163969962.0,
+   "usdc": 75886086749.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-06-01": {
+   "oi_usd": 3364900453.8806,
+   "perp_volume_usd": 7821571205.5666,
+   "long_short_ratio": 1.91,
+   "stables_total": 312053941949.0,
+   "usdt": 187951044487.0,
+   "usdc": 75876233832.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-06-02": {
+   "oi_usd": 3442797338.6152,
+   "perp_volume_usd": 12587910110.4195,
+   "long_short_ratio": 2.02,
+   "stables_total": 312062191857.0,
+   "usdt": 187957633953.0,
+   "usdc": 76007784279.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-03": {
+   "oi_usd": 3258423229.1402,
+   "perp_volume_usd": 11884122835.2073,
+   "long_short_ratio": 1.92,
+   "stables_total": 311375385268.0,
+   "usdt": 187818735409.0,
+   "usdc": 76008306492.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-04": {
+   "oi_usd": 3012084691.9336,
+   "perp_volume_usd": 19106842181.9363,
+   "long_short_ratio": 1.63,
+   "stables_total": 310696583698.0,
+   "usdt": 187297618359.0,
+   "usdc": 76120150013.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-05": {
+   "oi_usd": 2626030432.4916,
+   "perp_volume_usd": 14906363149.9432,
+   "long_short_ratio": 2.03,
+   "stables_total": 309447767638.0,
+   "usdt": 187144996251.0,
+   "usdc": 75753885444.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-06": {
+   "oi_usd": 2583133879.7958,
+   "perp_volume_usd": 12220992685.0832,
+   "long_short_ratio": 1.76,
+   "stables_total": 308918903962.0,
+   "usdt": 187205889430.0,
+   "usdc": 75602143893.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-07": {
+   "oi_usd": 2596838642.7913,
+   "perp_volume_usd": 6715685186.7007,
+   "long_short_ratio": 1.88,
+   "stables_total": 308447333018.0,
+   "usdt": 186829201995.0,
+   "usdc": 75493969113.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-08": {
+   "oi_usd": 2555610097.2696,
+   "perp_volume_usd": 10040366628.4747,
+   "long_short_ratio": 1.54,
+   "stables_total": 308559808348.0,
+   "usdt": 186852587734.0,
+   "usdc": 75751182112.0,
+   "fng": 8.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-09": {
+   "oi_usd": 2584851523.4535,
+   "perp_volume_usd": 7377378015.0521,
+   "long_short_ratio": 2.14,
+   "stables_total": 308949430482.0,
+   "usdt": 186792477102.0,
+   "usdc": 76052868040.0,
+   "fng": 10.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-10": {
+   "oi_usd": 2633821063.9838,
+   "perp_volume_usd": 7881318553.3466,
+   "long_short_ratio": 1.81,
+   "stables_total": 307899872795.0,
+   "usdt": 186744890704.0,
+   "usdc": 75120116676.0,
+   "fng": 9.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-11": {
+   "oi_usd": 2707205873.9869,
+   "perp_volume_usd": 6355345049.5298,
+   "long_short_ratio": 1.48,
+   "stables_total": 307768795631.0,
+   "usdt": 186716465781.0,
+   "usdc": 74989222189.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-12": {
+   "oi_usd": 2656380990.9953,
+   "perp_volume_usd": 6834118397.6109,
+   "long_short_ratio": 1.4,
+   "stables_total": 307611222173.0,
+   "usdt": 186767756189.0,
+   "usdc": 74911918701.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-13": {
+   "oi_usd": 2731543471.9435,
+   "perp_volume_usd": 2827359238.3057,
+   "long_short_ratio": 1.36,
+   "stables_total": 307216665102.0,
+   "usdt": 186473369522.0,
+   "usdc": 74916668861.0,
+   "fng": 13.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-14": {
+   "oi_usd": 2759695916.6159,
+   "perp_volume_usd": 3069563490.8159,
+   "long_short_ratio": 1.31,
+   "stables_total": 307274610488.0,
+   "usdt": 186433569909.0,
+   "usdc": 74901986960.0,
+   "fng": 18.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-15": {
+   "oi_usd": 2884414445.6194,
+   "perp_volume_usd": 7871618935.382,
+   "long_short_ratio": 1.21,
+   "stables_total": 307187629298.0,
+   "usdt": 186414919533.0,
+   "usdc": 74855076558.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-16": {
+   "oi_usd": 2732651454.9411,
+   "perp_volume_usd": 6461806625.077,
+   "long_short_ratio": 1.35,
+   "stables_total": 307573807684.0,
+   "usdt": 186314405093.0,
+   "usdc": 75064554304.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-17": {
+   "oi_usd": 2698380938.2346,
+   "perp_volume_usd": 5355335830.4724,
+   "long_short_ratio": 1.38,
+   "stables_total": 307442457588.0,
+   "usdt": 186434093082.0,
+   "usdc": 74995312896.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-18": {
+   "oi_usd": 2581034725.5466,
+   "perp_volume_usd": 9058485503.6457,
+   "long_short_ratio": 1.66,
+   "stables_total": 307094956331.0,
+   "usdt": 186204176847.0,
+   "usdc": 74822042336.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-19": {
+   "oi_usd": 2665612166.1622,
+   "perp_volume_usd": 5086468580.3815,
+   "long_short_ratio": 1.68,
+   "stables_total": 307261853346.0,
+   "usdt": 186268690521.0,
+   "usdc": 74865235478.0,
+   "fng": 14.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-20": {
+   "oi_usd": 2651569874.8967,
+   "perp_volume_usd": 3975001755.2449,
+   "long_short_ratio": 1.45,
+   "stables_total": 307292465573.0,
+   "usdt": 186179339134.0,
+   "usdc": 74940951526.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-21": {
+   "oi_usd": 2668831407.2882,
+   "perp_volume_usd": 2868478014.5444,
+   "long_short_ratio": 1.45,
+   "stables_total": 307359266337.0,
+   "usdt": 186199574483.0,
+   "usdc": 74913679403.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-22": {
+   "oi_usd": 2634158005.2497,
+   "perp_volume_usd": 6434891184.5615,
+   "long_short_ratio": 1.41,
+   "stables_total": 307408917064.0,
+   "usdt": 186200393359.0,
+   "usdc": 74922990027.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-23": {
+   "oi_usd": 2697980405.5143,
+   "perp_volume_usd": 7374407709.607,
+   "long_short_ratio": 1.94,
+   "stables_total": 307379486812.0,
+   "usdt": 186093411448.0,
+   "usdc": 74534736113.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-24": {
+   "oi_usd": 2703500354.8087,
+   "perp_volume_usd": 7694723101.9513,
+   "long_short_ratio": 2.12,
+   "stables_total": 306751570045.0,
+   "usdt": 186041214054.0,
+   "usdc": 74167040149.0,
+   "fng": 17.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-25": {
+   "oi_usd": 2700609722.6585,
+   "perp_volume_usd": 15079770627.2733,
+   "long_short_ratio": 2.05,
+   "stables_total": 306388840558.0,
+   "usdt": 186050471481.0,
+   "usdc": 73812177844.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-26": {
+   "oi_usd": 2485111326.2864,
+   "perp_volume_usd": 11070944295.0007,
+   "long_short_ratio": 1.86,
+   "stables_total": 306508044026.0,
+   "usdt": 186074024688.0,
+   "usdc": 73751802229.0,
+   "fng": 13.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-27": {
+   "oi_usd": 2514782580.8159,
+   "perp_volume_usd": 3757526164.0002,
+   "long_short_ratio": 1.91,
+   "stables_total": 305130343267.0,
+   "usdt": 184903410054.0,
+   "usdc": 73873070606.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-28": {
+   "oi_usd": 2507518848.5675,
+   "perp_volume_usd": 3123083157.9178,
+   "long_short_ratio": 1.95,
+   "stables_total": 305121263894.0,
+   "usdt": 184887084079.0,
+   "usdc": 73854922287.0,
+   "fng": 18.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-29": {
+   "oi_usd": 2548089122.7054,
+   "perp_volume_usd": 8539879231.3536,
+   "long_short_ratio": 2.12,
+   "stables_total": 304790521894.0,
+   "usdt": 184891016775.0,
+   "usdc": 73798345056.0,
+   "fng": 12.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-06-30": {
+   "oi_usd": 2723204145.6682,
+   "perp_volume_usd": 7525564448.8605,
+   "long_short_ratio": 2.74,
+   "stables_total": 304117491360.0,
+   "usdt": 184684723455.0,
+   "usdc": 73746770182.0,
+   "fng": 15.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-01": {
+   "oi_usd": 2556725461.4239,
+   "perp_volume_usd": 8252643098.9872,
+   "long_short_ratio": 1.75,
+   "stables_total": 303379534387.0,
+   "usdt": 184437726268.0,
+   "usdc": 73447893668.0,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-02": {
+   "oi_usd": 2535164534.855,
+   "perp_volume_usd": 9329429368.03,
+   "long_short_ratio": 1.52,
+   "stables_total": 303521904710.0,
+   "usdt": 184417836356.0,
+   "usdc": 73383052291.0,
+   "fng": 19.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-03": {
+   "oi_usd": 2588967622.9523,
+   "perp_volume_usd": 4568006200.6929,
+   "long_short_ratio": 1.57,
+   "stables_total": 303311292882.0,
+   "usdt": 184098370947.0,
+   "usdc": 73365808663.0,
+   "fng": 21.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-04": {
+   "oi_usd": 2510949323.398,
+   "perp_volume_usd": 3569859096.9963,
+   "long_short_ratio": 1.5,
+   "stables_total": 303154841902.0,
+   "usdt": 184106456346.0,
+   "usdc": 73089557050.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-05": {
+   "oi_usd": 2507760596.9697,
+   "perp_volume_usd": 3264788210.9556,
+   "long_short_ratio": 1.46,
+   "stables_total": 303072486117.0,
+   "usdt": 184068056600.0,
+   "usdc": 73044871375.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-06": {
+   "oi_usd": 2528351580.8849,
+   "perp_volume_usd": 7947537752.6603,
+   "long_short_ratio": 1.52,
+   "stables_total": 304061857003.0,
+   "usdt": 184178742494.0,
+   "usdc": 73038600251.0,
+   "fng": 24.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-07": {
+   "oi_usd": 2563218021.0242,
+   "perp_volume_usd": 7232559043.2178,
+   "long_short_ratio": 1.5,
+   "stables_total": 303602122709.0,
+   "usdt": 184199209072.0,
+   "usdc": 73121240983.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-08": {
+   "oi_usd": 2526172785.1121,
+   "perp_volume_usd": 6437761094.1815,
+   "long_short_ratio": 1.67,
+   "stables_total": 301417588144.0,
+   "usdt": 182984009393.0,
+   "usdc": 73388472043.0,
+   "fng": 20.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-09": {
+   "oi_usd": 2492435840.9608,
+   "perp_volume_usd": 6028785807.0431,
+   "long_short_ratio": 1.43,
+   "stables_total": 301418663774.0,
+   "usdt": 183270042631.0,
+   "usdc": 73399459356.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-10": {
+   "oi_usd": 2568108026.3488,
+   "perp_volume_usd": 5795700526.4381,
+   "long_short_ratio": 1.18,
+   "stables_total": 302312848536.0,
+   "usdt": 184154384317.0,
+   "usdc": 73434458689.0,
+   "fng": 23.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-11": {
+   "oi_usd": 2590719245.1757,
+   "perp_volume_usd": 2352257028.41,
+   "long_short_ratio": 1.2,
+   "stables_total": 302709024368.0,
+   "usdt": 184161344569.0,
+   "usdc": 73402000447.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-12": {
+   "oi_usd": 2581498973.8269,
+   "perp_volume_usd": 2483091414.9523,
+   "long_short_ratio": 1.24,
+   "stables_total": 302640284635.0,
+   "usdt": 184164918008.0,
+   "usdc": 73459965852.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-13": {
+   "oi_usd": 2605866899.4096,
+   "perp_volume_usd": 6741235214.9131,
+   "long_short_ratio": 1.64,
+   "stables_total": 302445537842.0,
+   "usdt": 184042106963.0,
+   "usdc": 73530554093.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-14": {
+   "oi_usd": 2590714194.8219,
+   "perp_volume_usd": 7721404882.1567,
+   "long_short_ratio": 1.37,
+   "stables_total": 301172109150.0,
+   "usdt": 184244137742.0,
+   "usdc": 73092189937.0,
+   "fng": 22.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-15": {
+   "oi_usd": 2622536215.0275,
+   "perp_volume_usd": 6349177469.7124,
+   "long_short_ratio": 1.24,
+   "stables_total": 301455475070.0,
+   "usdt": 184199565836.0,
+   "usdc": 73163423075.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-16": {
+   "oi_usd": 2588930567.9014,
+   "perp_volume_usd": 5345229035.9691,
+   "long_short_ratio": 1.34,
+   "stables_total": 300747199128.0,
+   "usdt": 184071280957.0,
+   "usdc": 73210726078.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-17": {
+   "oi_usd": 2592805384.4882,
+   "perp_volume_usd": 6421625228.1258,
+   "long_short_ratio": 1.78,
+   "stables_total": 300972871037.0,
+   "usdt": 184044326945.0,
+   "usdc": 73270288786.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-18": {
+   "oi_usd": 2575755224.794,
+   "perp_volume_usd": 2639247820.0269,
+   "long_short_ratio": 1.57,
+   "stables_total": 301265940770.0,
+   "usdt": 184069967698.0,
+   "usdc": 73382515894.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-19": {
+   "oi_usd": 2656327879.5727,
+   "perp_volume_usd": 2959659237.1541,
+   "long_short_ratio": 1.41,
+   "stables_total": 301328897845.0,
+   "usdt": 184048153133.0,
+   "usdc": 73377603889.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-20": {
+   "oi_usd": 2700101525.1827,
+   "perp_volume_usd": 7065746086.1989,
+   "long_short_ratio": 1.26,
+   "stables_total": 301143325862.0,
+   "usdt": 184049929456.0,
+   "usdc": 73381347818.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-21": {
+   "oi_usd": 2830404860.7702,
+   "perp_volume_usd": 6024096502.2173,
+   "long_short_ratio": 1.02,
+   "stables_total": 300909685262.0,
+   "usdt": 184069479085.0,
+   "usdc": 73358917007.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-07-22": {
+   "oi_usd": 2666597339.038,
+   "perp_volume_usd": 5416736308.9933,
+   "long_short_ratio": 1.26,
+   "stables_total": 301085811209.0,
+   "usdt": 184161296069.0,
+   "usdc": 73314332013.0,
+   "fng": 33.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-23": {
+   "oi_usd": 2633105607.4232,
+   "perp_volume_usd": 5130994108.0771,
+   "long_short_ratio": 1.54,
+   "stables_total": 300717615808.0,
+   "usdt": 183056293547.0,
+   "usdc": 74065682407.0,
+   "fng": 31.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-24": {
+   "oi_usd": 2670176741.7035,
+   "perp_volume_usd": 6825222931.0053,
+   "long_short_ratio": 1.77,
+   "stables_total": 301564373155.0,
+   "usdt": 183961474896.0,
+   "usdc": 73959421498.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-25": {
+   "oi_usd": 2685121805.411,
+   "perp_volume_usd": 2168491793.3501,
+   "long_short_ratio": 1.73,
+   "stables_total": 301543070933.0,
+   "usdt": 184280854554.0,
+   "usdc": 73645912962.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-26": {
+   "oi_usd": 2608594715.1185,
+   "perp_volume_usd": 2192592647.4374,
+   "long_short_ratio": 1.68,
+   "stables_total": 301388580960.0,
+   "usdt": 184275932120.0,
+   "usdc": 73563824689.0,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-27": {
+   "oi_usd": 2547793372.7022,
+   "perp_volume_usd": 5621849591.6527,
+   "long_short_ratio": 1.55,
+   "stables_total": 300985593918.0,
+   "usdt": 183923058537.0,
+   "usdc": 73488022619.0,
+   "fng": 30.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-28": {
+   "oi_usd": 2627097967.0689,
+   "perp_volume_usd": 6539457038.9402,
+   "long_short_ratio": 1.85,
+   "stables_total": 299886576121.0,
+   "usdt": 183899346520.0,
+   "usdc": 72512381587.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-29": {
+   "oi_usd": 2540951743.1163,
+   "perp_volume_usd": 5200210177.9916,
+   "long_short_ratio": 1.41,
+   "stables_total": 299547611925.0,
+   "usdt": 183786352061.0,
+   "usdc": 72483761462.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-30": {
+   "oi_usd": 2586909207.3327,
+   "perp_volume_usd": 6531017222.4607,
+   "long_short_ratio": 1.27,
+   "price": 64782.6,
+   "stables_total": 299285489087.0,
+   "usdt": 183906992153.0,
+   "usdc": 72193504076.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-07-31": {
+   "oi_usd": 2604878765.7584,
+   "perp_volume_usd": 6660930589.115,
+   "long_short_ratio": 2.08,
+   "price": 62891.1,
+   "stables_total": 298540093737.0,
+   "usdt": 183266953799.0,
+   "usdc": 72043866220.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-08-01": {
+   "oi_usd": 2573437871.7015,
+   "perp_volume_usd": 1797744392.259,
+   "long_short_ratio": 2.13,
+   "price": 62820.2,
+   "stables_total": 298562260484.0,
+   "usdt": 183340422892.0,
+   "usdc": 72034973003.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-02": {
+   "oi_usd": 2573390040.3526,
+   "perp_volume_usd": 3430971406.3229,
+   "long_short_ratio": 1.93,
+   "price": 63574.6,
+   "stables_total": 298472677226.0,
+   "usdt": 183208707217.0,
+   "usdc": 72061343993.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-03": {
+   "oi_usd": 2568269010.8088,
+   "perp_volume_usd": 5508192224.4416,
+   "long_short_ratio": 1.64,
+   "price": 63527.6,
+   "stables_total": 298360446407.0,
+   "usdt": 183209133222.0,
+   "usdc": 71963188076.0,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-04": {
+   "oi_usd": 2565797658.5814,
+   "perp_volume_usd": 4673747482.9167,
+   "long_short_ratio": 1.35,
+   "price": 64090.6,
+   "stables_total": 298623838124.0,
+   "usdt": 183053842973.0,
+   "usdc": 72244638662.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-08-05": {
+   "oi_usd": 2565491757.2006,
+   "perp_volume_usd": 4957824046.9373,
+   "long_short_ratio": 1.27,
+   "price": 64659.3,
+   "stables_total": 298825856144.0,
+   "usdt": 183077238044.0,
+   "usdc": 72268275730.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-06": {
+   "oi_usd": 2603377750.9076,
+   "perp_volume_usd": 4495609313.0136,
+   "long_short_ratio": 1.24,
+   "price": 64325.8,
+   "stables_total": 298992594067.0,
+   "usdt": 183394037536.0,
+   "usdc": 71821879985.0,
+   "fng": 25.0,
+   "fng_class": "Extreme Fear"
+  },
+  "2026-08-07": {
+   "oi_usd": 2636256792.3438,
+   "perp_volume_usd": 4257036498.9651,
+   "long_short_ratio": 1.14,
+   "price": 64916.5,
+   "stables_total": 299136709709.0,
+   "usdt": 183375678388.0,
+   "usdc": 71985596157.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-08": {
+   "oi_usd": 2656363916.6622,
+   "perp_volume_usd": 1755531837.7287,
+   "long_short_ratio": 1.16,
+   "price": 64956.9,
+   "stables_total": 299178444342.0,
+   "usdt": 183098481831.0,
+   "usdc": 72263511430.0,
+   "fng": 30.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-09": {
+   "oi_usd": 2715282977.5983,
+   "perp_volume_usd": 1297192933.5329,
+   "long_short_ratio": 1.14,
+   "price": 64899.3,
+   "stables_total": 299174502378.0,
+   "usdt": 183100541932.0,
+   "usdc": 72264546619.0,
+   "fng": 31.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-10": {
+   "oi_usd": 2681403739.0794,
+   "perp_volume_usd": 3715238703.3744,
+   "long_short_ratio": 1.35,
+   "price": 63974.3,
+   "stables_total": 299248063008.0,
+   "usdt": 183071498832.0,
+   "usdc": 72328626945.0,
+   "fng": 30.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-11": {
+   "oi_usd": 2669623036.388,
+   "perp_volume_usd": 4406820058.3787,
+   "long_short_ratio": 1.82,
+   "price": 63589.4,
+   "stables_total": 298326185358.0,
+   "usdt": 181986513926.0,
+   "usdc": 72313505388.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-12": {
+   "oi_usd": 2669071774.3235,
+   "perp_volume_usd": 4754606971.3729,
+   "long_short_ratio": 1.8,
+   "price": 63484.7,
+   "stables_total": 299267242139.0,
+   "usdt": 182980797500.0,
+   "usdc": 72173221206.0,
+   "fng": 27.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-13": {
+   "oi_usd": 2628531160.7719,
+   "perp_volume_usd": 3792174799.0372,
+   "long_short_ratio": 2.32,
+   "price": 63478.9,
+   "stables_total": 299363119111.0,
+   "usdt": 182996811302.0,
+   "usdc": 72185908318.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-14": {
+   "oi_usd": 2871551875.5286,
+   "perp_volume_usd": 4967720987.8555,
+   "long_short_ratio": 2.2,
+   "price": 63042.8,
+   "stables_total": 299258367806.0,
+   "usdt": 182972926533.0,
+   "usdc": 72101046312.0,
+   "fng": 29.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-15": {
+   "oi_usd": 2747803041.8394,
+   "perp_volume_usd": 1758546178.0523,
+   "long_short_ratio": 2.24,
+   "price": 63084.2,
+   "stables_total": 299425138458.0,
+   "usdt": 183049125439.0,
+   "usdc": 72015454817.0,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-16": {
+   "oi_usd": 2748936403.6742,
+   "perp_volume_usd": 618412640.0832,
+   "long_short_ratio": 1.76,
+   "price": 62903.9,
+   "stables_total": 299326965172.0,
+   "usdt": 182982963445.0,
+   "usdc": 71987237612.0,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-17": {
+   "oi_usd": 2667824169.6878,
+   "perp_volume_usd": 4292736851.8151,
+   "long_short_ratio": 1.41,
+   "price": 64532.4,
+   "stables_total": 299328137420.0,
+   "usdt": 182984228791.0,
+   "usdc": 71961271347.0,
+   "fng": 31.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-18": {
+   "oi_usd": 2758692692.6792,
+   "perp_volume_usd": 4621246916.312,
+   "long_short_ratio": 1.19,
+   "price": 64730.8,
+   "stables_total": 299452572749.0,
+   "usdt": 182995198185.0,
+   "usdc": 72002071371.0,
+   "fng": 41.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-19": {
+   "oi_usd": 2849033700.569,
+   "perp_volume_usd": 9570332966.3338,
+   "long_short_ratio": 1.11,
+   "price": 69337.1,
+   "stables_total": 299418732024.0,
+   "usdt": 182960234111.0,
+   "usdc": 71958921419.0,
+   "fng": 46.0,
+   "fng_class": "Fear"
+  },
+  "2026-08-20": {
+   "oi_usd": 2881952350.5052,
+   "perp_volume_usd": 13205566987.4882,
+   "long_short_ratio": 1.11,
+   "price": 73031.7,
+   "stables_total": 300112156765.0,
+   "usdt": 183013957424.0,
+   "usdc": 72474846970.0,
+   "fng": 62.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-21": {
+   "oi_usd": 2996804849.8298,
+   "perp_volume_usd": 19054846456.8967,
+   "long_short_ratio": 1.13,
+   "price": 78339.3,
+   "stables_total": 301144822886.0,
+   "usdt": 183043925755.0,
+   "usdc": 73343959822.0,
+   "fng": 72.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-22": {
+   "oi_usd": 2970622957.121,
+   "perp_volume_usd": 7651877226.9876,
+   "long_short_ratio": 1.15,
+   "price": 77070.7,
+   "stables_total": 301406956728.0,
+   "usdt": 183139546642.0,
+   "usdc": 73591012535.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-23": {
+   "oi_usd": 2967726194.7893,
+   "perp_volume_usd": 5433481681.0103,
+   "long_short_ratio": 0.98,
+   "price": 77742.9,
+   "stables_total": 301513691821.0,
+   "usdt": 183205352215.0,
+   "usdc": 73608117156.0,
+   "fng": 66.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-24": {
+   "oi_usd": 2978431287.799,
+   "perp_volume_usd": 8890598543.3967,
+   "long_short_ratio": 1.1,
+   "price": 78992.1,
+   "stables_total": 301590343437.0,
+   "usdt": 183200693169.0,
+   "usdc": 73664492744.0,
+   "fng": 73.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-25": {
+   "oi_usd": 2972051342.756,
+   "perp_volume_usd": 10568495427.3537,
+   "long_short_ratio": 1.09,
+   "price": 78542.1,
+   "stables_total": 301723029655.0,
+   "usdt": 183111305140.0,
+   "usdc": 73877447233.0,
+   "fng": 74.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-26": {
+   "oi_usd": 2946432137.1844,
+   "perp_volume_usd": 6452817469.591,
+   "long_short_ratio": 0.97,
+   "price": 79031.1,
+   "stables_total": 301975418346.0,
+   "usdt": 183189380380.0,
+   "usdc": 73885719903.0,
+   "fng": 65.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-27": {
+   "oi_usd": 2950906168.0373,
+   "perp_volume_usd": 6992170019.6367,
+   "long_short_ratio": 1.09,
+   "price": 80246.3,
+   "stables_total": 302362296055.0,
+   "usdt": 183352489402.0,
+   "usdc": 74024390351.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-28": {
+   "oi_usd": 2890575518.4013,
+   "perp_volume_usd": 8217201352.5066,
+   "long_short_ratio": 1.25,
+   "price": 77844.7,
+   "stables_total": 302412507040.0,
+   "usdt": 183308959242.0,
+   "usdc": 73941809446.0,
+   "fng": 73.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-29": {
+   "oi_usd": 2896995883.5987,
+   "perp_volume_usd": 4998910022.0291,
+   "long_short_ratio": 1.17,
+   "price": 78233.0,
+   "stables_total": 302129817657.0,
+   "usdt": 183377888812.0,
+   "usdc": 74193708238.0,
+   "fng": 68.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-30": {
+   "oi_usd": 2893889840.0514,
+   "perp_volume_usd": 2531291178.8595,
+   "long_short_ratio": 1.1,
+   "price": 77677.7,
+   "stables_total": 302026637657.0,
+   "usdt": 183361226703.0,
+   "usdc": 74047017211.0,
+   "fng": 69.0,
+   "fng_class": "Greed"
+  },
+  "2026-08-31": {
+   "oi_usd": 2839063200.5322,
+   "perp_volume_usd": 6923035173.9363,
+   "long_short_ratio": 1.04,
+   "price": 78582.1,
+   "stables_total": 302164755100.0,
+   "usdt": 183451577578.0,
+   "usdc": 74055644088.0,
+   "fng": 62.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-01": {
+   "oi_usd": 2854759629.6793,
+   "perp_volume_usd": 5610147170.075,
+   "long_short_ratio": 1.29,
+   "price": 77434.7,
+   "stables_total": 302115005196.0,
+   "usdt": 183272288023.0,
+   "usdc": 73684132437.0,
+   "fng": 69.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-02": {
+   "oi_usd": 2957729996.1196,
+   "perp_volume_usd": 7758115529.2393,
+   "long_short_ratio": 0.98,
+   "price": 77339.6,
+   "stables_total": 302140428661.0,
+   "usdt": 183296971954.0,
+   "usdc": 73691267499.0,
+   "fng": 63.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-03": {
+   "oi_usd": 3059640951.8624,
+   "perp_volume_usd": 8624374091.2202,
+   "long_short_ratio": 1.03,
+   "price": 81260.1,
+   "stables_total": 302506864232.0,
+   "usdt": 183350239895.0,
+   "usdc": 73897434877.0,
+   "fng": 65.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-04": {
+   "oi_usd": 2885521900.9836,
+   "perp_volume_usd": 10194212567.3777,
+   "long_short_ratio": 1.04,
+   "price": 79660.7,
+   "stables_total": 303559372741.0,
+   "usdt": 183393824872.0,
+   "usdc": 74502564124.0,
+   "fng": 74.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-05": {
+   "oi_usd": 2846464654.3794,
+   "perp_volume_usd": 2337395559.1773,
+   "long_short_ratio": 1.07,
+   "price": 79830.2,
+   "stables_total": 303813241773.0,
+   "usdt": 183373182411.0,
+   "usdc": 74745673938.0,
+   "fng": 73.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-06": {
+   "oi_usd": 2825104203.5042,
+   "perp_volume_usd": 2842366880.459,
+   "long_short_ratio": 1.16,
+   "price": 80341.4,
+   "stables_total": 303862246448.0,
+   "usdt": 183376822523.0,
+   "usdc": 74717531917.0,
+   "fng": 73.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-07": {
+   "oi_usd": 2876513742.1184,
+   "perp_volume_usd": 4170631156.4393,
+   "long_short_ratio": 1.27,
+   "price": 79111.8,
+   "stables_total": 303886059716.0,
+   "usdt": 183351418678.0,
+   "usdc": 74707164104.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-08": {
+   "oi_usd": 2930663948.6681,
+   "perp_volume_usd": 5385949383.3041,
+   "long_short_ratio": 1.28,
+   "price": 78458.7,
+   "stables_total": 303747929343.0,
+   "usdt": 183372323063.0,
+   "usdc": 74531707247.0,
+   "fng": 69.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-09": {
+   "oi_usd": 2830625947.0336,
+   "perp_volume_usd": 6150814587.5353,
+   "long_short_ratio": 1.54,
+   "price": 78300.7,
+   "stables_total": 303987124821.0,
+   "usdt": 183388615224.0,
+   "usdc": 74643884402.0,
+   "fng": 66.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-10": {
+   "oi_usd": 2936982957.2738,
+   "perp_volume_usd": 6256909221.4253,
+   "long_short_ratio": 1.48,
+   "price": 76570.0,
+   "stables_total": 303846863746.0,
+   "usdt": 183380468062.0,
+   "usdc": 74536077824.0,
+   "fng": 69.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-11": {
+   "oi_usd": 2831220777.3186,
+   "perp_volume_usd": 8912939593.2836,
+   "long_short_ratio": 1.67,
+   "price": 77223.4,
+   "stables_total": 303471204492.0,
+   "usdt": 183488197744.0,
+   "usdc": 74349682340.0,
+   "fng": 56.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-12": {
+   "oi_usd": 2821360493.9481,
+   "perp_volume_usd": 3060876508.579,
+   "long_short_ratio": 1.69,
+   "price": 77281.0,
+   "stables_total": 303657654394.0,
+   "usdt": 183461039020.0,
+   "usdc": 74451139551.0,
+   "fng": 63.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-13": {
+   "oi_usd": 2882179123.8297,
+   "perp_volume_usd": 2409850735.6528,
+   "long_short_ratio": 1.29,
+   "price": 76836.0,
+   "stables_total": 303630173642.0,
+   "usdt": 183476546777.0,
+   "usdc": 74401050577.0,
+   "fng": 61.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-14": {
+   "oi_usd": 2874697096.0104,
+   "perp_volume_usd": 5667349910.3209,
+   "long_short_ratio": 1.83,
+   "price": 78195.7,
+   "stables_total": 303513241054.0,
+   "usdt": 183381568932.0,
+   "usdc": 74349054455.0,
+   "fng": 57.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-15": {
+   "oi_usd": 2911256908.1545,
+   "perp_volume_usd": 8283518901.8752,
+   "long_short_ratio": 1.8,
+   "price": 75641.0,
+   "stables_total": 303685687071.0,
+   "usdt": 183293889366.0,
+   "usdc": 74417407059.0,
+   "fng": 69.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-16": {
+   "oi_usd": 2843393861.5766,
+   "perp_volume_usd": 6985733346.4398,
+   "long_short_ratio": 1.71,
+   "price": 76201.2,
+   "stables_total": 302907182789.0,
+   "usdt": 183288616910.0,
+   "usdc": 73647584660.0,
+   "fng": 51.0,
+   "fng_class": "Neutral"
+  },
+  "2026-09-17": {
+   "oi_usd": 2916381895.419,
+   "perp_volume_usd": 7384359520.5369,
+   "long_short_ratio": 1.05,
+   "price": 76419.3,
+   "stables_total": 302974942611.0,
+   "usdt": 183257317566.0,
+   "usdc": 73778213545.0,
+   "fng": 50.0,
+   "fng_class": "Neutral"
+  },
+  "2026-09-18": {
+   "oi_usd": 3150592639.8549,
+   "perp_volume_usd": 8698665020.0737,
+   "long_short_ratio": 1.02,
+   "price": 80903.0,
+   "stables_total": 303046202169.0,
+   "usdt": 183329320360.0,
+   "usdc": 73980448278.0,
+   "fng": 56.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-19": {
+   "oi_usd": 3224081995.6714,
+   "perp_volume_usd": 4732757851.6647,
+   "long_short_ratio": 1.08,
+   "price": 81265.8,
+   "stables_total": 303549471731.0,
+   "usdt": 183279108348.0,
+   "usdc": 74420792332.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-20": {
+   "oi_usd": 3167835977.9828,
+   "perp_volume_usd": 4186414196.2893,
+   "long_short_ratio": 0.91,
+   "price": 81179.6,
+   "stables_total": 303528625585.0,
+   "usdt": 183305954113.0,
+   "usdc": 74338254477.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-21": {
+   "oi_usd": 3393873876.7162,
+   "perp_volume_usd": 12221776125.6094,
+   "long_short_ratio": 0.96,
+   "price": 86617.8,
+   "stables_total": 303737015262.0,
+   "usdt": 183313796367.0,
+   "usdc": 74433376266.0,
+   "fng": 70.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-22": {
+   "oi_usd": 3403740240.726,
+   "perp_volume_usd": 8170005128.3242,
+   "long_short_ratio": 1.08,
+   "price": 86209.1,
+   "stables_total": 304448804506.0,
+   "usdt": 183519800743.0,
+   "usdc": 74825339717.0,
+   "fng": 78.0,
+   "fng_class": "Extreme Greed"
+  },
+  "2026-09-23": {
+   "oi_usd": 3341170603.8468,
+   "perp_volume_usd": 8816015796.9032,
+   "long_short_ratio": 1.26,
+   "price": 84399.5,
+   "stables_total": 304684195245.0,
+   "usdt": 183423378732.0,
+   "usdc": 75415412302.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-24": {
+   "oi_usd": 3174718411.9604,
+   "perp_volume_usd": 8307980657.9218,
+   "long_short_ratio": 1.33,
+   "price": 84409.8,
+   "stables_total": 304451432517.0,
+   "usdt": 183461551861.0,
+   "usdc": 75435919774.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-25": {
+   "oi_usd": 3156239053.0536,
+   "perp_volume_usd": 7826763070.9357,
+   "long_short_ratio": 1.33,
+   "price": 84099.0,
+   "stables_total": 304836120997.0,
+   "usdt": 183708996205.0,
+   "usdc": 75468707778.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-26": {
+   "oi_usd": 3124948173.9001,
+   "perp_volume_usd": 2523490438.8089,
+   "long_short_ratio": 1.21,
+   "price": 84439.9,
+   "stables_total": 305110651060.0,
+   "usdt": 183752694657.0,
+   "usdc": 75461811382.0,
+   "fng": 74.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-27": {
+   "oi_usd": 3106673944.8882,
+   "perp_volume_usd": 3209179057.2015,
+   "long_short_ratio": 1.35,
+   "price": 84479.0,
+   "stables_total": 305301443110.0,
+   "usdt": 183750151288.0,
+   "usdc": 75329743725.0,
+   "fng": 70.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-28": {
+   "oi_usd": 3151673369.9102,
+   "perp_volume_usd": 6638319107.1021,
+   "long_short_ratio": 1.38,
+   "price": 83500.1,
+   "stables_total": 306766344944.0,
+   "usdt": 183727390833.0,
+   "usdc": 75237421758.0,
+   "fng": 74.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-29": {
+   "oi_usd": 3091550722.1144,
+   "perp_volume_usd": 6459816172.8932,
+   "long_short_ratio": 1.32,
+   "price": 83657.5,
+   "stables_total": 306375151873.0,
+   "usdt": 183787154912.0,
+   "usdc": 74850437227.0,
+   "fng": 73.0,
+   "fng_class": "Greed"
+  },
+  "2026-09-30": {
+   "oi_usd": 3055719864.2821,
+   "perp_volume_usd": 8011224289.1239,
+   "long_short_ratio": 1.37,
+   "price": 83618.4,
+   "stables_total": 306315335095.0,
+   "usdt": 183758497423.0,
+   "usdc": 74568657800.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-01": {
+   "oi_usd": 3157247189.9675,
+   "perp_volume_usd": 6444716898.3557,
+   "long_short_ratio": 1.0,
+   "price": 84877.4,
+   "stables_total": 305823960049.0,
+   "usdt": 183790522408.0,
+   "usdc": 74135120985.0,
+   "fng": 74.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-02": {
+   "oi_usd": 3254564477.8442,
+   "perp_volume_usd": 10027961914.0659,
+   "long_short_ratio": 1.26,
+   "price": 84518.9,
+   "stables_total": 306620045193.0,
+   "usdt": 184009395666.0,
+   "usdc": 74060616150.0,
+   "fng": 72.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-03": {
+   "oi_usd": 3161609596.4917,
+   "perp_volume_usd": 4020744892.2389,
+   "long_short_ratio": 1.27,
+   "price": 84754.9,
+   "stables_total": 306991726469.0,
+   "usdt": 184032387881.0,
+   "usdc": 74198741683.0,
+   "fng": 67.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-04": {
+   "oi_usd": 3180398495.2937,
+   "perp_volume_usd": 1936442621.0841,
+   "long_short_ratio": 1.12,
+   "funding_apr": 3.27536940428125,
+   "price": 86525.1,
+   "stables_total": 307078304416.0,
+   "usdt": 184035531732.0,
+   "usdc": 74217052658.0,
+   "fng": 65.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-05": {
+   "oi_usd": 3207055793.6633,
+   "perp_volume_usd": 7046263781.375,
+   "long_short_ratio": 0.98,
+   "funding_apr": 5.144724175822199,
+   "price": 85759.7,
+   "stables_total": 307313235034.0,
+   "usdt": 184051485014.0,
+   "usdc": 74199598519.0,
+   "fng": 70.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-06": {
+   "oi_usd": 3325696593.0834,
+   "perp_volume_usd": 5419947715.0396,
+   "long_short_ratio": 1.61,
+   "funding_apr": 2.6936359591805,
+   "price": 85553.9,
+   "stables_total": 307768347051.0,
+   "usdt": 184161867870.0,
+   "usdc": 74323709588.0,
+   "fng": 73.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-07": {
+   "oi_usd": 3344260212.9877,
+   "perp_volume_usd": 7659081743.7704,
+   "long_short_ratio": 1.7,
+   "funding_apr": 3.7936984694028,
+   "price": 83323.0,
+   "stables_total": 307904816658.0,
+   "usdt": 184128024605.0,
+   "usdc": 74288109243.0,
+   "fng": 71.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-08": {
+   "oi_usd": 3300573828.4821,
+   "perp_volume_usd": 8182429391.7125,
+   "long_short_ratio": 1.42,
+   "funding_apr": 4.5225001789142,
+   "price": 81760.0,
+   "stables_total": 307332276019.0,
+   "usdt": 184215602653.0,
+   "usdc": 73825972622.0,
+   "fng": 64.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-09": {
+   "oi_usd": 3287502888.2637,
+   "perp_volume_usd": 7212405323.177,
+   "long_short_ratio": 1.5,
+   "funding_apr": 2.3027171198769,
+   "price": 82626.6,
+   "stables_total": 306624204830.0,
+   "usdt": 184307909924.0,
+   "usdc": 73279290594.0,
+   "fng": 59.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-10": {
+   "oi_usd": 3302909039.477,
+   "perp_volume_usd": 2255156722.4782,
+   "long_short_ratio": 1.51,
+   "funding_apr": 2.5994375604504,
+   "price": 82985.1,
+   "stables_total": 305978050497.0,
+   "usdt": 184076750166.0,
+   "usdc": 72983875629.0,
+   "fng": 64.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-11": {
+   "oi_usd": 3251799958.1918,
+   "perp_volume_usd": 1922674365.266,
+   "long_short_ratio": 1.49,
+   "funding_apr": -1.3647880778802501,
+   "price": 83760.4,
+   "stables_total": 306072399058.0,
+   "usdt": 184076527715.0,
+   "usdc": 73127102517.0,
+   "fng": 61.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-12": {
+   "oi_usd": 3294439613.6181,
+   "perp_volume_usd": 5557829324.8435,
+   "long_short_ratio": 1.26,
+   "funding_apr": 1.9860614914474501,
+   "price": 81853.1,
+   "stables_total": 306141628635.0,
+   "usdt": 184046380548.0,
+   "usdc": 72927024574.0,
+   "fng": 69.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-13": {
+   "oi_usd": 3233355903.5503,
+   "perp_volume_usd": 7622297698.0584,
+   "long_short_ratio": 1.62,
+   "funding_apr": 4.0712051706558,
+   "price": 83172.2,
+   "stables_total": 306105858235.0,
+   "usdt": 184058018419.0,
+   "usdc": 72860344009.0,
+   "fng": 57.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-14": {
+   "oi_usd": 3320207856.3113,
+   "perp_volume_usd": 7114724839.269,
+   "long_short_ratio": 1.67,
+   "funding_apr": 3.7771416223289,
+   "price": 81682.6,
+   "stables_total": 306101284970.0,
+   "usdt": 183954198641.0,
+   "usdc": 73133116485.0,
+   "fng": 62.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-15": {
+   "oi_usd": 3360346608.1533,
+   "perp_volume_usd": 10377958761.1502,
+   "long_short_ratio": 1.73,
+   "funding_apr": 4.1984431634711505,
+   "price": 82232.4,
+   "stables_total": 305515522445.0,
+   "usdt": 183854605808.0,
+   "usdc": 72763096585.0,
+   "fng": 53.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-16": {
+   "oi_usd": 3304950827.5273,
+   "perp_volume_usd": 5548942064.8515,
+   "long_short_ratio": 1.79,
+   "funding_apr": 7.078929328022851,
+   "price": 81617.5,
+   "stables_total": 305201015542.0,
+   "usdt": 183462599098.0,
+   "usdc": 72828793768.0,
+   "fng": 63.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-17": {
+   "oi_usd": 3330882020.9391,
+   "perp_volume_usd": 3317714504.7317,
+   "long_short_ratio": 1.83,
+   "funding_apr": 9.02486786429495,
+   "price": 81489.4,
+   "stables_total": 304867339478.0,
+   "usdt": 183473384175.0,
+   "usdc": 72734876026.0,
+   "fng": 55.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-18": {
+   "oi_usd": 3331604926.8558,
+   "perp_volume_usd": 3891005791.191,
+   "long_short_ratio": 1.6,
+   "funding_apr": 5.4026534229781,
+   "price": 82109.3,
+   "stables_total": 304652953102.0,
+   "usdt": 183405854230.0,
+   "usdc": 72619763165.0,
+   "fng": 53.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-19": {
+   "oi_usd": 3298941704.4658,
+   "perp_volume_usd": 6675366962.0553,
+   "long_short_ratio": 1.63,
+   "funding_apr": 8.290728938246652,
+   "price": 81943.8,
+   "stables_total": 304621767362.0,
+   "usdt": 183436121620.0,
+   "usdc": 72589005385.0,
+   "fng": 59.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-20": {
+   "oi_usd": 3189769410.5172,
+   "perp_volume_usd": 6876578377.2892,
+   "long_short_ratio": 1.21,
+   "funding_apr": 6.803270456045249,
+   "price": 83026.9,
+   "stables_total": 303738029704.0,
+   "usdt": 183014307734.0,
+   "usdc": 72246198883.0,
+   "fng": 55.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-21": {
+   "oi_usd": 3533971225.8776,
+   "perp_volume_usd": 6849134918.3412,
+   "long_short_ratio": 2.08,
+   "funding_apr": 5.90351209734475,
+   "price": 84097.6,
+   "stables_total": 303538525852.0,
+   "usdt": 182813441112.0,
+   "usdc": 72236307809.0,
+   "fng": 63.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-22": {
+   "oi_usd": 3365594549.8082,
+   "perp_volume_usd": 8295449131.0498,
+   "long_short_ratio": 2.13,
+   "funding_apr": 4.78206652699375,
+   "price": 81417.0,
+   "stables_total": 303687670199.0,
+   "usdt": 182615908419.0,
+   "usdc": 72623893877.0,
+   "fng": 68.0,
+   "fng_class": "Greed"
+  },
+  "2026-10-23": {
+   "oi_usd": 3421280245.0902,
+   "perp_volume_usd": 5066679909.1656,
+   "long_short_ratio": 2.16,
+   "funding_apr": 7.69396337516835,
+   "price": 81188.2,
+   "stables_total": 303248946001.0,
+   "usdt": 182547004710.0,
+   "usdc": 72233349252.0,
+   "fng": 50.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-24": {
+   "oi_usd": 3332034483.6344,
+   "perp_volume_usd": 5443535635.8258,
+   "long_short_ratio": 2.12,
+   "funding_apr": 7.18726529452165,
+   "price": 80880.9,
+   "stables_total": 302800712166.0,
+   "usdt": 182452044569.0,
+   "usdc": 71829215709.0,
+   "cb_premium_pct": -0.0021396444556984503,
+   "cb_premium_hours": 9,
+   "fng": 51.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-25": {
+   "oi_usd": 3338199115.4535,
+   "perp_volume_usd": 3333554359.7357,
+   "long_short_ratio": 2.12,
+   "funding_apr": 6.2727832403324,
+   "price": 80157.0,
+   "stables_total": 302597421031.0,
+   "usdt": 182412113430.0,
+   "usdc": 71746838682.0,
+   "cb_premium_pct": -0.0076770210274644075,
+   "cb_premium_hours": 24,
+   "fng": 54.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-26": {
+   "oi_usd": 3481622596.7178,
+   "perp_volume_usd": 5745536314.5667,
+   "long_short_ratio": 2.15,
+   "funding_apr": 9.76636927189735,
+   "price": 80146.0,
+   "stables_total": 302279985720.0,
+   "usdt": 182227195140.0,
+   "usdc": 71663114207.0,
+   "cb_premium_pct": -0.011657951074841669,
+   "cb_premium_hours": 24,
+   "fng": 50.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-27": {
+   "oi_usd": 3513205239.6089,
+   "perp_volume_usd": 4899515129.8082,
+   "long_short_ratio": 2.05,
+   "funding_apr": 10.95,
+   "price": 80907.5,
+   "stables_total": 301556877059.0,
+   "usdt": 181879191620.0,
+   "usdc": 71208740691.0,
+   "cb_premium_pct": -0.008507420199521202,
+   "cb_premium_hours": 24,
+   "fng": 48.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-28": {
+   "oi_usd": 3471703016.5545,
+   "perp_volume_usd": 4821528397.5057,
+   "long_short_ratio": 1.75,
+   "funding_apr": 9.69460261967235,
+   "price": 81350.9,
+   "stables_total": 301599773086.0,
+   "usdt": 181842486770.0,
+   "usdc": 71298534609.0,
+   "cb_premium_pct": -0.009201272434860205,
+   "cb_premium_hours": 24,
+   "fng": 51.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-29": {
+   "oi_usd": 3537500693.722,
+   "perp_volume_usd": 7832936253.8873,
+   "long_short_ratio": 2.74,
+   "funding_apr": 8.380104374272502,
+   "price": 78007.2,
+   "stables_total": 300078431965.0,
+   "usdt": 180709443335.0,
+   "usdc": 71321724185.0,
+   "cb_premium_pct": -0.01499484903018424,
+   "cb_premium_hours": 24,
+   "fng": 51.0,
+   "fng_class": "Neutral"
+  },
+  "2026-10-30": {
+   "oi_usd": 3678833805.7831,
+   "perp_volume_usd": 15278109252.385,
+   "long_short_ratio": 2.65,
+   "funding_apr": 9.30477293628075,
+   "price": 77306.1,
+   "stables_total": 299701584707.0,
+   "usdt": 180324935962.0,
+   "usdc": 71465222372.0,
+   "cb_premium_pct": -0.034667749182879425,
+   "cb_premium_hours": 24,
+   "fng": 30.0,
+   "fng_class": "Fear"
+  },
+  "2026-10-31": {
+   "oi_usd": 3705776501.4741,
+   "perp_volume_usd": 3860071337.1495,
+   "long_short_ratio": 2.38,
+   "funding_apr": 10.95,
+   "price": 77532.2,
+   "stables_total": 298962628291.0,
+   "usdt": 180009814575.0,
+   "usdc": 71909052343.0,
+   "cb_premium_pct": -0.029519571865494847,
+   "cb_premium_hours": 24,
+   "fng": 30.0,
+   "fng_class": "Fear"
+  },
+  "2026-11-01": {
+   "oi_usd": 3745709028.0529,
+   "perp_volume_usd": 2070769705.2774,
+   "long_short_ratio": 2.36,
+   "funding_apr": 9.613466582598901,
+   "price": 78342.5,
+   "stables_total": 298364689533.0,
+   "usdt": 179631491514.0,
+   "usdc": 71854720053.0,
+   "cb_premium_pct": -0.02857683880035979,
+   "cb_premium_hours": 24,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2026-11-02": {
+   "oi_usd": 3629149101.9713,
+   "perp_volume_usd": 4417217143.4045,
+   "long_short_ratio": 2.58,
+   "funding_apr": 10.436328856485352,
+   "price": 76809.0,
+   "stables_total": 297625515629.0,
+   "usdt": 179155572532.0,
+   "usdc": 71626936181.0,
+   "cb_premium_pct": -0.018943788003499922,
+   "cb_premium_hours": 24,
+   "fng": 37.0,
+   "fng_class": "Fear"
+  },
+  "2026-11-03": {
+   "oi_usd": 3667767174.7752,
+   "perp_volume_usd": 6020862020.7618,
+   "long_short_ratio": 1.58,
+   "funding_apr": 10.95,
+   "price": 77454.2,
+   "stables_total": 296011417684.0,
+   "usdt": 178577099159.0,
+   "usdc": 71270953101.0,
+   "cb_premium_pct": -0.009981460416053542,
+   "cb_premium_hours": 24,
+   "fng": 26.0,
+   "fng_class": "Fear"
+  },
+  "2026-11-04": {
+   "oi_usd": 3835179453.2754,
+   "perp_volume_usd": 11468144149.8712,
+   "long_short_ratio": 2.43,
+   "funding_apr": 10.49568083682715,
+   "price": 80508.0,
+   "stables_total": 295128465219.0,
+   "usdt": 178164743123.0,
+   "usdc": 70933167201.0,
+   "cb_premium_pct": -0.0016965323018564016,
+   "cb_premium_hours": 24,
+   "fng": 34.0,
+   "fng_class": "Fear"
+  },
+  "2026-11-05": {
+   "oi_usd": 3608004801.9181,
+   "perp_volume_usd": 10880661972.6847,
+   "long_short_ratio": 2.9,
+   "funding_apr": 10.0313210903533,
+   "price": 76087.4,
+   "stables_total": 294548695492.0,
+   "usdt": 177642257818.0,
+   "usdc": 71127100073.0,
+   "cb_premium_pct": -0.010222744033942799,
+   "cb_premium_hours": 24,
+   "fng": 50.0,
+   "fng_class": "Neutral"
+  },
+  "2026-11-06": {
+   "funding_apr": 3.0431577861603,
+   "price": 76004.4,
+   "stables_total": 293692301367.96,
+   "usdt": 177458601111.47,
+   "usdc": 70715748026.89,
+   "fng": 28.0,
+   "fng_class": "Fear"
+  }
+ },
+ "now": {
+  "hl_funding_apr": 10.950000000000001,
+  "hl_oi_usd": 3056837663.3768,
+  "cb_premium_now": 0.21590928857995184,
+  "cb_premium_hour_utc": "2026-11-06 02:00"
+ },
+ "errors": [
+  "OKX taker: 400 Client Error: Bad Request for url: https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy=BTC&instType=CONTRACT&peri"
+ ]
+}
