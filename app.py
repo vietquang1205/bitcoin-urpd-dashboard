@@ -1,5 +1,5 @@
 """
-BTC URPD Monitor V74
+BTC URPD Monitor V75
 ====================
 
 Một file, hai chế độ chạy:
@@ -41,7 +41,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-APP_VERSION = "V74"
+APP_VERSION = "V75"
 UPDATE_MODE = "--update-data" in sys.argv
 
 URPD_FILE = "urpd_history.json"
@@ -715,10 +715,12 @@ def build_signals(price, onchain_df, realized_df, cur_frame, frame_7d_ago, ath, 
 
     if onchain_df is not None and "sopr" in onchain_df.columns:
         s7 = onchain_df[["date", "sopr"]].dropna().tail(7)
-        if len(s7) >= 3:
+        lag = (utc_today() - s7.date.iloc[-1]).days if len(s7) else 999
+        if len(s7) >= 3 and lag <= 12:   # nguồn miễn phí trễ ~7 ngày; cũ hơn 12 ngày thì bỏ
             v = float(s7.sopr.mean())
-            rows.append(["SOPR trung bình 7 ngày", light(v, good_above=1.005, bad_below=0.995), f"{v:.3f}",
-                         "> 1: coin được bán có lãi. < 1: bán lỗ."])
+            rows.append(["SOPR trung bình 7 ngày", light(v, good_above=1.005, bad_below=0.995),
+                         f"{v:.3f} (đến {s7.date.iloc[-1]:%d/%m})",
+                         "> 1: coin được bán có lãi. < 1: bán lỗ. Nguồn miễn phí BGeometrics trễ ~7 ngày."])
 
     if etf and etf.get("sessions", 0) >= 5:
         v = etf["sum_5"]
@@ -1032,7 +1034,10 @@ def update_research(status):
     _log(f"ResearchBitcoin: {updated or 'không có gì mới'}; lỗi {errors[-2:] if errors else 0}")
 
 
-def _update_bg_file(path, slug_to_key, status_key, status, only_if_missing=None):
+BG_FREE_DELAY_DAYS = 8   # gói miễn phí BGeometrics: MVRV/NUPL/SOPR chỉ trả dữ liệu cũ hơn ~7 ngày
+
+
+def _update_bg_file(path, slug_to_key, status_key, status, only_if_missing=None, delay_days=3):
     """Cập nhật file daily từ BGeometrics; mỗi chỉ số 1 request, chỉ gọi khi còn thiếu ngày."""
     data = _load_json(path)
     data.setdefault("version", 1)
@@ -1050,7 +1055,7 @@ def _update_bg_file(path, slug_to_key, status_key, status, only_if_missing=None)
             continue
         # Nguồn thường công bố trễ 1–2 ngày: nếu đã thử hôm nay và dữ liệu chỉ trễ ≤ 3 ngày
         # thì không gọi lại (tiết kiệm lượt gọi gói miễn phí).
-        if have and attempts.get(key) == today_key and have[-1] >= day_str(yesterday - timedelta(days=3)):
+        if have and attempts.get(key) == today_key and have[-1] >= day_str(yesterday - timedelta(days=delay_days)):
             pending.append(key)
             continue
         start = parse_day(have[-1]) + timedelta(days=1) if have else yesterday - timedelta(days=BG_INITIAL_DAYS - 1)
@@ -1098,7 +1103,54 @@ def update_onchain(status):
     _update_bg_file(ONCHAIN_FILE, {"mvrv": "mvrv", "nupl": "nupl", "sopr": "sopr",
                                    "sth-realized-price": "sth_realized_price",
                                    "lth-realized-price": "lth_realized_price"},
-                    "onchain", status, only_if_missing=rb_missing)
+                    "onchain", status, only_if_missing=rb_missing, delay_days=BG_FREE_DELAY_DAYS)
+    try:
+        info = estimate_mvrv_from_urpd()
+        if info:
+            status.setdefault("onchain", {})["mvrv_estimate"] = info
+            _log(f"MVRV/NUPL ước tính từ URPD: {info}")
+    except Exception as e:
+        _log(f"MVRV ước tính lỗi: {e}")
+
+
+def urpd_realized_price(records):
+    """Giá vốn trung bình toàn thị trường (realized price) ≈ Σ(giữa bucket × BTC) / Σ BTC."""
+    tot = sum(r["btc_amount"] for r in records)
+    rc = sum((r["price_low"] + r["price_high"]) / 2 * r["btc_amount"] for r in records)
+    return rc / tot if tot > 0 else None
+
+
+def estimate_mvrv_from_urpd():
+    """BGeometrics miễn phí trễ ~7 ngày → tự tính MVRV/NUPL các ngày còn thiếu từ URPD (hiệu chỉnh theo BGeometrics)."""
+    hist = _load_json(URPD_FILE)
+    data = _load_json(ONCHAIN_FILE)
+    daily = data.setdefault("daily", {})
+    raw = {}
+    for d, v in hist.items():
+        if is_day_key(d) and isinstance(v, dict) and v.get("urpd") and safe_float(v.get("price")):
+            rp = urpd_realized_price(v["urpd"])
+            if rp:
+                raw[d] = float(v["price"]) / rp
+    if not raw:
+        return None
+    pairs = [(d, daily[d]["mvrv"] / raw[d]) for d in sorted(raw)
+             if isinstance(daily.get(d), dict) and safe_float(daily[d].get("mvrv")) and raw[d] > 0]
+    k = float(np.median([x for _, x in pairs[-30:]])) if len(pairs) >= 5 else 1.0
+    bg_last = max((d for d, r in daily.items() if isinstance(r, dict) and safe_float(r.get("mvrv"))), default="")
+    n = 0
+    for d in sorted(raw):
+        rec = daily.setdefault(d, {})
+        if d > bg_last:
+            m = raw[d] * k
+            rec["mvrv_est"], rec["nupl_est"] = round(m, 4), round(1 - 1 / m, 4)
+            n += 1
+        else:  # BGeometrics đã có số thật → bỏ ước tính cũ
+            rec.pop("mvrv_est", None)
+            rec.pop("nupl_est", None)
+    data["daily"] = dict(sorted((k_, v) for k_, v in daily.items() if is_day_key(k_))[-DAILY_MAX_DAYS:])
+    data["mvrv_estimate"] = {"k": round(k, 4), "calib_days": min(len(pairs), 30), "bg_last": bg_last, "est_days": n}
+    _save_json(ONCHAIN_FILE, data)
+    return data["mvrv_estimate"]
 
 
 def _daily_file_frame(path):
@@ -1116,8 +1168,25 @@ def _fix_loss_percent(df):
     return df
 
 
+def _apply_estimates(df):
+    """MVRV/NUPL: số thật BGeometrics nếu có, các ngày gần đây (nguồn miễn phí trễ) dùng ước tính từ URPD."""
+    for base in ("mvrv", "nupl"):
+        est = f"{base}_est"
+        if est in df.columns:
+            if base in df.columns:
+                df[f"{base}_is_est"] = df[base].isna() & df[est].notna()
+                df[base] = df[base].combine_first(df[est])
+            else:
+                df[f"{base}_is_est"] = df[est].notna()
+                df[base] = df[est]
+            df = df.drop(columns=[est])
+    return df
+
+
 def merge_onchain_frames(research_df, bg_df):
     """Gộp ResearchBitcoin (ưu tiên) + BGeometrics theo ngày."""
+    if bg_df is not None and not bg_df.empty:
+        bg_df = _apply_estimates(bg_df.copy())
     frames = [f for f in (research_df, bg_df) if f is not None and not f.empty]
     if not frames:
         return pd.DataFrame(columns=["date"])
@@ -2232,6 +2301,10 @@ def build_daily_report(status):
         "sth_cost_basis": _r(latest_value(onchain, "sth_realized_price")[0]),
         "lth_cost_basis": _r(latest_value(onchain, "lth_realized_price")[0]),
         "mvrv": _r(latest_value(onchain, "mvrv")[0], 3), "nupl": _r(latest_value(onchain, "nupl")[0], 3),
+        "mvrv_date": day_str(latest_value(onchain, "mvrv")[1]) if latest_value(onchain, "mvrv")[1] else None,
+        "mvrv_is_estimate": bool("mvrv_is_est" in onchain.columns and onchain.dropna(subset=["mvrv"]).tail(1)
+                                 .get("mvrv_is_est", pd.Series([False])).fillna(False).astype(bool).any()),
+        "sopr_date": day_str(latest_value(onchain, "sopr")[1]) if latest_value(onchain, "sopr")[1] else None,
         "overhead_to_ath_btc": _r(overhead),
         "overhead_struct_chg_1d": _r(overhead - btc_in_range(frames[p1], price, max(ath, price))) if p1 else None,
         "realized_last": {"date": day_str(rp.date), "profit": _r(rp.realized_profit), "loss": _r(rp.realized_loss),
@@ -2882,10 +2955,14 @@ def page_overview():
     lth, _ = latest_value(onchain, "lth_realized_price")
     c[0].metric("Giá vốn STH", fmt_usd(sth), f"giá {(price / sth - 1) * 100:+.1f}%" if sth else None)
     c[1].metric("Giá vốn LTH", fmt_usd(lth), f"giá {(price / lth - 1) * 100:+.1f}%" if lth else None)
-    mvrv, _ = latest_value(onchain, "mvrv")
+    mvrv, mvrv_d = latest_value(onchain, "mvrv")
     nupl, _ = latest_value(onchain, "nupl")
-    c[2].metric("MVRV · NUPL", f"{mvrv:.2f}" if mvrv is not None else "N/A",
-                f"NUPL {nupl:.2f}" if nupl is not None else None, delta_color="off")
+    is_est = bool("mvrv_is_est" in onchain.columns and mvrv_d is not None
+                  and onchain.loc[onchain.date == mvrv_d, "mvrv_is_est"].fillna(False).astype(bool).any())
+    c[2].metric("MVRV · NUPL" + (" (ước tính)" if is_est else ""), f"{mvrv:.2f}" if mvrv is not None else "N/A",
+                f"NUPL {nupl:.2f}" if nupl is not None else None, delta_color="off",
+                help=("BGeometrics miễn phí trễ ~7 ngày → các ngày gần đây ước tính từ URPD "
+                      "(giá / giá vốn trung bình toàn thị trường, hiệu chỉnh theo BGeometrics)." if is_est else None))
     sopr7 = None
     if "sopr" in onchain.columns and onchain["sopr"].notna().sum() >= 3:
         sopr7 = float(onchain["sopr"].dropna().tail(7).mean())
@@ -3395,7 +3472,8 @@ def page_onchain():
         fig.update_layout(showlegend=False)
         show_fig(fig, "valuation")
         cap("MVRV < 1 hoặc NUPL < 0: giá thấp hơn giá vốn trung bình toàn thị trường (vùng định giá thấp lịch sử). "
-                   "SOPR < 1 kéo dài: thị trường đang bán lỗ.")
+                   "SOPR < 1 kéo dài: thị trường đang bán lỗ. Gói miễn phí BGeometrics trễ ~7 ngày: MVRV/NUPL các ngày "
+                   "gần nhất được ước tính từ URPD; SOPR dừng ở ngày nguồn có số.")
 
 
 # =============================================================================
