@@ -1,40 +1,30 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-06 02:35",
+ "last_run_utc": "2026-11-06 05:22",
  "market": {
-  "total_mcap": 2572789927067.7944,
-  "total_mcap_change_24h": -7.496344981352414,
-  "btc_mcap": 1527674671626.4832,
-  "btc_change_24h": -5.661892665216495,
-  "usdt_usdc": 248068162988.4733,
-  "adjusted_btc_dom": 65.71430160940145,
-  "alt_ex_stables": 797047092452.838,
-  "alt_change_24h": -12.77320068161375,
-  "fetched_at_utc": "2026-11-06 02:35"
+  "total_mcap": 2569933719866.892,
+  "total_mcap_change_24h": -7.797874917763975,
+  "btc_mcap": 1520649836334.6045,
+  "btc_change_24h": -5.966238225379921,
+  "usdt_usdc": 248037574878.17395,
+  "adjusted_btc_dom": 65.49172492562079,
+  "alt_ex_stables": 801246308654.1136,
+  "alt_change_24h": -13.097614711682636,
+  "fetched_at_utc": "2026-11-06 05:22"
  },
  "urpd": {
   "latest_date": "2026-11-06",
   "changed": [
-   "2026-11-05",
    "2026-11-06"
   ],
   "errors": []
  },
  "research": {
-  "updated": {
-   "supply_in_loss": 1,
-   "supply_in_loss_percent": 1,
-   "sth_realized_price": 1,
-   "lth_realized_price": 1
-  },
+  "updated": {},
   "errors": []
  },
  "realized": {
-  "updated": {
-   "realized_profit": 1,
-   "realized_loss": 1,
-   "btc_price": 1
-  },
+  "updated": {},
   "errors": [],
   "pending": []
  },
@@ -50,19 +40,24 @@
  "etf": {
   "errors": [],
   "source": "SoSoValue",
-  "latest": "2026-11-04",
-  "sessions": 22,
-  "skipped": "đã lấy 3.0 giờ trước"
+  "latest": "2026-11-05",
+  "sessions": 23,
+  "notes": [],
+  "alts": {
+   "NEAR": "22 phiên",
+   "LINK": "23 phiên",
+   "ETH": "23 phiên",
+   "SOL": "23 phiên",
+   "XRP": "23 phiên"
+  }
  },
  "market_extra": {
   "done": {
    "phái sinh": 181,
    "stablecoin": 400,
-   "coinbase premium": 13,
+   "coinbase premium": 14,
    "sợ hãi & tham lam": 400
   },
-  "errors": [
-   "OKX taker: 400 Client Error: Bad Request for url: https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy=BTC&instType=CONTRACT&peri"
-  ]
+  "errors": []
  }
 }

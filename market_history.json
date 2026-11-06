@@ -1,5 +1,5 @@
 {
- "updated_at_utc": "2026-11-06 02:35",
+ "updated_at_utc": "2026-11-06 05:22",
  "daily": {
   "2025-10-03": {
    "stables_total": 298069179501.0,
@@ -2342,7 +2342,9 @@
    "usdt": 183786352061.0,
    "usdc": 72483761462.0,
    "fng": 29.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 4660460.98,
+   "taker_buy": 4997862.46
   },
   "2026-07-30": {
    "oi_usd": 2586909207.3327,
@@ -2353,7 +2355,9 @@
    "usdt": 183906992153.0,
    "usdc": 72193504076.0,
    "fng": 28.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 4854781.21,
+   "taker_buy": 4986147.69
   },
   "2026-07-31": {
    "oi_usd": 2604878765.7584,
@@ -2364,7 +2368,9 @@
    "usdt": 183266953799.0,
    "usdc": 72043866220.0,
    "fng": 25.0,
-   "fng_class": "Extreme Fear"
+   "fng_class": "Extreme Fear",
+   "taker_sell": 1409302.1199999999,
+   "taker_buy": 1266127.67
   },
   "2026-08-01": {
    "oi_usd": 2573437871.7015,
@@ -2375,7 +2381,9 @@
    "usdt": 183340422892.0,
    "usdc": 72034973003.0,
    "fng": 27.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 2678899.3000000003,
+   "taker_buy": 2518837.04
   },
   "2026-08-02": {
    "oi_usd": 2573390040.3526,
@@ -2386,7 +2394,9 @@
    "usdt": 183208707217.0,
    "usdc": 72061343993.0,
    "fng": 27.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 4228484.97,
+   "taker_buy": 4084034.0900000003
   },
   "2026-08-03": {
    "oi_usd": 2568269010.8088,
@@ -2397,7 +2407,9 @@
    "usdt": 183209133222.0,
    "usdc": 71963188076.0,
    "fng": 28.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 3407773.0,
+   "taker_buy": 3601463.14
   },
   "2026-08-04": {
    "oi_usd": 2565797658.5814,
@@ -2408,7 +2420,9 @@
    "usdt": 183053842973.0,
    "usdc": 72244638662.0,
    "fng": 25.0,
-   "fng_class": "Extreme Fear"
+   "fng_class": "Extreme Fear",
+   "taker_sell": 3546819.9,
+   "taker_buy": 3811695.04
   },
   "2026-08-05": {
    "oi_usd": 2565491757.2006,
@@ -2419,7 +2433,9 @@
    "usdt": 183077238044.0,
    "usdc": 72268275730.0,
    "fng": 27.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 3105992.96,
+   "taker_buy": 3548865.34
   },
   "2026-08-06": {
    "oi_usd": 2603377750.9076,
@@ -2430,7 +2446,9 @@
    "usdt": 183394037536.0,
    "usdc": 71821879985.0,
    "fng": 25.0,
-   "fng_class": "Extreme Fear"
+   "fng_class": "Extreme Fear",
+   "taker_sell": 3044370.45,
+   "taker_buy": 3230927.66
   },
   "2026-08-07": {
    "oi_usd": 2636256792.3438,
@@ -2441,7 +2459,9 @@
    "usdt": 183375678388.0,
    "usdc": 71985596157.0,
    "fng": 29.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 1278963.48,
+   "taker_buy": 1295944.34
   },
   "2026-08-08": {
    "oi_usd": 2656363916.6622,
@@ -2452,7 +2472,9 @@
    "usdt": 183098481831.0,
    "usdc": 72263511430.0,
    "fng": 30.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 1005925.45,
+   "taker_buy": 910082.32
   },
   "2026-08-09": {
    "oi_usd": 2715282977.5983,
@@ -2463,7 +2485,9 @@
    "usdt": 183100541932.0,
    "usdc": 72264546619.0,
    "fng": 31.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 2721560.01,
+   "taker_buy": 2690693.96
   },
   "2026-08-10": {
    "oi_usd": 2681403739.0794,
@@ -2474,7 +2498,9 @@
    "usdt": 183071498832.0,
    "usdc": 72328626945.0,
    "fng": 30.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 3258123.69,
+   "taker_buy": 3286369.01
   },
   "2026-08-11": {
    "oi_usd": 2669623036.388,
@@ -2485,7 +2511,9 @@
    "usdt": 181986513926.0,
    "usdc": 72313505388.0,
    "fng": 29.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 3638127.23,
+   "taker_buy": 3429997.59
   },
   "2026-08-12": {
    "oi_usd": 2669071774.3235,
@@ -2496,7 +2524,9 @@
    "usdt": 182980797500.0,
    "usdc": 72173221206.0,
    "fng": 27.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 2773346.41,
+   "taker_buy": 2862388.74
   },
   "2026-08-13": {
    "oi_usd": 2628531160.7719,
@@ -2507,7 +2537,9 @@
    "usdt": 182996811302.0,
    "usdc": 72185908318.0,
    "fng": 29.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 3746923.36,
+   "taker_buy": 3611419.83
   },
   "2026-08-14": {
    "oi_usd": 2871551875.5286,
@@ -2518,7 +2550,9 @@
    "usdt": 182972926533.0,
    "usdc": 72101046312.0,
    "fng": 29.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 1406549.93,
+   "taker_buy": 1251174.48
   },
   "2026-08-15": {
    "oi_usd": 2747803041.8394,
@@ -2529,7 +2563,9 @@
    "usdt": 183049125439.0,
    "usdc": 72015454817.0,
    "fng": 34.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 467881.52,
+   "taker_buy": 452611.44
   },
   "2026-08-16": {
    "oi_usd": 2748936403.6742,
@@ -2540,7 +2576,9 @@
    "usdt": 182982963445.0,
    "usdc": 71987237612.0,
    "fng": 34.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 3096629.67,
+   "taker_buy": 3231936.56
   },
   "2026-08-17": {
    "oi_usd": 2667824169.6878,
@@ -2551,7 +2589,9 @@
    "usdt": 182984228791.0,
    "usdc": 71961271347.0,
    "fng": 31.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 3328902.97,
+   "taker_buy": 3489370.27
   },
   "2026-08-18": {
    "oi_usd": 2758692692.6792,
@@ -2562,7 +2602,9 @@
    "usdt": 182995198185.0,
    "usdc": 72002071371.0,
    "fng": 41.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 6263049.100000001,
+   "taker_buy": 7394362.16
   },
   "2026-08-19": {
    "oi_usd": 2849033700.569,
@@ -2573,7 +2615,9 @@
    "usdt": 182960234111.0,
    "usdc": 71958921419.0,
    "fng": 46.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 8502129.790000001,
+   "taker_buy": 9086878.37
   },
   "2026-08-20": {
    "oi_usd": 2881952350.5052,
@@ -2584,7 +2628,9 @@
    "usdt": 183013957424.0,
    "usdc": 72474846970.0,
    "fng": 62.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 11266875.21,
+   "taker_buy": 12294035.64
   },
   "2026-08-21": {
    "oi_usd": 2996804849.8298,
@@ -2595,7 +2641,9 @@
    "usdt": 183043925755.0,
    "usdc": 73343959822.0,
    "fng": 72.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4679788.32,
+   "taker_buy": 4608228.22
   },
   "2026-08-22": {
    "oi_usd": 2970622957.121,
@@ -2606,7 +2654,9 @@
    "usdt": 183139546642.0,
    "usdc": 73591012535.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3395848.33,
+   "taker_buy": 3278361.2199999997
   },
   "2026-08-23": {
    "oi_usd": 2967726194.7893,
@@ -2617,7 +2667,9 @@
    "usdt": 183205352215.0,
    "usdc": 73608117156.0,
    "fng": 66.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 5322497.33,
+   "taker_buy": 5286337.75
   },
   "2026-08-24": {
    "oi_usd": 2978431287.799,
@@ -2628,7 +2680,9 @@
    "usdt": 183200693169.0,
    "usdc": 73664492744.0,
    "fng": 73.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 6214600.2,
+   "taker_buy": 6159993.95
   },
   "2026-08-25": {
    "oi_usd": 2972051342.756,
@@ -2639,7 +2693,9 @@
    "usdt": 183111305140.0,
    "usdc": 73877447233.0,
    "fng": 74.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3945293.4899999998,
+   "taker_buy": 3796088.4899999998
   },
   "2026-08-26": {
    "oi_usd": 2946432137.1844,
@@ -2650,7 +2706,9 @@
    "usdt": 183189380380.0,
    "usdc": 73885719903.0,
    "fng": 65.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4148592.69,
+   "taker_buy": 4203145.15
   },
   "2026-08-27": {
    "oi_usd": 2950906168.0373,
@@ -2661,7 +2719,9 @@
    "usdt": 183352489402.0,
    "usdc": 74024390351.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4666621.72,
+   "taker_buy": 4832938.33
   },
   "2026-08-28": {
    "oi_usd": 2890575518.4013,
@@ -2672,7 +2732,9 @@
    "usdt": 183308959242.0,
    "usdc": 73941809446.0,
    "fng": 73.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3146813.04,
+   "taker_buy": 2814932.33
   },
   "2026-08-29": {
    "oi_usd": 2896995883.5987,
@@ -2683,7 +2745,9 @@
    "usdt": 183377888812.0,
    "usdc": 74193708238.0,
    "fng": 68.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1461726.3,
+   "taker_buy": 1535659.64
   },
   "2026-08-30": {
    "oi_usd": 2893889840.0514,
@@ -2694,7 +2758,9 @@
    "usdt": 183361226703.0,
    "usdc": 74047017211.0,
    "fng": 69.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4238188.86,
+   "taker_buy": 4123543.95
   },
   "2026-08-31": {
    "oi_usd": 2839063200.5322,
@@ -2705,7 +2771,9 @@
    "usdt": 183451577578.0,
    "usdc": 74055644088.0,
    "fng": 62.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3413291.55,
+   "taker_buy": 3354661.82
   },
   "2026-09-01": {
    "oi_usd": 2854759629.6793,
@@ -2716,7 +2784,9 @@
    "usdt": 183272288023.0,
    "usdc": 73684132437.0,
    "fng": 69.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4814967.61,
+   "taker_buy": 4548397.0
   },
   "2026-09-02": {
    "oi_usd": 2957729996.1196,
@@ -2727,7 +2797,9 @@
    "usdt": 183296971954.0,
    "usdc": 73691267499.0,
    "fng": 63.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4940887.2700000005,
+   "taker_buy": 5475578.91
   },
   "2026-09-03": {
    "oi_usd": 3059640951.8624,
@@ -2738,7 +2810,9 @@
    "usdt": 183350239895.0,
    "usdc": 73897434877.0,
    "fng": 65.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 5784581.390000001,
+   "taker_buy": 5824166.72
   },
   "2026-09-04": {
    "oi_usd": 2885521900.9836,
@@ -2749,7 +2823,9 @@
    "usdt": 183393824872.0,
    "usdc": 74502564124.0,
    "fng": 74.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1344768.24,
+   "taker_buy": 1365074.19
   },
   "2026-09-05": {
    "oi_usd": 2846464654.3794,
@@ -2760,7 +2836,9 @@
    "usdt": 183373182411.0,
    "usdc": 74745673938.0,
    "fng": 73.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1711882.04,
+   "taker_buy": 1614156.3800000001
   },
   "2026-09-06": {
    "oi_usd": 2825104203.5042,
@@ -2771,7 +2849,9 @@
    "usdt": 183376822523.0,
    "usdc": 74717531917.0,
    "fng": 73.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 2469880.3,
+   "taker_buy": 2358600.0500000003
   },
   "2026-09-07": {
    "oi_usd": 2876513742.1184,
@@ -2782,7 +2862,9 @@
    "usdt": 183351418678.0,
    "usdc": 74707164104.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3270852.18,
+   "taker_buy": 3093754.22
   },
   "2026-09-08": {
    "oi_usd": 2930663948.6681,
@@ -2793,7 +2875,9 @@
    "usdt": 183372323063.0,
    "usdc": 74531707247.0,
    "fng": 69.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3566908.57,
+   "taker_buy": 3632407.51
   },
   "2026-09-09": {
    "oi_usd": 2830625947.0336,
@@ -2804,7 +2888,9 @@
    "usdt": 183388615224.0,
    "usdc": 74643884402.0,
    "fng": 66.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3838276.38,
+   "taker_buy": 3588440.69
   },
   "2026-09-10": {
    "oi_usd": 2936982957.2738,
@@ -2815,7 +2901,9 @@
    "usdt": 183380468062.0,
    "usdc": 74536077824.0,
    "fng": 69.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 5157987.3100000005,
+   "taker_buy": 5184373.2
   },
   "2026-09-11": {
    "oi_usd": 2831220777.3186,
@@ -2826,7 +2914,9 @@
    "usdt": 183488197744.0,
    "usdc": 74349682340.0,
    "fng": 56.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1866108.94,
+   "taker_buy": 1858064.9
   },
   "2026-09-12": {
    "oi_usd": 2821360493.9481,
@@ -2837,7 +2927,9 @@
    "usdt": 183461039020.0,
    "usdc": 74451139551.0,
    "fng": 63.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1506513.92,
+   "taker_buy": 1449475.29
   },
   "2026-09-13": {
    "oi_usd": 2882179123.8297,
@@ -2848,7 +2940,9 @@
    "usdt": 183476546777.0,
    "usdc": 74401050577.0,
    "fng": 61.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3397759.44,
+   "taker_buy": 3361873.31
   },
   "2026-09-14": {
    "oi_usd": 2874697096.0104,
@@ -2859,216 +2953,256 @@
    "usdt": 183381568932.0,
    "usdc": 74349054455.0,
    "fng": 57.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4951862.78,
+   "taker_buy": 4901459.15
   },
   "2026-09-15": {
    "oi_usd": 2911256908.1545,
    "perp_volume_usd": 8283518901.8752,
    "long_short_ratio": 1.8,
    "price": 75641.0,
-   "stables_total": 303685687071.0,
+   "stables_total": 303685116836.0,
    "usdt": 183293889366.0,
    "usdc": 74417407059.0,
    "fng": 69.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4303363.1,
+   "taker_buy": 4036109.81
   },
   "2026-09-16": {
    "oi_usd": 2843393861.5766,
    "perp_volume_usd": 6985733346.4398,
    "long_short_ratio": 1.71,
    "price": 76201.2,
-   "stables_total": 302907182789.0,
+   "stables_total": 302906612455.0,
    "usdt": 183288616910.0,
    "usdc": 73647584660.0,
    "fng": 51.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 4390671.25,
+   "taker_buy": 4403174.87
   },
   "2026-09-17": {
    "oi_usd": 2916381895.419,
    "perp_volume_usd": 7384359520.5369,
    "long_short_ratio": 1.05,
    "price": 76419.3,
-   "stables_total": 302974942611.0,
+   "stables_total": 302974373203.0,
    "usdt": 183257317566.0,
    "usdc": 73778213545.0,
    "fng": 50.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 4664866.19,
+   "taker_buy": 5264746.03
   },
   "2026-09-18": {
    "oi_usd": 3150592639.8549,
    "perp_volume_usd": 8698665020.0737,
    "long_short_ratio": 1.02,
    "price": 80903.0,
-   "stables_total": 303046202169.0,
+   "stables_total": 303045632136.0,
    "usdt": 183329320360.0,
    "usdc": 73980448278.0,
    "fng": 56.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 2544826.35,
+   "taker_buy": 2790548.57
   },
   "2026-09-19": {
    "oi_usd": 3224081995.6714,
    "perp_volume_usd": 4732757851.6647,
    "long_short_ratio": 1.08,
    "price": 81265.8,
-   "stables_total": 303549471731.0,
+   "stables_total": 303548902814.0,
    "usdt": 183279108348.0,
    "usdc": 74420792332.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 2423435.51,
+   "taker_buy": 2414339.32
   },
   "2026-09-20": {
    "oi_usd": 3167835977.9828,
    "perp_volume_usd": 4186414196.2893,
    "long_short_ratio": 0.91,
    "price": 81179.6,
-   "stables_total": 303528625585.0,
+   "stables_total": 303528055260.0,
    "usdt": 183305954113.0,
    "usdc": 74338254477.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 6357965.71,
+   "taker_buy": 7019867.74
   },
   "2026-09-21": {
    "oi_usd": 3393873876.7162,
    "perp_volume_usd": 12221776125.6094,
    "long_short_ratio": 0.96,
    "price": 86617.8,
-   "stables_total": 303737015262.0,
+   "stables_total": 303736446219.0,
    "usdt": 183313796367.0,
    "usdc": 74433376266.0,
    "fng": 70.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4242486.1,
+   "taker_buy": 4441550.21
   },
   "2026-09-22": {
    "oi_usd": 3403740240.726,
    "perp_volume_usd": 8170005128.3242,
    "long_short_ratio": 1.08,
    "price": 86209.1,
-   "stables_total": 304448804506.0,
+   "stables_total": 304448235505.0,
    "usdt": 183519800743.0,
    "usdc": 74825339717.0,
    "fng": 78.0,
-   "fng_class": "Extreme Greed"
+   "fng_class": "Extreme Greed",
+   "taker_sell": 4667504.38,
+   "taker_buy": 4405435.31
   },
   "2026-09-23": {
    "oi_usd": 3341170603.8468,
    "perp_volume_usd": 8816015796.9032,
    "long_short_ratio": 1.26,
    "price": 84399.5,
-   "stables_total": 304684195245.0,
+   "stables_total": 304683626189.0,
    "usdt": 183423378732.0,
    "usdc": 75415412302.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4675493.65,
+   "taker_buy": 4537922.04
   },
   "2026-09-24": {
    "oi_usd": 3174718411.9604,
    "perp_volume_usd": 8307980657.9218,
    "long_short_ratio": 1.33,
    "price": 84409.8,
-   "stables_total": 304451432517.0,
+   "stables_total": 304450863383.0,
    "usdt": 183461551861.0,
    "usdc": 75435919774.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4334463.88,
+   "taker_buy": 4224034.18
   },
   "2026-09-25": {
    "oi_usd": 3156239053.0536,
    "perp_volume_usd": 7826763070.9357,
    "long_short_ratio": 1.33,
    "price": 84099.0,
-   "stables_total": 304836120997.0,
+   "stables_total": 304835551017.0,
    "usdt": 183708996205.0,
    "usdc": 75468707778.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1427600.83,
+   "taker_buy": 1382582.8699999999
   },
   "2026-09-26": {
    "oi_usd": 3124948173.9001,
    "perp_volume_usd": 2523490438.8089,
    "long_short_ratio": 1.21,
    "price": 84439.9,
-   "stables_total": 305110651060.0,
+   "stables_total": 305110082204.0,
    "usdt": 183752694657.0,
    "usdc": 75461811382.0,
    "fng": 74.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1778609.64,
+   "taker_buy": 1767911.38
   },
   "2026-09-27": {
    "oi_usd": 3106673944.8882,
    "perp_volume_usd": 3209179057.2015,
    "long_short_ratio": 1.35,
    "price": 84479.0,
-   "stables_total": 305301443110.0,
+   "stables_total": 305300874232.0,
    "usdt": 183750151288.0,
    "usdc": 75329743725.0,
    "fng": 70.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3661664.86,
+   "taker_buy": 3506531.25
   },
   "2026-09-28": {
    "oi_usd": 3151673369.9102,
    "perp_volume_usd": 6638319107.1021,
    "long_short_ratio": 1.38,
    "price": 83500.1,
-   "stables_total": 306766344944.0,
+   "stables_total": 306765774863.0,
    "usdt": 183727390833.0,
    "usdc": 75237421758.0,
    "fng": 74.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3557320.82,
+   "taker_buy": 3546284.16
   },
   "2026-09-29": {
    "oi_usd": 3091550722.1144,
    "perp_volume_usd": 6459816172.8932,
    "long_short_ratio": 1.32,
    "price": 83657.5,
-   "stables_total": 306375151873.0,
+   "stables_total": 306374583524.0,
    "usdt": 183787154912.0,
    "usdc": 74850437227.0,
    "fng": 73.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4214080.93,
+   "taker_buy": 4288851.78
   },
   "2026-09-30": {
    "oi_usd": 3055719864.2821,
    "perp_volume_usd": 8011224289.1239,
    "long_short_ratio": 1.37,
    "price": 83618.4,
-   "stables_total": 306315335095.0,
+   "stables_total": 306314764973.0,
    "usdt": 183758497423.0,
    "usdc": 74568657800.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3632827.58,
+   "taker_buy": 3596766.33
   },
   "2026-10-01": {
    "oi_usd": 3157247189.9675,
    "perp_volume_usd": 6444716898.3557,
    "long_short_ratio": 1.0,
    "price": 84877.4,
-   "stables_total": 305823960049.0,
+   "stables_total": 305823390889.0,
    "usdt": 183790522408.0,
    "usdc": 74135120985.0,
    "fng": 74.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4976422.68,
+   "taker_buy": 5130959.89
   },
   "2026-10-02": {
    "oi_usd": 3254564477.8442,
    "perp_volume_usd": 10027961914.0659,
    "long_short_ratio": 1.26,
    "price": 84518.9,
-   "stables_total": 306620045193.0,
+   "stables_total": 306619476145.0,
    "usdt": 184009395666.0,
    "usdc": 74060616150.0,
    "fng": 72.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1786580.13,
+   "taker_buy": 1750312.03
   },
   "2026-10-03": {
    "oi_usd": 3161609596.4917,
    "perp_volume_usd": 4020744892.2389,
    "long_short_ratio": 1.27,
    "price": 84754.9,
-   "stables_total": 306991726469.0,
+   "stables_total": 306991157625.0,
    "usdt": 184032387881.0,
    "usdc": 74198741683.0,
    "fng": 67.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1057644.02,
+   "taker_buy": 1058793.14
   },
   "2026-10-04": {
    "oi_usd": 3180398495.2937,
@@ -3076,11 +3210,13 @@
    "long_short_ratio": 1.12,
    "funding_apr": 3.27536940428125,
    "price": 86525.1,
-   "stables_total": 307078304416.0,
+   "stables_total": 307077734456.0,
    "usdt": 184035531732.0,
    "usdc": 74217052658.0,
    "fng": 65.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3792039.88,
+   "taker_buy": 3905617.56
   },
   "2026-10-05": {
    "oi_usd": 3207055793.6633,
@@ -3088,11 +3224,13 @@
    "long_short_ratio": 0.98,
    "funding_apr": 5.144724175822199,
    "price": 85759.7,
-   "stables_total": 307313235034.0,
+   "stables_total": 307312664672.0,
    "usdt": 184051485014.0,
    "usdc": 74199598519.0,
    "fng": 70.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3053751.56,
+   "taker_buy": 2952506.64
   },
   "2026-10-06": {
    "oi_usd": 3325696593.0834,
@@ -3100,11 +3238,13 @@
    "long_short_ratio": 1.61,
    "funding_apr": 2.6936359591805,
    "price": 85553.9,
-   "stables_total": 307768347051.0,
+   "stables_total": 307767777156.0,
    "usdt": 184161867870.0,
    "usdc": 74323709588.0,
    "fng": 73.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4497281.31,
+   "taker_buy": 3996047.41
   },
   "2026-10-07": {
    "oi_usd": 3344260212.9877,
@@ -3112,11 +3252,13 @@
    "long_short_ratio": 1.7,
    "funding_apr": 3.7936984694028,
    "price": 83323.0,
-   "stables_total": 307904816658.0,
+   "stables_total": 307904246466.0,
    "usdt": 184128024605.0,
    "usdc": 74288109243.0,
    "fng": 71.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4771368.47,
+   "taker_buy": 4364910.05
   },
   "2026-10-08": {
    "oi_usd": 3300573828.4821,
@@ -3124,11 +3266,13 @@
    "long_short_ratio": 1.42,
    "funding_apr": 4.5225001789142,
    "price": 81760.0,
-   "stables_total": 307332276019.0,
+   "stables_total": 307331706620.0,
    "usdt": 184215602653.0,
    "usdc": 73825972622.0,
    "fng": 64.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4064727.59,
+   "taker_buy": 4091460.8
   },
   "2026-10-09": {
    "oi_usd": 3287502888.2637,
@@ -3136,11 +3280,13 @@
    "long_short_ratio": 1.5,
    "funding_apr": 2.3027171198769,
    "price": 82626.6,
-   "stables_total": 306624204830.0,
+   "stables_total": 306623635404.0,
    "usdt": 184307909924.0,
    "usdc": 73279290594.0,
    "fng": 59.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1217651.42,
+   "taker_buy": 1328746.11
   },
   "2026-10-10": {
    "oi_usd": 3302909039.477,
@@ -3148,11 +3294,13 @@
    "long_short_ratio": 1.51,
    "funding_apr": 2.5994375604504,
    "price": 82985.1,
-   "stables_total": 305978050497.0,
+   "stables_total": 305977481278.0,
    "usdt": 184076750166.0,
    "usdc": 72983875629.0,
    "fng": 64.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1054688.69,
+   "taker_buy": 1099451.44
   },
   "2026-10-11": {
    "oi_usd": 3251799958.1918,
@@ -3160,11 +3308,13 @@
    "long_short_ratio": 1.49,
    "funding_apr": -1.3647880778802501,
    "price": 83760.4,
-   "stables_total": 306072399058.0,
+   "stables_total": 306071829807.0,
    "usdt": 184076527715.0,
    "usdc": 73127102517.0,
    "fng": 61.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3144514.79,
+   "taker_buy": 3026719.88
   },
   "2026-10-12": {
    "oi_usd": 3294439613.6181,
@@ -3172,11 +3322,13 @@
    "long_short_ratio": 1.26,
    "funding_apr": 1.9860614914474501,
    "price": 81853.1,
-   "stables_total": 306141628635.0,
+   "stables_total": 306141058214.0,
    "usdt": 184046380548.0,
    "usdc": 72927024574.0,
    "fng": 69.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4245928.01,
+   "taker_buy": 4154343.15
   },
   "2026-10-13": {
    "oi_usd": 3233355903.5503,
@@ -3184,11 +3336,13 @@
    "long_short_ratio": 1.62,
    "funding_apr": 4.0712051706558,
    "price": 83172.2,
-   "stables_total": 306105858235.0,
+   "stables_total": 306105287890.0,
    "usdt": 184058018419.0,
    "usdc": 72860344009.0,
    "fng": 57.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3939365.06,
+   "taker_buy": 3927498.03
   },
   "2026-10-14": {
    "oi_usd": 3320207856.3113,
@@ -3196,11 +3350,13 @@
    "long_short_ratio": 1.67,
    "funding_apr": 3.7771416223289,
    "price": 81682.6,
-   "stables_total": 306101284970.0,
+   "stables_total": 306100714566.0,
    "usdt": 183954198641.0,
    "usdc": 73133116485.0,
    "fng": 62.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 5820727.79,
+   "taker_buy": 5486110.66
   },
   "2026-10-15": {
    "oi_usd": 3360346608.1533,
@@ -3208,11 +3364,13 @@
    "long_short_ratio": 1.73,
    "funding_apr": 4.1984431634711505,
    "price": 82232.4,
-   "stables_total": 305515522445.0,
+   "stables_total": 305514952969.0,
    "usdt": 183854605808.0,
    "usdc": 72763096585.0,
    "fng": 53.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 3219257.33,
+   "taker_buy": 3071203.65
   },
   "2026-10-16": {
    "oi_usd": 3304950827.5273,
@@ -3220,11 +3378,13 @@
    "long_short_ratio": 1.79,
    "funding_apr": 7.078929328022851,
    "price": 81617.5,
-   "stables_total": 305201015542.0,
+   "stables_total": 305200445112.0,
    "usdt": 183462599098.0,
    "usdc": 72828793768.0,
    "fng": 63.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 1944941.87,
+   "taker_buy": 1814374.55
   },
   "2026-10-17": {
    "oi_usd": 3330882020.9391,
@@ -3232,11 +3392,13 @@
    "long_short_ratio": 1.83,
    "funding_apr": 9.02486786429495,
    "price": 81489.4,
-   "stables_total": 304867339478.0,
+   "stables_total": 304866769045.0,
    "usdt": 183473384175.0,
    "usdc": 72734876026.0,
    "fng": 55.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 2288900.75,
+   "taker_buy": 2147071.09
   },
   "2026-10-18": {
    "oi_usd": 3331604926.8558,
@@ -3244,11 +3406,13 @@
    "long_short_ratio": 1.6,
    "funding_apr": 5.4026534229781,
    "price": 82109.3,
-   "stables_total": 304652953102.0,
+   "stables_total": 304652383857.0,
    "usdt": 183405854230.0,
    "usdc": 72619763165.0,
    "fng": 53.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 3652255.61,
+   "taker_buy": 3655299.11
   },
   "2026-10-19": {
    "oi_usd": 3298941704.4658,
@@ -3256,11 +3420,13 @@
    "long_short_ratio": 1.63,
    "funding_apr": 8.290728938246652,
    "price": 81943.8,
-   "stables_total": 304621767362.0,
+   "stables_total": 304621197021.0,
    "usdt": 183436121620.0,
    "usdc": 72589005385.0,
    "fng": 59.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3666853.14,
+   "taker_buy": 3631340.72
   },
   "2026-10-20": {
    "oi_usd": 3189769410.5172,
@@ -3268,11 +3434,13 @@
    "long_short_ratio": 1.21,
    "funding_apr": 6.803270456045249,
    "price": 83026.9,
-   "stables_total": 303738029704.0,
+   "stables_total": 303737459270.0,
    "usdt": 183014307734.0,
    "usdc": 72246198883.0,
    "fng": 55.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 3574733.56,
+   "taker_buy": 3812599.32
   },
   "2026-10-21": {
    "oi_usd": 3533971225.8776,
@@ -3280,11 +3448,13 @@
    "long_short_ratio": 2.08,
    "funding_apr": 5.90351209734475,
    "price": 84097.6,
-   "stables_total": 303538525852.0,
+   "stables_total": 303537955957.0,
    "usdt": 182813441112.0,
    "usdc": 72236307809.0,
    "fng": 63.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 4734571.05,
+   "taker_buy": 4557276.4
   },
   "2026-10-22": {
    "oi_usd": 3365594549.8082,
@@ -3292,11 +3462,13 @@
    "long_short_ratio": 2.13,
    "funding_apr": 4.78206652699375,
    "price": 81417.0,
-   "stables_total": 303687670199.0,
+   "stables_total": 303687100304.0,
    "usdt": 182615908419.0,
    "usdc": 72623893877.0,
    "fng": 68.0,
-   "fng_class": "Greed"
+   "fng_class": "Greed",
+   "taker_sell": 2961848.57,
+   "taker_buy": 2838042.52
   },
   "2026-10-23": {
    "oi_usd": 3421280245.0902,
@@ -3304,11 +3476,13 @@
    "long_short_ratio": 2.16,
    "funding_apr": 7.69396337516835,
    "price": 81188.2,
-   "stables_total": 303248946001.0,
+   "stables_total": 303248376479.0,
    "usdt": 182547004710.0,
    "usdc": 72233349252.0,
    "fng": 50.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 3433533.2,
+   "taker_buy": 2811810.51
   },
   "2026-10-24": {
    "oi_usd": 3332034483.6344,
@@ -3316,13 +3490,15 @@
    "long_short_ratio": 2.12,
    "funding_apr": 7.18726529452165,
    "price": 80880.9,
-   "stables_total": 302800712166.0,
+   "stables_total": 302800142938.0,
    "usdt": 182452044569.0,
    "usdc": 71829215709.0,
-   "cb_premium_pct": -0.0021396444556984503,
-   "cb_premium_hours": 9,
+   "cb_premium_pct": -0.0037296551230877237,
+   "cb_premium_hours": 6,
    "fng": 51.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 1943025.73,
+   "taker_buy": 1985209.75
   },
   "2026-10-25": {
    "oi_usd": 3338199115.4535,
@@ -3330,13 +3506,15 @@
    "long_short_ratio": 2.12,
    "funding_apr": 6.2727832403324,
    "price": 80157.0,
-   "stables_total": 302597421031.0,
+   "stables_total": 302596851136.0,
    "usdt": 182412113430.0,
    "usdc": 71746838682.0,
    "cb_premium_pct": -0.0076770210274644075,
    "cb_premium_hours": 24,
    "fng": 54.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 3432033.66,
+   "taker_buy": 3333498.18
   },
   "2026-10-26": {
    "oi_usd": 3481622596.7178,
@@ -3344,13 +3522,15 @@
    "long_short_ratio": 2.15,
    "funding_apr": 9.76636927189735,
    "price": 80146.0,
-   "stables_total": 302279985720.0,
+   "stables_total": 302279415034.0,
    "usdt": 182227195140.0,
    "usdc": 71663114207.0,
    "cb_premium_pct": -0.011657951074841669,
    "cb_premium_hours": 24,
    "fng": 50.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 2906342.85,
+   "taker_buy": 2912565.89
   },
   "2026-10-27": {
    "oi_usd": 3513205239.6089,
@@ -3358,13 +3538,15 @@
    "long_short_ratio": 2.05,
    "funding_apr": 10.95,
    "price": 80907.5,
-   "stables_total": 301556877059.0,
+   "stables_total": 301556307384.0,
    "usdt": 181879191620.0,
    "usdc": 71208740691.0,
    "cb_premium_pct": -0.008507420199521202,
    "cb_premium_hours": 24,
    "fng": 48.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 2733637.43,
+   "taker_buy": 2820098.99
   },
   "2026-10-28": {
    "oi_usd": 3471703016.5545,
@@ -3372,13 +3554,15 @@
    "long_short_ratio": 1.75,
    "funding_apr": 9.69460261967235,
    "price": 81350.9,
-   "stables_total": 301599773086.0,
+   "stables_total": 301599202788.0,
    "usdt": 181842486770.0,
    "usdc": 71298534609.0,
    "cb_premium_pct": -0.009201272434860205,
    "cb_premium_hours": 24,
    "fng": 51.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 4506919.34,
+   "taker_buy": 4617487.43
   },
   "2026-10-29": {
    "oi_usd": 3537500693.722,
@@ -3386,13 +3570,15 @@
    "long_short_ratio": 2.74,
    "funding_apr": 8.380104374272502,
    "price": 78007.2,
-   "stables_total": 300078431965.0,
+   "stables_total": 300077862070.0,
    "usdt": 180709443335.0,
    "usdc": 71321724185.0,
    "cb_premium_pct": -0.01499484903018424,
    "cb_premium_hours": 24,
    "fng": 51.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 8725790.27,
+   "taker_buy": 8154201.96
   },
   "2026-10-30": {
    "oi_usd": 3678833805.7831,
@@ -3400,13 +3586,15 @@
    "long_short_ratio": 2.65,
    "funding_apr": 9.30477293628075,
    "price": 77306.1,
-   "stables_total": 299701584707.0,
+   "stables_total": 299701015151.0,
    "usdt": 180324935962.0,
    "usdc": 71465222372.0,
    "cb_premium_pct": -0.034667749182879425,
    "cb_premium_hours": 24,
    "fng": 30.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 2307050.96,
+   "taker_buy": 2162107.69
   },
   "2026-10-31": {
    "oi_usd": 3705776501.4741,
@@ -3414,13 +3602,15 @@
    "long_short_ratio": 2.38,
    "funding_apr": 10.95,
    "price": 77532.2,
-   "stables_total": 298962628291.0,
+   "stables_total": 298962059265.0,
    "usdt": 180009814575.0,
    "usdc": 71909052343.0,
    "cb_premium_pct": -0.029519571865494847,
    "cb_premium_hours": 24,
    "fng": 30.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 1208458.65,
+   "taker_buy": 1228085.67
   },
   "2026-11-01": {
    "oi_usd": 3745709028.0529,
@@ -3428,13 +3618,15 @@
    "long_short_ratio": 2.36,
    "funding_apr": 9.613466582598901,
    "price": 78342.5,
-   "stables_total": 298364689533.0,
+   "stables_total": 298364120203.0,
    "usdt": 179631491514.0,
    "usdc": 71854720053.0,
    "cb_premium_pct": -0.02857683880035979,
    "cb_premium_hours": 24,
    "fng": 34.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 2519531.11,
+   "taker_buy": 2699632.04
   },
   "2026-11-02": {
    "oi_usd": 3629149101.9713,
@@ -3442,13 +3634,15 @@
    "long_short_ratio": 2.58,
    "funding_apr": 10.436328856485352,
    "price": 76809.0,
-   "stables_total": 297625515629.0,
+   "stables_total": 297624945845.0,
    "usdt": 179155572532.0,
    "usdc": 71626936181.0,
    "cb_premium_pct": -0.018943788003499922,
    "cb_premium_hours": 24,
    "fng": 37.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 3738331.21,
+   "taker_buy": 3481779.43
   },
   "2026-11-03": {
    "oi_usd": 3667767174.7752,
@@ -3456,13 +3650,15 @@
    "long_short_ratio": 1.58,
    "funding_apr": 10.95,
    "price": 77454.2,
-   "stables_total": 296011417684.0,
+   "stables_total": 296010847293.0,
    "usdt": 178577099159.0,
    "usdc": 71270953101.0,
    "cb_premium_pct": -0.009981460416053542,
    "cb_premium_hours": 24,
    "fng": 26.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 6688802.61,
+   "taker_buy": 6981527.31
   },
   "2026-11-04": {
    "oi_usd": 3835179453.2754,
@@ -3470,45 +3666,49 @@
    "long_short_ratio": 2.43,
    "funding_apr": 10.49568083682715,
    "price": 80508.0,
-   "stables_total": 295128465219.0,
+   "stables_total": 295127894949.0,
    "usdt": 178164743123.0,
    "usdc": 70933167201.0,
    "cb_premium_pct": -0.0016965323018564016,
    "cb_premium_hours": 24,
    "fng": 34.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "taker_sell": 6807570.35,
+   "taker_buy": 5906013.08
   },
   "2026-11-05": {
    "oi_usd": 3608004801.9181,
    "perp_volume_usd": 10880661972.6847,
-   "long_short_ratio": 2.9,
+   "long_short_ratio": 2.94,
    "funding_apr": 10.0313210903533,
    "price": 76087.4,
-   "stables_total": 294548695492.0,
+   "stables_total": 294548125917.0,
    "usdt": 177642257818.0,
    "usdc": 71127100073.0,
    "cb_premium_pct": -0.010222744033942799,
    "cb_premium_hours": 24,
    "fng": 50.0,
-   "fng_class": "Neutral"
+   "fng_class": "Neutral",
+   "taker_sell": 3450885.69,
+   "taker_buy": 3287065.4899999998
   },
   "2026-11-06": {
    "funding_apr": 3.0431577861603,
-   "price": 76004.4,
-   "stables_total": 293692301367.96,
-   "usdt": 177458601111.47,
-   "usdc": 70715748026.89,
+   "price": 75634.9,
+   "stables_total": 293699654310.26,
+   "usdt": 177467486925.95,
+   "usdc": 70711517960.42,
    "fng": 28.0,
-   "fng_class": "Fear"
+   "fng_class": "Fear",
+   "cb_premium_pct": -0.0012750247592489365,
+   "cb_premium_hours": 6
   }
  },
  "now": {
   "hl_funding_apr": 10.950000000000001,
-  "hl_oi_usd": 3056837663.3768,
-  "cb_premium_now": 0.21590928857995184,
-  "cb_premium_hour_utc": "2026-11-06 02:00"
+  "hl_oi_usd": 3072935748.01059,
+  "cb_premium_now": 0.03874754259376445,
+  "cb_premium_hour_utc": "2026-11-06 05:00"
  },
- "errors": [
-  "OKX taker: 400 Client Error: Bad Request for url: https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy=BTC&instType=CONTRACT&peri"
- ]
+ "errors": []
 }
