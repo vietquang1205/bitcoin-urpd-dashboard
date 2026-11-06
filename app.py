@@ -1,5 +1,5 @@
 """
-BTC URPD Monitor V73
+BTC URPD Monitor V74
 ====================
 
 Một file, hai chế độ chạy:
@@ -41,7 +41,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-APP_VERSION = "V73"
+APP_VERSION = "V74"
 UPDATE_MODE = "--update-data" in sys.argv
 
 URPD_FILE = "urpd_history.json"
@@ -1426,11 +1426,29 @@ def update_etf(status):
     except Exception:
         age_h = 999
     have_alts = set((data.get("alts") or {}).keys()) >= set(ETF_ALTS) or not soso
-    if daily and have_alts and age_h < ETF_MIN_INTERVAL_H and os.environ.get("ETF_FORCE") != "1":
-        st_etf.update({"source": data.get("source"), "latest": max(daily), "sessions": len(daily),
-                       "skipped": f"đã lấy {age_h:.1f} giờ trước"})
-        _log(f"ETF: bỏ qua (đã lấy {age_h:.1f} giờ trước, chờ đủ {ETF_MIN_INTERVAL_H} giờ)")
-        return
+    alt_missing = any((v or {}).get("error") for v in (data.get("alts") or {}).values() if isinstance(v, dict)) \
+        and data.get("app_version") != APP_VERSION      # bản app mới (vd sửa lỗi NEAR) → lấy lại ngay
+    expected = utc_today() - timedelta(days=1)          # phiên Mỹ gần nhất đáng lẽ đã có số
+    while expected.weekday() >= 5:
+        expected -= timedelta(days=1)
+    behind = bool(daily) and max(daily) < day_str(expected)
+    if daily and have_alts and not alt_missing and age_h < ETF_MIN_INTERVAL_H and os.environ.get("ETF_FORCE") != "1":
+        skip = True
+        if behind and soso:  # thiếu phiên mới → hỏi nhẹ 1 lượt xem SoSoValue đã có số chưa
+            try:
+                probe = _soso_rows(requests.get(f"{SOSO_BASE}/etfs/summary-history",
+                                                headers={"x-soso-api-key": soso, "Accept": "application/json"},
+                                                params={"symbol": "BTC", "country_code": "US", "limit": 3},
+                                                timeout=20).json())
+                newest = max((_etf_day(r.get("date")) or "" for r in probe), default="")
+                skip = newest <= max(daily)
+            except Exception:
+                skip = True
+        if skip:
+            why = (f"SoSoValue chưa có phiên {expected:%d/%m}" if behind else f"đã lấy {age_h:.1f} giờ trước")
+            st_etf.update({"source": data.get("source"), "latest": max(daily), "sessions": len(daily), "skipped": why})
+            _log(f"ETF: bỏ qua ({why})")
+            return
     if soso:
         sources.append(("SoSoValue", lambda: fetch_etf_sosovalue(soso)))
     sources.append(("Farside", fetch_etf_farside))
@@ -1462,7 +1480,7 @@ def update_etf(status):
     if soso:
         alts = update_etf_alts(soso, alts)
     _save_json(ETF_FILE, {"updated_at_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "source": used, "daily": daily,
-                          "alts": alts})
+                          "alts": alts, "app_version": APP_VERSION})
     st_etf.update({"source": used, "latest": max(daily), "sessions": len(daily), "notes": notes,
                    "alts": {s: (v.get("error") or f"{len(v.get('daily', {}))} phiên") for s, v in alts.items()}})
     _log(f"ETF: {used} — {len(got)} phiên, mới nhất {max(got)}")
@@ -1488,6 +1506,36 @@ def _merge_etf_daily(daily, got):
     return {d: daily[d] for d in sorted(daily) if d >= cut}
 
 
+def fetch_etf_from_tickers(api_key, tickers):
+    """Dự phòng khi SoSoValue không nhận mã coin (vd NEAR): cộng dữ liệu từng quỹ thành tổng."""
+    h = {"x-soso-api-key": api_key, "Accept": "application/json"}
+    days, errs = {}, []
+    for t in tickers:
+        try:
+            r = requests.get(f"{SOSO_BASE}/etfs/{t}/history", headers=h, timeout=20)
+            if r.status_code != 200:
+                errs.append(f"{t}: HTTP {r.status_code}")
+                continue
+            for row in _soso_rows(r.json()):
+                d, v = _etf_day(row.get("date")), safe_float(row.get("net_inflow"))
+                if not d or v is None:
+                    continue
+                rec = days.setdefault(d, {"total": 0.0, "funds": {}, "aum": 0.0, "cum": 0.0})
+                rec["total"] += v
+                rec["funds"][t] = v
+                rec["aum"] += safe_float(row.get("net_assets")) or 0.0
+                rec["cum"] += safe_float(row.get("cum_inflow")) or 0.0
+            time.sleep(0.7)
+        except Exception as e:
+            errs.append(f"{t}: {redact(e)[:80]}")
+    for rec in days.values():
+        rec["aum"] = rec["aum"] or None
+        rec["cum"] = rec["cum"] or None
+    if not days:
+        raise RuntimeError("không lấy được theo từng quỹ (" + "; ".join(errs or ["không có dữ liệu"]) + ")")
+    return days
+
+
 def update_etf_alts(api_key, alts):
     """ETF altcoin (NEAR, LINK ưu tiên; ETH/SOL/XRP chỉ lấy tổng)."""
     alts = dict(alts)
@@ -1497,9 +1545,18 @@ def update_etf_alts(api_key, alts):
             tickers = []
             if sym in ETF_ALT_FUNDS_FOR:
                 tickers = list(dict.fromkeys(list(known) + soso_list_tickers(api_key, sym) + cur.get("tickers", [])))
-            got = fetch_etf_sosovalue(api_key, tickers=tickers, symbol=sym)   # SoSoValue luôn trả USD
+            try:
+                got = fetch_etf_sosovalue(api_key, tickers=tickers, symbol=sym)   # SoSoValue luôn trả USD
+            except Exception as e:
+                got, first_err = {}, e
+            else:
+                first_err = None
+            if not got and (tickers or known):
+                # mã coin không được hỗ trợ (vd NEAR trả 400) → cộng từ từng quỹ (NRR…)
+                got = fetch_etf_from_tickers(api_key, tickers or list(known))
+                _log(f"ETF {sym}: dùng dữ liệu từng quỹ {tickers or known}" + (f" (tổng lỗi: {redact(first_err)[:60]})" if first_err else ""))
             if not got:
-                raise RuntimeError("SoSoValue chưa có dữ liệu ETF cho coin này")
+                raise RuntimeError(redact(first_err)[:120] if first_err else "SoSoValue chưa có dữ liệu ETF cho coin này")
             seen = sorted({t for r in got.values() for t, v in (r.get("funds") or {}).items()})
             cur.update({"daily": _merge_etf_daily(cur.get("daily") or {}, got), "error": None,
                         "tickers": seen or cur.get("tickers", [])})
@@ -1636,14 +1693,23 @@ def fetch_btc_derivatives():
                 out.setdefault(d, {})["long_short_ratio"] = v
     except Exception as e:
         errors.append(f"OKX long/short: {redact(e)[:120]}")
-    try:  # [ts, sellVol, buyVol]
-        for row in _jget(f"{OKX_API}/rubik/stat/taker-volume",
-                         {"ccy": "BTC", "instType": "CONTRACT", "period": "1D"}).get("data") or []:
-            d, sell, buy = _ts_day(row[0]), safe_float(row[1]), safe_float(row[2])
-            if d and sell is not None and buy is not None:
-                out.setdefault(d, {}).update({"taker_sell": sell, "taker_buy": buy})
-    except Exception as e:
-        errors.append(f"OKX taker: {redact(e)[:120]}")
+    taker_err = []
+    for path, prm in (("taker-volume-contract", {"instId": "BTC-USDT-SWAP", "period": "1D", "unit": "1"}),
+                      ("taker-volume", {"ccy": "BTC", "instType": "CONTRACTS", "period": "1D"})):
+        try:  # [ts, sellVol, buyVol] — bản -contract cập nhật mỗi ngày; bản theo ccy hay chậm vài tuần
+            rows = _jget(f"{OKX_API}/rubik/stat/{path}", prm).get("data") or []
+            n = 0
+            for row in rows:
+                d, sell, buy = _ts_day(row[0]), safe_float(row[1]), safe_float(row[2])
+                if d and sell is not None and buy is not None:
+                    out.setdefault(d, {}).update({"taker_sell": sell, "taker_buy": buy})
+                    n += 1
+            if n:
+                taker_err = []
+                break
+        except Exception as e:
+            taker_err.append(f"OKX taker ({path}): {redact(e)[:100]}")
+    errors += taker_err
     try:
         rows = [(int(r["fundingTime"]), safe_float(r.get("realizedRate") or r.get("fundingRate")))
                 for r in _jget(f"{OKX_API}/public/funding-rate-history",
