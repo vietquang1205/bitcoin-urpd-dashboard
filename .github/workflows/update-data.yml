@@ -56,7 +56,7 @@ jobs:
       # cất ra ngoài → đồng bộ với main mới nhất → chép lại → commit. Không bị conflict.
       - name: Commit dữ liệu mới
         run: |
-          FILES="urpd_history.json researchbitcoin_daily_history.json bgeometrics_realized_pl_history.json bgeometrics_onchain_history.json update_status.json near_history.json daily_report.json etf_flows_history.json"
+          FILES="urpd_history.json researchbitcoin_daily_history.json bgeometrics_realized_pl_history.json bgeometrics_onchain_history.json update_status.json near_history.json daily_report.json etf_flows_history.json market_history.json"
           BRANCH="${{ github.event.repository.default_branch }}"
           mkdir -p "$RUNNER_TEMP/data"
           for f in $FILES; do
