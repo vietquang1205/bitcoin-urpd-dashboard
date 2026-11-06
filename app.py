@@ -1,5 +1,5 @@
 """
-BTC URPD Monitor V72
+BTC URPD Monitor V73
 ====================
 
 Một file, hai chế độ chạy:
@@ -10,7 +10,8 @@ Một file, hai chế độ chạy:
 
   • Cập nhật dữ liệu (GitHub Actions):   python app.py --update-data
       → Lấy URPD (Bitview), Supply in Loss + giá vốn STH/LTH (ResearchBitcoin),
-        Realized P/L + MVRV/NUPL/SOPR (BGeometrics), dòng tiền ETF BTC (SoSoValue/Farside), ghi vào các file JSON,
+        Realized P/L + MVRV/NUPL/SOPR (BGeometrics), dòng tiền ETF (SoSoValue/Farside), phái sinh BTC (OKX),
+        stablecoin (DeFiLlama), Coinbase Premium, Sợ hãi & Tham lam, ghi vào các file JSON,
         gửi tóm tắt Telegram (nếu có cấu hình). Workflow sẽ commit các file này.
 
 Secrets/biến môi trường:
@@ -40,7 +41,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-APP_VERSION = "V72"
+APP_VERSION = "V73"
 UPDATE_MODE = "--update-data" in sys.argv
 
 URPD_FILE = "urpd_history.json"
@@ -1157,7 +1158,9 @@ def send_telegram_report(status):
         f7 = records_to_urpd(hist[k7]["urpd"]) if k7 in hist and hist[k7].get("urpd") else None
         etf_data = _load_json(ETF_FILE)
         etf = etf_stats(etf_frame(etf_data))
-        _, greens, reds, verdict = build_signals(price, onchain, realized, cur, f7, DEFAULT_ATH, etf)
+        sig_rows, greens, reds, verdict = build_signals(price, onchain, realized, cur, f7, DEFAULT_ATH, etf)
+        mdf = market_frame(_load_json(MARKET_FILE))
+        comp = market_composite(sig_rows, mdf, price)
 
         tg = status.setdefault("telegram", {})
         alerts = []
@@ -1185,8 +1188,13 @@ def send_telegram_report(status):
         if send_daily:
             brief = daily_brief(price, None, onchain, realized, cur_date, cur, prev, supports, resistances,
                                 upcoming_btc_events(7, rows=fetch_economic_calendar_raw()), etf, etf_alt_frames(etf_data))
+            brief += market_extra_brief(mdf)
             lines += ["• " + _telegram_html(b) for b in brief]
-            lines.append(_telegram_html(f"Tín hiệu: **{verdict}** ({greens} 🟢 / {reds} 🔴)"))
+            lines.append(_telegram_html(f"Tín hiệu on-chain: **{verdict}** ({greens} 🟢 / {reds} 🔴)"))
+            if comp:
+                head, cond, agree = composite_outlook(comp, supports, resistances)
+                lines.append(_telegram_html(f"🧭 Điểm thị trường tổng hợp: **{comp['score']:.0f}/100 — {comp['verdict']}** · {agree}"))
+                lines.append(_telegram_html(head + (" " + cond if cond else "")))
         r = requests.post(f"https://api.telegram.org/bot{bot}/sendMessage",
                           json={"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML",
                                 "disable_web_page_preview": True}, timeout=20)
@@ -1577,6 +1585,384 @@ def etf_brief_line(stt):
             f"5 phiên {fmt_big_usd(stt['sum_5'], signed=True)}" + (f", {sline}" if sline else "") + ".")
 
 
+# =============================================================================
+# PHÁI SINH · STABLECOIN · COINBASE PREMIUM · SỢ HÃI & THAM LAM (nguồn miễn phí, không cần key)
+# =============================================================================
+MARKET_FILE = "market_history.json"
+OKX_API = "https://www.okx.com/api/v5"
+
+
+def _jget(url, params=None, timeout=25, retries=2):
+    last = None
+    for attempt in range(retries + 1):
+        try:
+            r = requests.get(url, params=params, headers=HTTP_HEADERS, timeout=timeout)
+            if r.status_code == 429 and attempt < retries:
+                time.sleep(10 * (attempt + 1))
+                continue
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            last = e
+            if attempt < retries:
+                time.sleep(2)
+    raise RuntimeError(redact(last))
+
+
+def _ts_day(ts):
+    """ms/giây (số hoặc chuỗi) → 'YYYY-MM-DD' (UTC)."""
+    v = safe_float(ts)
+    if v is None:
+        return None
+    if v > 1e11:
+        v /= 1000
+    return day_str(datetime.fromtimestamp(v, tz=timezone.utc).date())
+
+
+def fetch_btc_derivatives():
+    """OKX: OI + khối lượng hợp đồng, long/short tài khoản, taker mua/bán, funding; Hyperliquid: ảnh chụp hiện tại."""
+    out, now, errors = {}, {}, []
+    try:
+        for row in _jget(f"{OKX_API}/rubik/stat/contracts/open-interest-volume", {"ccy": "BTC", "period": "1D"}).get("data") or []:
+            d = _ts_day(row[0])
+            if d:
+                out.setdefault(d, {}).update({"oi_usd": safe_float(row[1]), "perp_volume_usd": safe_float(row[2])})
+    except Exception as e:
+        errors.append(f"OKX OI: {redact(e)[:120]}")
+    try:
+        for row in _jget(f"{OKX_API}/rubik/stat/contracts/long-short-account-ratio", {"ccy": "BTC", "period": "1D"}).get("data") or []:
+            d, v = _ts_day(row[0]), safe_float(row[1])
+            if d and v is not None:
+                out.setdefault(d, {})["long_short_ratio"] = v
+    except Exception as e:
+        errors.append(f"OKX long/short: {redact(e)[:120]}")
+    try:  # [ts, sellVol, buyVol]
+        for row in _jget(f"{OKX_API}/rubik/stat/taker-volume",
+                         {"ccy": "BTC", "instType": "CONTRACT", "period": "1D"}).get("data") or []:
+            d, sell, buy = _ts_day(row[0]), safe_float(row[1]), safe_float(row[2])
+            if d and sell is not None and buy is not None:
+                out.setdefault(d, {}).update({"taker_sell": sell, "taker_buy": buy})
+    except Exception as e:
+        errors.append(f"OKX taker: {redact(e)[:120]}")
+    try:
+        rows = [(int(r["fundingTime"]), safe_float(r.get("realizedRate") or r.get("fundingRate")))
+                for r in _jget(f"{OKX_API}/public/funding-rate-history",
+                               {"instId": "BTC-USDT-SWAP", "limit": 100}).get("data") or [] if r.get("fundingTime")]
+        rows = sorted((t, v) for t, v in rows if v is not None)
+        if len(rows) >= 2:
+            interval_h = float(np.median(np.diff([t for t, _ in rows]) / 3.6e6)) or 8.0
+            per_year = 24 * 365 / interval_h
+            daily = {}
+            for t, v in rows:
+                daily.setdefault(_ts_day(t), []).append(v)
+            for d, vs in daily.items():
+                out.setdefault(d, {})["funding_apr"] = float(np.mean(vs)) * per_year * 100
+    except Exception as e:
+        errors.append(f"OKX funding: {redact(e)[:120]}")
+    try:  # giá đóng cửa ngày (để quy OI ra BTC)
+        for row in _jget(f"{OKX_API}/market/history-candles", {"instId": "BTC-USDT", "bar": "1Dutc", "limit": 100}).get("data") or []:
+            d, c = _ts_day(row[0]), safe_float(row[4])
+            if d and c:
+                out.setdefault(d, {})["price"] = c
+    except Exception as e:
+        errors.append(f"OKX giá: {redact(e)[:120]}")
+    try:
+        r = requests.post("https://api.hyperliquid.xyz/info", json={"type": "metaAndAssetCtxs"}, timeout=20)
+        r.raise_for_status()
+        meta, ctxs = r.json()
+        names = [u.get("name") for u in meta.get("universe", [])]
+        if "BTC" in names:
+            c = ctxs[names.index("BTC")]
+            mark = safe_float(c.get("markPx")) or 0
+            now.update({"hl_funding_apr": (safe_float(c.get("funding")) or 0) * 24 * 365 * 100,
+                        "hl_oi_usd": (safe_float(c.get("openInterest")) or 0) * mark})
+    except Exception as e:
+        errors.append(f"Hyperliquid: {redact(e)[:120]}")
+    return out, now, errors
+
+
+def fetch_stablecoins():
+    """DeFiLlama: tổng cung stablecoin toàn thị trường + USDT + USDC (USD)."""
+    out, errors = {}, []
+    for key, params in (("stables_total", None), ("usdt", {"stablecoin": 1}), ("usdc", {"stablecoin": 2})):
+        try:
+            rows = _jget("https://stablecoins.llama.fi/stablecoincharts/all", params, timeout=40)
+            for row in rows[-400:]:
+                d = _ts_day(row.get("date"))
+                v = safe_float(((row.get("totalCirculatingUSD") or row.get("totalCirculating") or {}).get("peggedUSD")))
+                if d and v:
+                    out.setdefault(d, {})[key] = v
+            time.sleep(1)
+        except Exception as e:
+            errors.append(f"DeFiLlama {key}: {redact(e)[:120]}")
+    return out, errors
+
+
+def fetch_coinbase_premium():
+    """Coinbase BTC-USD so với OKX BTC-USDT (đã quy USDT→USD) theo giờ → trung bình mỗi ngày (%)."""
+    cb = _jget("https://api.exchange.coinbase.com/products/BTC-USD/candles", {"granularity": 3600})
+    okx = _jget(f"{OKX_API}/market/candles", {"instId": "BTC-USDT", "bar": "1H", "limit": 300}).get("data") or []
+    try:
+        usdt = {int(r[0]): safe_float(r[4]) for r in
+                _jget("https://api.exchange.coinbase.com/products/USDT-USD/candles", {"granularity": 3600})}
+    except Exception:
+        usdt = {}
+    cbm = {int(r[0]): safe_float(r[4]) for r in cb if len(r) >= 5}
+    okm = {int(int(r[0]) / 1000): safe_float(r[4]) for r in okx if len(r) >= 5}
+    hours = sorted(set(cbm) & set(okm))
+    per_day, last = {}, None
+    for h in hours:
+        a, b, u = cbm[h], okm[h], usdt.get(h) or 1.0
+        if a and b:
+            p = (a / (b * u) - 1) * 100
+            per_day.setdefault(_ts_day(h), []).append(p)
+            last = (h, p)
+    out = {d: {"cb_premium_pct": float(np.mean(v)), "cb_premium_hours": len(v)} for d, v in per_day.items() if len(v) >= 6}
+    now = {"cb_premium_now": last[1], "cb_premium_hour_utc": datetime.fromtimestamp(last[0], tz=timezone.utc)
+           .strftime("%Y-%m-%d %H:%M")} if last else {}
+    return out, now
+
+
+def fetch_fear_greed():
+    rows = _jget("https://api.alternative.me/fng/", {"limit": 400, "format": "json"}).get("data") or []
+    out = {}
+    for r in rows:
+        d, v = _ts_day(r.get("timestamp")), safe_float(r.get("value"))
+        if d and v is not None:
+            out[d] = {"fng": v, "fng_class": r.get("value_classification")}
+    return out
+
+
+def update_market_extra(status):
+    data = _load_json(MARKET_FILE)
+    daily = data.get("daily", {}) if isinstance(data.get("daily"), dict) else {}
+    errors, now, done = [], {}, {}
+
+    def merge(rows, label):
+        n = 0
+        for d, rec in rows.items():
+            if is_day_key(d or ""):
+                daily.setdefault(d, {}).update({k: v for k, v in rec.items() if v is not None})
+                n += 1
+        done[label] = n
+
+    try:
+        rows, nw, errs = fetch_btc_derivatives()
+        merge(rows, "phái sinh")
+        now.update(nw)
+        errors += errs
+    except Exception as e:
+        errors.append(f"phái sinh: {redact(e)[:120]}")
+    try:
+        rows, errs = fetch_stablecoins()
+        merge(rows, "stablecoin")
+        errors += errs
+    except Exception as e:
+        errors.append(f"stablecoin: {redact(e)[:120]}")
+    try:
+        rows, nw = fetch_coinbase_premium()
+        merge(rows, "coinbase premium")
+        now.update(nw)
+    except Exception as e:
+        errors.append(f"Coinbase Premium: {redact(e)[:120]}")
+    try:
+        merge(fetch_fear_greed(), "sợ hãi & tham lam")
+    except Exception as e:
+        errors.append(f"Fear & Greed: {redact(e)[:120]}")
+    cut = day_str(utc_today() - timedelta(days=DAILY_MAX_DAYS))
+    daily = {d: daily[d] for d in sorted(daily) if d >= cut}
+    _save_json(MARKET_FILE, {"updated_at_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "daily": daily,
+                             "now": now or data.get("now", {}), "errors": errors})
+    status["market_extra"] = {"done": done, "errors": errors}
+    _log(f"Phái sinh/stablecoin/premium/F&G: {done}" + (f"; lỗi {errors}" if errors else ""))
+
+
+def market_frame(data):
+    daily = data.get("daily", {}) if isinstance(data, dict) else {}
+    rows = [{"date": parse_day(d), **{k: v for k, v in rec.items() if k != "fng_class"},
+             "fng_class": rec.get("fng_class")} for d, rec in daily.items() if is_day_key(d) and isinstance(rec, dict)]
+    if not rows:
+        return pd.DataFrame(columns=["date"])
+    df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+    for c in df.columns:
+        if c not in ("date", "fng_class"):
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
+
+
+# =============================================================================
+# ĐIỂM THỊ TRƯỜNG TỔNG HỢP (0–100) — giống cách chấm điểm NEAR
+# =============================================================================
+MARKET_WEIGHTS = {"On-chain (URPD · giá vốn · lãi/lỗ)": 0.30, "Dòng tiền tổ chức (ETF · Coinbase)": 0.20,
+                  "Phái sinh (đòn bẩy)": 0.20, "Thanh khoản stablecoin": 0.15, "Tâm lý (Sợ hãi & Tham lam)": 0.15}
+_LIGHT_VAL = {"🟢": 1, "🔴": -1, "🟡": 0}
+
+
+def _mval(df, col, days_back=0):
+    """Giá trị gần nhất ở/trước (ngày cuối - days_back)."""
+    if df is None or df.empty or col not in df.columns:
+        return None, None
+    s = df[["date", col]].dropna()
+    if s.empty:
+        return None, None
+    if days_back:
+        s = s[s.date <= s.date.max() - timedelta(days=days_back)]
+        if s.empty:
+            return None, None
+    return float(s[col].iloc[-1]), s.date.iloc[-1]
+
+
+def market_signals(mdf, price):
+    """Tín hiệu từ market_history: phái sinh, stablecoin, Coinbase premium, F&G. Trả dict nhóm → [(tên, val, chi tiết, cách đọc)]."""
+    g = {"deriv": [], "liq": [], "flow": [], "mood": []}
+    if mdf is None or mdf.empty:
+        return g
+    end = mdf.date.max()
+    p_now, _ = _mval(mdf, "price")
+    p_7, _ = _mval(mdf, "price", 7)
+    ret7 = (p_now / p_7 - 1) * 100 if p_now and p_7 else None
+
+    f = mdf[mdf.date > end - timedelta(days=3)]["funding_apr"].dropna() if "funding_apr" in mdf.columns else pd.Series(dtype=float)
+    if len(f):
+        v = float(f.mean())
+        g["deriv"].append(("Funding perp BTC (TB 3 ngày, năm hóa)", -1 if v > 20 else (1 if v < -3 else 0),
+                           f"{v:+.1f}%/năm" + (" — long quá đông" if v > 20 else " — short đông" if v < -3 else " — bình thường"),
+                           "Funding cao = phe long trả phí lớn, đòn bẩy dồn một phía → dễ bị quét thanh lý. Âm = short đông (dễ ép short)."))
+    if "oi_usd" in mdf.columns and "price" in mdf.columns and ret7 is not None:
+        o = mdf.dropna(subset=["oi_usd", "price"])
+        o = o.assign(oi_btc=o.oi_usd / o.price)
+        a, _ = _mval(o, "oi_btc")
+        b, _ = _mval(o, "oi_btc", 7)
+        if a and b:
+            ch = (a / b - 1) * 100
+            val = (1 if ret7 > 0 else -1) if ch > 8 else 0
+            g["deriv"].append(("Open interest 7 ngày (tính bằng BTC)", val,
+                               f"{ch:+.1f}% · giá 7 ngày {ret7:+.1f}% · " + ("vị thế mới theo chiều tăng" if val > 0 else
+                                                                          "vị thế mới theo chiều giảm" if val < 0 else "đòn bẩy không tăng rõ"),
+                               "OI tăng mạnh cùng chiều giá = dòng tiền đòn bẩy mới đang đẩy giá theo hướng đó."))
+    ls, _ = _mval(mdf, "long_short_ratio")
+    if ls is not None:
+        g["deriv"].append(("Tỷ lệ tài khoản long/short (OKX)", -1 if ls > 2.5 else (1 if ls < 0.9 else 0),
+                           f"{ls:.2f}" + (" — đám đông nghiêng long" if ls > 2.5 else " — đám đông nghiêng short" if ls < 0.9 else ""),
+                           "Chỉ báo ngược: khi số đông dồn một phía, giá hay đi ngược lại để quét họ."))
+    if {"taker_buy", "taker_sell"}.issubset(mdf.columns):
+        tk = mdf[mdf.date > end - timedelta(days=7)].dropna(subset=["taker_buy", "taker_sell"])
+        if len(tk) >= 3 and tk.taker_sell.sum() > 0:
+            ratio = float(tk.taker_buy.sum() / tk.taker_sell.sum())
+            g["deriv"].append(("Lực mua chủ động / bán chủ động 7 ngày", 1 if ratio > 1.03 else (-1 if ratio < 0.97 else 0),
+                               f"{ratio:.3f}", "> 1: lệnh mua thị trường áp đảo (chủ động đuổi giá lên)."))
+
+    a, _ = _mval(mdf, "stables_total")
+    b, _ = _mval(mdf, "stables_total", 7)
+    if a and b:
+        ch = (a / b - 1) * 100
+        g["liq"].append(("Tổng cung stablecoin — 7 ngày", 1 if ch > 0.4 else (-1 if ch < -0.2 else 0),
+                         f"{fmt_big_usd(a - b, signed=True)} ({ch:+.2f}%) · tổng {fmt_big_usd(a)}",
+                         "Stablecoin phát hành thêm = tiền mới vào crypto, sẵn sàng mua. Bị đốt/rút = tiền rời thị trường."))
+    a, _ = _mval(mdf, "stables_total")
+    b, _ = _mval(mdf, "stables_total", 30)
+    if a and b:
+        ch = (a / b - 1) * 100
+        g["liq"].append(("Tổng cung stablecoin — 30 ngày", 1 if ch > 1.5 else (-1 if ch < -0.5 else 0),
+                         f"{fmt_big_usd(a - b, signed=True)} ({ch:+.2f}%)", "Xu hướng thanh khoản trung hạn."))
+
+    v = premium_7d(mdf)
+    if v is not None:
+        g["flow"].append(("Coinbase Premium TB 7 ngày", 1 if v > 0.03 else (-1 if v < -0.03 else 0), f"{v:+.3f}%",
+                          "Dương: giá trên Coinbase (nhà đầu tư Mỹ, tổ chức) cao hơn sàn khác → Mỹ đang mua mạnh hơn. Âm: Mỹ bán."))
+
+    fg, _ = _mval(mdf, "fng")
+    if fg is not None:
+        fg7, _ = _mval(mdf, "fng", 7)
+        cls = mdf.dropna(subset=["fng"]).fng_class.iloc[-1] if "fng_class" in mdf.columns else ""
+        g["mood"].append(("Chỉ số Sợ hãi & Tham lam", 1 if fg <= 25 else (-1 if fg >= 75 else 0),
+                          f"{fg:.0f} ({FNG_VI.get(cls, cls)})" + (f" · 7 ngày trước {fg7:.0f}" if fg7 is not None else ""),
+                          "Chỉ báo ngược: sợ hãi cực độ thường gần vùng đáy ngắn hạn; tham lam cực độ thường gần đỉnh."))
+    return g
+
+
+FNG_VI = {"Extreme Fear": "Sợ hãi cực độ", "Fear": "Sợ hãi", "Neutral": "Trung lập", "Greed": "Tham lam",
+          "Extreme Greed": "Tham lam cực độ"}
+
+
+def market_composite(onchain_rows, mdf, price):
+    """Điểm 0–100 có trọng số. onchain_rows = kết quả build_signals (gồm cả dòng ETF)."""
+    ms = market_signals(mdf, price)
+    oc = [(r[0], _LIGHT_VAL.get(r[1]), r[2], r[3]) for r in onchain_rows if "ETF" not in r[0] and r[1] in _LIGHT_VAL]
+    etf = [(r[0], _LIGHT_VAL.get(r[1]), r[2], r[3]) for r in onchain_rows if "ETF" in r[0] and r[1] in _LIGHT_VAL]
+    cats = [("On-chain (URPD · giá vốn · lãi/lỗ)", oc), ("Dòng tiền tổ chức (ETF · Coinbase)", etf + ms["flow"]),
+            ("Phái sinh (đòn bẩy)", ms["deriv"]), ("Thanh khoản stablecoin", ms["liq"]),
+            ("Tâm lý (Sợ hãi & Tham lam)", ms["mood"])]
+    out, num, den = [], 0.0, 0.0
+    for name, sigs in cats:
+        sc = float(np.mean([s[1] for s in sigs])) if sigs else None
+        out.append({"name": name, "score": sc, "weight": MARKET_WEIGHTS[name],
+                    "signals": [{"label": s[0], "val": s[1], "detail": s[2], "why": s[3]} for s in sigs]})
+        if sc is not None:
+            num += MARKET_WEIGHTS[name] * sc
+            den += MARKET_WEIGHTS[name]
+    if not den:
+        return None
+    x = num / den
+    score = 50 + 50 * x
+    verdict = ("🟢 Tích cực" if score >= 65 else "🟢 Hơi tích cực" if score >= 55 else
+               "🟡 Trung tính" if score > 45 else "🟠 Hơi tiêu cực" if score > 35 else "🔴 Tiêu cực")
+    used = [c for c in out if c["score"] is not None]
+    agree = sum(1 for c in used if x != 0 and np.sign(c["score"]) == np.sign(x))
+    return {"score": score, "verdict": verdict, "categories": out, "agree": agree, "n_cats": len(used)}
+
+
+def composite_outlook(comp, supports, resistances):
+    s1 = f"{fmt_usd(supports[0]['low'])}–{fmt_usd(supports[0]['high'])}" if supports else None
+    r1 = f"{fmt_usd(resistances[0]['low'])}–{fmt_usd(resistances[0]['high'])}" if resistances else None
+    sc = comp["score"]
+    if sc >= 55:
+        head = "Dữ liệu tổng hợp đang **nghiêng về phía tích cực** cho 1–2 tuần tới."
+        cond = (f"Xác nhận nếu giá giữ trên {s1} và vượt {r1}. " if s1 and r1 else "") + \
+               (f"Mất hiệu lực nếu giá đóng ngày dưới {s1}." if s1 else "")
+    elif sc <= 45:
+        head = "Dữ liệu tổng hợp đang **nghiêng về phía tiêu cực** cho 1–2 tuần tới."
+        cond = (f"Áp lực còn nếu giá không lấy lại được {r1}; vùng cần chú ý phía dưới {s1}. " if s1 and r1 else "") + \
+               (f"Mất hiệu lực nếu giá vượt và giữ trên {r1}." if r1 else "")
+    else:
+        head = "Dữ liệu tổng hợp **trái chiều** — chưa có xu hướng rõ cho 1–2 tuần tới."
+        cond = f"Chờ giá ra khỏi khoảng {s1} → {r1} để xác nhận hướng đi." if s1 and r1 else ""
+    return head, cond, f"{comp['agree']}/{comp['n_cats']} nhóm cùng chiều với kết luận chung."
+
+
+def premium_7d(mdf):
+    """Coinbase Premium trung bình các ngày trong 7 ngày gần nhất (cùng cách tính ở mọi nơi)."""
+    if mdf is None or mdf.empty or "cb_premium_pct" not in mdf.columns:
+        return None
+    s = mdf[mdf.date > mdf.date.max() - timedelta(days=7)]["cb_premium_pct"].dropna()
+    return float(s.mean()) if len(s) >= 3 else None
+
+
+def market_extra_brief(mdf):
+    """1–2 dòng ngắn cho Telegram / Tổng quan."""
+    if mdf is None or mdf.empty:
+        return []
+    parts = []
+    f, _ = _mval(mdf, "funding_apr")
+    if f is not None:
+        parts.append(f"funding {f:+.1f}%/năm")
+    ls, _ = _mval(mdf, "long_short_ratio")
+    if ls is not None:
+        parts.append(f"long/short {ls:.2f}")
+    a, _ = _mval(mdf, "stables_total")
+    b, _ = _mval(mdf, "stables_total", 7)
+    if a and b:
+        parts.append(f"stablecoin 7 ngày {fmt_big_usd(a - b, signed=True)}")
+    pr = premium_7d(mdf)
+    if pr is not None:
+        parts.append(f"Coinbase Premium 7 ngày {pr:+.3f}%")
+    fg, _ = _mval(mdf, "fng")
+    if fg is not None:
+        cls = mdf.dropna(subset=["fng"]).fng_class.iloc[-1] if "fng_class" in mdf.columns else ""
+        parts.append(f"Sợ hãi & Tham lam {fg:.0f} ({FNG_VI.get(cls, cls)})")
+    return [("📈 " + " · ".join(parts) + ".")] if parts else []
+
+
 REPORT_FILE = "daily_report.json"
 
 
@@ -1663,6 +2049,36 @@ def etf_report(df, stt, source, prices):
             "last_10": last10}
 
 
+def market_extra_report(mdf, mdata):
+    if mdf is None or mdf.empty:
+        return None
+
+    def v(col, back=0, nd=2):
+        x, d = _mval(mdf, col, back)
+        return None if x is None else round(x, nd)
+    st7 = v("stables_total", 0, 0)
+    st7b = v("stables_total", 7, 0)
+    pr = premium_7d(mdf)
+    tk = mdf.tail(7).dropna(subset=["taker_buy", "taker_sell"]) if {"taker_buy", "taker_sell"}.issubset(mdf.columns) else None
+    o = mdf.dropna(subset=["oi_usd", "price"]) if {"oi_usd", "price"}.issubset(mdf.columns) else None
+    now = (mdata or {}).get("now") or {}
+    return {
+        "funding_apr_pct": v("funding_apr"), "hl_funding_apr_pct": _r(now.get("hl_funding_apr"), 2),
+        "oi_usd": v("oi_usd", 0, 0), "oi_btc_chg_7d_pct": (round(((o.oi_usd / o.price).iloc[-1] / (o.oi_usd / o.price)
+                                                                  .iloc[-8] - 1) * 100, 2) if o is not None and len(o) >= 8 else None),
+        "long_short_ratio": v("long_short_ratio"),
+        "taker_buy_sell_7d": round(float(tk.taker_buy.sum() / tk.taker_sell.sum()), 3) if tk is not None and len(tk) and tk.taker_sell.sum() else None,
+        "stables_total_usd": st7, "stables_chg_7d_usd": (st7 - st7b) if st7 and st7b else None,
+        "stables_chg_30d_usd": (st7 - v("stables_total", 30, 0)) if st7 and v("stables_total", 30, 0) else None,
+        "usdt_usd": v("usdt", 0, 0), "usdc_usd": v("usdc", 0, 0),
+        "cb_premium_7d_pct": round(pr, 4) if pr is not None else None,
+        "cb_premium_now_pct": _r(now.get("cb_premium_now"), 4),
+        "fear_greed": v("fng", 0, 0), "fear_greed_7d_ago": v("fng", 7, 0),
+        "fear_greed_class": FNG_VI.get(mdf.dropna(subset=["fng"]).fng_class.iloc[-1], None) if "fng" in mdf.columns and mdf.fng.notna().any() else None,
+        "errors": (mdata or {}).get("errors") or [],
+    }
+
+
 def build_daily_report(status):
     """Tóm tắt gọn mọi chỉ số chính vào daily_report.json — để báo cáo nhanh theo yêu cầu."""
     hist = _load_json(URPD_FILE)
@@ -1710,6 +2126,9 @@ def build_daily_report(status):
         if err:
             alt_rep[sym] = {**(alt_rep[sym] or {}), "error": err}
     rows, g, r, verdict = build_signals(price, onchain, realized, cur, frames.get(p7), ath, etf)
+    mdata = _load_json(MARKET_FILE)
+    mdf = market_frame(mdata)
+    comp = market_composite(rows, mdf, price)
     loss_pct, loss_d = latest_value(onchain, "supply_in_loss_percent")
     overhead = btc_in_range(cur, price, max(ath, price))
 
@@ -1766,8 +2185,18 @@ def build_daily_report(status):
         "market": {k: (_r(v, 2) if isinstance(v, float) else v) for k, v in (status.get("market") or {}).items()},
         "etf": etf_report(etf_df, etf, (status.get("etf") or {}).get("source") or etf_data.get("source"), prices),
         "etf_alts": alt_rep,
+        "market_extra": market_extra_report(mdf, mdata),
+        "composite": ({"score": round(comp["score"]), "verdict": comp["verdict"],
+                       "outlook": composite_outlook(comp, sup, res)[0], "conditions": composite_outlook(comp, sup, res)[1],
+                       "agree": composite_outlook(comp, sup, res)[2],
+                       "categories": [{"name": c["name"], "weight": c["weight"],
+                                       "score": None if c["score"] is None else round(c["score"], 2),
+                                       "signals": [f"{'🟢' if s['val'] > 0 else '🔴' if s['val'] < 0 else '🟡'} "
+                                                   f"{s['label']}: {s['detail']}" for s in c["signals"]]}
+                                      for c in comp["categories"]]} if comp else None),
         "events_7d": events, "news_48h": news,
-        "data_errors": {k: (status.get(k) or {}).get("errors") for k in ("urpd", "research", "realized", "onchain", "etf")
+        "data_errors": {k: (status.get(k) or {}).get("errors") for k in ("urpd", "research", "realized", "onchain", "etf",
+                                                                          "market_extra")
                         if (status.get(k) or {}).get("errors")},
     }
     rep = _load_json(REPORT_FILE)
@@ -1780,13 +2209,13 @@ def build_daily_report(status):
 def run_update():
     _log(f"BTC URPD Monitor {APP_VERSION} — cập nhật dữ liệu")
     status = _load_json(STATUS_FILE)
-    for k in ("urpd", "research", "realized", "onchain", "etf"):
+    for k in ("urpd", "research", "realized", "onchain", "etf", "market_extra"):
         status.pop(k, None)
     if isinstance(status.get("telegram"), dict):
         status["telegram"].pop("error", None)
     status["fatal"] = []
     for step in (update_urpd, update_research, update_realized, update_onchain, update_market, update_etf,
-                 send_telegram_report,
+                 update_market_extra, send_telegram_report,
                  build_daily_report):
         try:
             step(status)
@@ -2243,7 +2672,7 @@ def render_sidebar():
         if status.get("last_run_utc"):
             last = datetime.strptime(status["last_run_utc"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
             cap(f"GitHub Actions cập nhật lần cuối: **{last.astimezone(VN_TZ):%d/%m %H:%M}** giờ VN")
-            for step in ("urpd", "research", "realized", "onchain", "etf"):
+            for step in ("urpd", "research", "realized", "onchain", "etf", "market_extra"):
                 errs = (status.get(step) or {}).get("errors") or []
                 if errs:
                     cap(f"⚠️ {step}: {redact(errs[-1])[:120]}")
@@ -2281,6 +2710,50 @@ def stale_warning(label, day, max_days):
         st.warning(f"⚠️ {label} mới nhất là {day_str(d)} (cũ {age} ngày) — kiểm tra GitHub Actions.")
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def load_market():
+    data, source = read_data_file(MARKET_FILE)
+    return market_frame(data), source, (data.get("now") or {}) if isinstance(data, dict) else {}, \
+        (data.get("updated_at_utc") if isinstance(data, dict) else None)
+
+
+def _cat_light(sc):
+    return "⚪" if sc is None else ("🟢" if sc > 0.2 else ("🔴" if sc < -0.2 else "🟡"))
+
+
+def render_composite(comp, supports, resistances):
+    st.subheader("🧭 Điểm thị trường tổng hợp")
+    if not comp:
+        cap("Chưa đủ dữ liệu để chấm điểm (cần chạy workflow để lấy phái sinh/stablecoin/tâm lý).")
+        return
+    head, cond, agree = composite_outlook(comp, supports, resistances)
+    left, right = st.columns([1, 2])
+    with left:
+        g = go.Figure(go.Indicator(
+            mode="gauge+number", value=comp["score"], number={"suffix": "/100", "font": {"size": 34}, "valueformat": ".0f"},
+            gauge={"axis": {"range": [0, 100]}, "bar": {"color": "#f8fafc", "thickness": 0.25},
+                   "steps": [{"range": [0, 35], "color": "#7f1d1d"}, {"range": [35, 45], "color": "#9a3412"},
+                             {"range": [45, 55], "color": "#78716c"}, {"range": [55, 65], "color": "#166534"},
+                             {"range": [65, 100], "color": "#15803d"}]}))
+        g.update_layout(height=220, margin=dict(l=20, r=20, t=10, b=0), paper_bgcolor=CHART_BG, font_color="#e5e7eb")
+        show_fig(g, "mkt_gauge")
+    with right:
+        mk(f"### {comp['verdict']}")
+        mk(head)
+        if cond:
+            mk(cond)
+        cap(agree + " Điểm = 50 + 50 × trung bình có trọng số các nhóm (mỗi tín hiệu +1 / 0 / −1). "
+            "Chỉ là bản tổng hợp dữ liệu, không phải dự báo hay khuyến nghị mua/bán.")
+    cols = st.columns(len(comp["categories"]))
+    for col, c in zip(cols, comp["categories"]):
+        with col:
+            mk(f"**{_cat_light(c['score'])} {c['name']}**  \ntrọng số {int(c['weight'] * 100)}%"
+               + (f" · điểm {c['score']:+.2f}" if c["score"] is not None else " · chưa có dữ liệu"))
+            for s in c["signals"]:
+                icon = "🟢" if s["val"] > 0 else ("🔴" if s["val"] < 0 else "🟡")
+                mk(f"<small>{icon} {_esc(s['label'])}: {_esc(s['detail'])}</small>", unsafe_allow_html=True)
+
+
 # =============================================================================
 # TRANG 1 — TỔNG QUAN
 # =============================================================================
@@ -2314,9 +2787,13 @@ def page_overview():
     chg = market.get("btc_change_24h") if market else None
 
     st.subheader("📰 Hôm nay có gì thay đổi")
+    mdf = load_market()[0]
     brief = daily_brief(price, chg, onchain, realized, cur_date, frame, prev_frame, supports, resistances, events, etf,
-                        etf_alt_df)
+                        etf_alt_df) + market_extra_brief(mdf)
     mk("\n".join(f"- {b}" for b in brief) if brief else "Chưa đủ dữ liệu.")
+
+    sig_rows = build_signals(price, onchain, realized, frame, f7, ath, etf)[0]
+    render_composite(market_composite(sig_rows, mdf, price), supports, resistances)
 
     # ---- Thẻ số chính
     c = st.columns(4)
@@ -3076,6 +3553,156 @@ def page_news():
 
 
 # =============================================================================
+# TRANG — PHÁI SINH & THANH KHOẢN
+# =============================================================================
+def page_market():
+    st.title("📈 Phái sinh · thanh khoản · tâm lý")
+    mdf, src, now, upd = load_market()
+    status = load_status()
+    if mdf.empty:
+        st.info("Chưa có dữ liệu. Chạy workflow **Update BTC data** (tab Actions → Run workflow).")
+        errs = (status.get("market_extra") or {}).get("errors") or []
+        if errs:
+            cap("Lỗi lần chạy gần nhất: " + " | ".join(errs))
+        return
+    upd_vn = (datetime.strptime(upd, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone(VN_TZ)
+              .strftime("%d/%m %H:%M") if upd else "N/A")
+    cap(f"Nguồn: OKX (phái sinh, giá), Hyperliquid, DeFiLlama (stablecoin), Coinbase + OKX (Premium), "
+        f"alternative.me (Sợ hãi & Tham lam) • cập nhật {upd_vn} giờ VN • file: {src}")
+    for e in (status.get("market_extra") or {}).get("errors") or []:
+        cap(f"⚠️ {e}")
+    days = st.radio("Khoảng thời gian", [30, 90, 180, 365], index=1, horizontal=True,
+                    format_func=lambda x: f"{x} ngày", key="mkt_days")
+    v = mdf[mdf.date >= mdf.date.max() - timedelta(days=days - 1)].copy()
+
+    # ---- Thẻ số
+    c = st.columns(4)
+    f, _ = _mval(mdf, "funding_apr")
+    c[0].metric("Funding perp BTC (OKX)", f"{f:+.1f}%/năm" if f is not None else "N/A",
+                f"Hyperliquid {now['hl_funding_apr']:+.1f}%" if now.get("hl_funding_apr") is not None else None, delta_color="off")
+    oi, _ = _mval(mdf, "oi_usd")
+    oi7, _ = _mval(mdf, "oi_usd", 7)
+    c[1].metric("Open interest (OKX)", fmt_big_usd(oi), f"{(oi / oi7 - 1) * 100:+.1f}% 7D" if oi and oi7 else None,
+                delta_color="off")
+    ls, _ = _mval(mdf, "long_short_ratio")
+    c[2].metric("Long/short tài khoản", f"{ls:.2f}" if ls is not None else "N/A",
+                ("nghiêng long" if ls > 1.2 else "nghiêng short" if ls < 0.9 else "cân bằng") if ls is not None else None,
+                delta_color="off")
+    tk = v.dropna(subset=["taker_buy", "taker_sell"]).tail(7) if {"taker_buy", "taker_sell"}.issubset(v.columns) else pd.DataFrame()
+    ratio = float(tk.taker_buy.sum() / tk.taker_sell.sum()) if len(tk) and tk.taker_sell.sum() else None
+    c[3].metric("Mua/bán chủ động 7 ngày", f"{ratio:.3f}" if ratio else "N/A",
+                ("bên mua áp đảo" if ratio > 1.03 else "bên bán áp đảo" if ratio < 0.97 else "cân bằng") if ratio else None,
+                delta_color="off")
+    c = st.columns(4)
+    s, _ = _mval(mdf, "stables_total")
+    s7, _ = _mval(mdf, "stables_total", 7)
+    c[0].metric("Tổng cung stablecoin", fmt_big_usd(s), f"{fmt_big_usd(s - s7, signed=True)} 7D" if s and s7 else None)
+    u, _ = _mval(mdf, "usdt")
+    uc, _ = _mval(mdf, "usdc")
+    c[1].metric("USDT · USDC", fmt_big_usd(u), f"USDC {fmt_big_usd(uc)}" if uc else None, delta_color="off")
+    pr = premium_7d(mdf)
+    c[2].metric("Coinbase Premium TB 7 ngày", f"{pr:+.3f}%" if pr is not None else "N/A",
+                f"giờ gần nhất {now['cb_premium_now']:+.3f}%" if now.get("cb_premium_now") is not None else None,
+                delta_color="off")
+    fg, _ = _mval(mdf, "fng")
+    cls = mdf.dropna(subset=["fng"]).fng_class.iloc[-1] if fg is not None and "fng_class" in mdf.columns else ""
+    fg7, _ = _mval(mdf, "fng", 7)
+    c[3].metric("Sợ hãi & Tham lam", f"{fg:.0f} · {FNG_VI.get(cls, cls)}" if fg is not None else "N/A",
+                f"{fg - fg7:+.0f} so với 7 ngày trước" if fg is not None and fg7 is not None else None, delta_color="off")
+
+    # ---- Phái sinh
+    st.subheader("⚖️ Phái sinh BTC — funding & open interest")
+    if {"funding_apr", "oi_usd"} & set(v.columns):
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.06, row_heights=[0.5, 0.5],
+                            specs=[[{"secondary_y": True}], [{"secondary_y": True}]])
+        if "funding_apr" in v.columns:
+            fv = v.dropna(subset=["funding_apr"])
+            fig.add_bar(x=fv.date, y=fv.funding_apr, name="Funding (%/năm)",
+                        marker_color=[AMBER if x > 20 else (RED if x < 0 else GREEN) for x in fv.funding_apr], row=1, col=1)
+        if "price" in v.columns:
+            pv = v.dropna(subset=["price"])
+            fig.add_scatter(x=pv.date, y=pv.price, name="Giá BTC", line=dict(color="#f8fafc", width=1.6),
+                            row=1, col=1, secondary_y=True)
+        if "oi_usd" in v.columns:
+            ov = v.dropna(subset=["oi_usd"])
+            fig.add_scatter(x=ov.date, y=ov.oi_usd, name="Open interest (USD)", line=dict(color=CYAN, width=2), row=2, col=1)
+        if "long_short_ratio" in v.columns:
+            lv = v.dropna(subset=["long_short_ratio"])
+            fig.add_scatter(x=lv.date, y=lv.long_short_ratio, name="Long/short", line=dict(color="#c084fc", width=1.6),
+                            row=2, col=1, secondary_y=True)
+        style_fig(fig, 560)
+        fig.update_yaxes(title_text="Funding %/năm", row=1, col=1, secondary_y=False)
+        fig.update_yaxes(title_text="Giá", tickprefix="$", showgrid=False, row=1, col=1, secondary_y=True)
+        fig.update_yaxes(title_text="OI", tickprefix="$", row=2, col=1, secondary_y=False)
+        fig.update_yaxes(title_text="Long/short", showgrid=False, row=2, col=1, secondary_y=True)
+        show_fig(fig, "mkt_deriv")
+        cap("Funding > 20%/năm (vàng) = phe long trả phí cao, đòn bẩy dồn một phía. OI tăng nhanh + funding cao "
+            "→ dễ có cú quét thanh lý. OKX công bố OI/long-short theo ngày; lịch sử ngắn sẽ dài dần.")
+
+    # ---- Taker
+    tv = v.dropna(subset=["taker_buy", "taker_sell"]) if {"taker_buy", "taker_sell"}.issubset(v.columns) else pd.DataFrame()
+    if len(tv):
+        r_ = tv.taker_buy / tv.taker_sell
+        fig = go.Figure(go.Bar(x=tv.date, y=r_ - 1, base=1, name="Mua/bán chủ động",
+                               marker_color=[GREEN if x >= 1 else RED for x in r_],
+                               hovertemplate="%{x|%d/%m}<br>%{y:.3f}<extra></extra>"))
+        style_fig(fig, 280)
+        fig.update_layout(title=dict(text="Tỷ lệ khối lượng mua chủ động / bán chủ động (hợp đồng OKX)", font=dict(size=14)))
+        show_fig(fig, "mkt_taker")
+
+    # ---- Stablecoin
+    st.subheader("💵 Thanh khoản stablecoin")
+    if "stables_total" in v.columns and v.stables_total.notna().any():
+        sv = v.dropna(subset=["stables_total"]).copy()
+        full = mdf.dropna(subset=["stables_total"]).set_index("date").stables_total
+        sv["chg7"] = [full.get(d) - full[full.index <= d - timedelta(days=7)].iloc[-1]
+                      if (full.index <= d - timedelta(days=7)).any() else np.nan for d in sv.date]
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_bar(x=sv.date, y=sv.chg7, name="Thay đổi 7 ngày", marker_color=[GREEN if x >= 0 else RED for x in sv.chg7.fillna(0)],
+                    secondary_y=False)
+        fig.add_scatter(x=sv.date, y=sv.stables_total, name="Tổng cung", line=dict(color=CYAN, width=2), secondary_y=True)
+        style_fig(fig, 380)
+        fig.update_yaxes(title_text="Δ 7 ngày", tickprefix="$", secondary_y=False)
+        fig.update_yaxes(title_text="Tổng cung", tickprefix="$", showgrid=False, secondary_y=True)
+        show_fig(fig, "mkt_stables")
+        cap("Thanh xanh = stablecoin được phát hành thêm (tiền mới vào crypto). Thường đi trước các nhịp tăng; "
+            "giảm kéo dài = tiền rút khỏi thị trường.")
+    else:
+        cap("Chưa có dữ liệu stablecoin.")
+
+    # ---- Coinbase premium + F&G
+    a, b = st.columns(2)
+    with a:
+        st.subheader("🇺🇸 Coinbase Premium")
+        if "cb_premium_pct" in v.columns and v.cb_premium_pct.notna().any():
+            pv = v.dropna(subset=["cb_premium_pct"])
+            fig = go.Figure(go.Bar(x=pv.date, y=pv.cb_premium_pct, marker_color=[GREEN if x >= 0 else RED for x in pv.cb_premium_pct],
+                                   hovertemplate="%{x|%d/%m}<br>%{y:+.3f}%<extra></extra>"))
+            style_fig(fig, 320)
+            fig.update_yaxes(ticksuffix="%")
+            show_fig(fig, "mkt_premium")
+            cap("Trung bình theo giờ trong ngày của (giá Coinbase / giá OKX − 1). Dương kéo dài = nhà đầu tư Mỹ mua mạnh.")
+        else:
+            cap("Chưa có dữ liệu.")
+    with b:
+        st.subheader("😨 Sợ hãi & Tham lam")
+        if "fng" in v.columns and v.fng.notna().any():
+            fv = v.dropna(subset=["fng"])
+            fig = go.Figure()
+            for lo, hi, col in ((0, 25, "rgba(239,68,68,0.15)"), (75, 100, "rgba(16,185,129,0.15)")):
+                fig.add_hrect(y0=lo, y1=hi, fillcolor=col, line_width=0)
+            fig.add_scatter(x=fv.date, y=fv.fng, mode="lines", line=dict(color=AMBER, width=2), name="Chỉ số",
+                            customdata=[FNG_VI.get(x, x) for x in fv.fng_class],
+                            hovertemplate="%{x|%d/%m}<br>%{y:.0f} · %{customdata}<extra></extra>")
+            style_fig(fig, 320)
+            fig.update_yaxes(range=[0, 100])
+            show_fig(fig, "mkt_fng")
+            cap("Dưới 25 = sợ hãi cực độ (thường gần đáy ngắn hạn), trên 75 = tham lam cực độ (thường gần đỉnh).")
+        else:
+            cap("Chưa có dữ liệu.")
+
+
+# =============================================================================
 # TRANG — DÒNG TIỀN ETF
 # =============================================================================
 @st.cache_data(ttl=900, show_spinner=False)
@@ -3263,6 +3890,7 @@ def page_etf():
 BTC_PAGES = [
     (page_overview, "Tổng quan", "📊", "tong-quan"),
     (page_etf, "Dòng tiền ETF", "🏦", "etf"),
+    (page_market, "Phái sinh & thanh khoản", "📈", "phai-sinh"),
     (page_urpd, "URPD", "🧱", "urpd"),
     (page_onchain, "On-chain", "⛓️", "on-chain"),
     (page_history, "Lịch sử", "🗓️", "lich-su"),
