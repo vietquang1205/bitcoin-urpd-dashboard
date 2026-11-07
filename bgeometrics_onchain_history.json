@@ -2575,20 +2575,24 @@
    "nupl_est": 0.2937
   },
   "2026-11-06": {
-   "mvrv_est": 1.4167,
-   "nupl_est": 0.2941
+   "mvrv_est": 1.4172,
+   "nupl_est": 0.2944
+  },
+  "2026-11-07": {
+   "mvrv_est": 1.4175,
+   "nupl_est": 0.2945
   }
  },
  "updated_at_utc": "2026-11-01 11:15",
  "last_attempt": {
-  "mvrv": "2026-11-06",
-  "nupl": "2026-11-06",
-  "sopr": "2026-11-06"
+  "mvrv": "2026-11-07",
+  "nupl": "2026-11-07",
+  "sopr": "2026-11-07"
  },
  "mvrv_estimate": {
   "k": 1.0098,
   "calib_days": 30,
   "bg_last": "2026-10-31",
-  "est_days": 6
+  "est_days": 7
  }
 }
