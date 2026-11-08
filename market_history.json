@@ -1,5 +1,5 @@
 {
- "updated_at_utc": "2026-11-08 08:58",
+ "updated_at_utc": "2026-11-08 16:39",
  "daily": {
   "2025-10-03": {
    "stables_total": 298069179501.0,
@@ -3236,7 +3236,7 @@
    "oi_usd": 3325696593.0834,
    "perp_volume_usd": 5419947715.0396,
    "long_short_ratio": 1.61,
-   "funding_apr": 4.123249203617175,
+   "funding_apr": 3.4670137452918,
    "price": 85553.9,
    "stables_total": 307767777156.0,
    "usdt": 184161867870.0,
@@ -3541,8 +3541,8 @@
    "stables_total": 301556307384.0,
    "usdt": 181879191620.0,
    "usdc": 71208740691.0,
-   "cb_premium_pct": -0.008507420199521202,
-   "cb_premium_hours": 24,
+   "cb_premium_pct": -0.006711485053097868,
+   "cb_premium_hours": 19,
    "fng": 48.0,
    "fng_class": "Neutral",
    "taker_sell": 2733637.43,
@@ -3718,29 +3718,34 @@
    "fng_class": "Extreme Fear",
    "cb_premium_pct": -0.010684044700381515,
    "cb_premium_hours": 24,
-   "long_short_ratio": 2.99,
-   "taker_sell": 505382.35,
-   "taker_buy": 564196.59,
+   "long_short_ratio": 2.96,
+   "taker_sell": 756470.85,
+   "taker_buy": 834189.48,
    "oi_usd": 3792863457.1217,
    "perp_volume_usd": 2383997155.5803
   },
   "2026-11-08": {
-   "funding_apr": 6.842750977105876,
-   "price": 75931.6,
-   "usdt": 176763892547.01,
+   "funding_apr": 5.028977645738951,
+   "price": 75975.2,
+   "usdt": 176763007572.65,
    "fng": 28.0,
    "fng_class": "Fear",
-   "stables_total": 292357566222.62,
-   "usdc": 70660573194.28,
-   "cb_premium_pct": -0.011978482434733047,
-   "cb_premium_hours": 9
+   "stables_total": 292354802414.73,
+   "usdc": 70656689738.29,
+   "cb_premium_pct": -0.008332381705083665,
+   "cb_premium_hours": 17,
+   "oi_usd": 3829216654.6541,
+   "perp_volume_usd": 1369910295.6717,
+   "long_short_ratio": 2.94,
+   "taker_sell": 32835.25,
+   "taker_buy": 16566.73
   }
  },
  "now": {
   "hl_funding_apr": 10.950000000000001,
-  "hl_oi_usd": 3186539214.4936004,
-  "cb_premium_now": -0.01863927237660823,
-  "cb_premium_hour_utc": "2026-11-08 08:00"
+  "hl_oi_usd": 3175359494.0163765,
+  "cb_premium_now": 0.041899028126501925,
+  "cb_premium_hour_utc": "2026-11-08 16:00"
  },
  "errors": []
 }
