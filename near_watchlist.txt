@@ -1,0 +1,28 @@
+# Danh sách ví NEAR theo dõi — GitHub Actions chụp số dư mỗi ngày.
+# Mỗi dòng: account.near | Tên hiển thị | loại
+# loại: whale, exchange, validator, protocol, unknown
+# 20 validator pool lớn nhất được theo dõi TỰ ĐỘNG, không cần ghi vào đây.
+# Chỉ gắn nhãn "exchange" cho ví sàn có bằng chứng rõ (nhãn explorer, hoặc hành vi on-chain điển hình của sàn).
+#
+# Ví dụ (bỏ dấu # ở đầu dòng để bật):
+# some-whale.near | Cá voi #1 | whale
+# exchange-hot-wallet.near | Ví nóng sàn X | exchange
+
+wrap.near | Wrapped NEAR (wNEAR) | protocol
+meta-pool.near | Meta Pool (liquid staking) | protocol
+
+# ---------------------------------------------------------------------------
+# BINANCE — nhận diện qua giao dịch on-chain (NearBlocks API, kiểm tra 09/11/2026)
+# • binancecold3.near: ~105,6 triệu NEAR, tạo 11/2020; chuyển 10–17 triệu NEAR qua lại với ví nóng 5c33c6…
+#   (bổ sung ví nóng khi thiếu, thu gom về khi thừa) → ví lạnh của Binance.
+# • 5c33c6…: nhận nạp từ rất nhiều ví người dùng mỗi ~12 phút rồi gom về binancecold3 → ví nóng chính.
+#   Ngày 29/10/2026 (vụ hack Binance) toàn bộ ví nóng bị gom về binancecold3; từ đó gần như không hoạt động.
+# • 4 ví phụ bên dưới cùng chuyển (gom) NEAR về binancecold3 trong đợt 29/10 và trước đó → ví nóng/ví gom của Binance.
+# Theo dõi CẢ ví lạnh + ví nóng: chuyển nội bộ triệt tiêu nhau → tổng số dư = "dự trữ NEAR trên Binance".
+# Tổng tăng = người dùng nạp NEAR lên sàn (thường để bán); tổng giảm = rút khỏi sàn.
+binancecold3.near | Binance — ví lạnh | exchange
+5c33c6218d47e00ef229f60da78d0897e1ee9665312550b8afd5f9c7bc6957d2 | Binance — ví nóng chính | exchange
+d04204b6591fefb973a8ed60929f8211af89ee38020da9faf905acdc7a320063 | Binance — ví gom #2 | exchange
+451913e633c72fb951effe076d3bd2977e3f08083dcf6c87fa89992b0d437c5c | Binance — ví gom #3 | exchange
+9c484fa5d2d069569ba063fc555c34e621ccd88fdbb0295fc79bad232621c5c1 | Binance — ví gom #4 | exchange
+7e6e17fcb8e8e6a22ecd47bbd1b58b1af3582b97bbfd4a8d974bb9c266fa282b | Binance — ví gom #5 | exchange
