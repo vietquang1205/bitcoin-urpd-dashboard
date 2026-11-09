@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-09 10:40",
+ "last_run_utc": "2026-11-09 13:46",
  "market": {
-  "total_mcap": 2468434254257.308,
-  "total_mcap_change_24h": -5.036227604879935,
-  "btc_mcap": 1488148233680.6216,
-  "btc_change_24h": -2.3344387386054573,
-  "usdt_usdc": 247116720183.17023,
-  "adjusted_btc_dom": 66.9939443979986,
-  "alt_ex_stables": 733169300393.5164,
-  "alt_change_24h": -11.506147090401731,
-  "fetched_at_utc": "2026-11-09 10:39"
+  "total_mcap": 2486147985832.9414,
+  "total_mcap_change_24h": -5.599053794071425,
+  "btc_mcap": 1499400041008.4448,
+  "btc_change_24h": -1.6877477742117546,
+  "usdt_usdc": 247087338663.19092,
+  "adjusted_btc_dom": 66.96558411241509,
+  "alt_ex_stables": 739660606161.3057,
+  "alt_change_24h": -14.1317352070777,
+  "fetched_at_utc": "2026-11-09 13:46"
  },
  "urpd": {
   "latest_date": "2026-11-09",
@@ -51,7 +51,7 @@
   "source": "SoSoValue",
   "latest": "2026-11-06",
   "sessions": 24,
-  "skipped": "đã lấy 0.9 giờ trước"
+  "skipped": "đã lấy 4.0 giờ trước"
  },
  "market_extra": {
   "done": {
