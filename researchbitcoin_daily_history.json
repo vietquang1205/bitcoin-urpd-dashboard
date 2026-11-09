@@ -563,6 +563,12 @@
    "supply_in_loss_percent": 0.41272118027327237,
    "sth_realized_price": 75761.73156969783,
    "lth_realized_price": 48838.04326896617
+  },
+  "2026-11-08": {
+   "supply_in_loss": 8466028.52248514,
+   "supply_in_loss_percent": 0.42100286644797086,
+   "sth_realized_price": 75771.07944613135,
+   "lth_realized_price": 48835.071972777616
   }
  },
  "last_attempt_date": "2026-10-30",
@@ -667,5 +673,5 @@
  },
  "last_manual_batch_date": "2026-09-28",
  "last_manual_batch_status": "✓ realizedprofit: đã có cache | ✓ realizedloss: đã có cache | ✓ supply_in_loss: đã có cache | ✓ supply_in_loss_percent: đã có cache | ✓ price: đã có cache",
- "updated_at_utc": "2026-11-08 01:26"
+ "updated_at_utc": "2026-11-09 01:43"
 }
