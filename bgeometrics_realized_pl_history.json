@@ -1105,13 +1105,20 @@
    "realized_loss": -311804715.0
   },
   "2026-11-08": {
-   "btc_price": 75502.9
+   "btc_price": 75502.9,
+   "realized_profit": 82623550.55,
+   "realized_loss": -185212925.29
+  },
+  "2026-11-09": {
+   "realized_profit": 228057101.18,
+   "realized_loss": -630952601.43,
+   "btc_price": 75292.88
   }
  },
- "updated_at_utc": "2026-11-09 01:44",
+ "updated_at_utc": "2026-11-10 04:06",
  "last_attempt": {
-  "realized_profit": "2026-11-09",
-  "realized_loss": "2026-11-09",
-  "btc_price": "2026-11-09"
+  "realized_profit": "2026-11-10",
+  "realized_loss": "2026-11-10",
+  "btc_price": "2026-11-10"
  }
 }
