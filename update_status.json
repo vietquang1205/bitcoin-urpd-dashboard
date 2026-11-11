@@ -1,45 +1,56 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-10 20:49",
+ "last_run_utc": "2026-11-11 01:55",
  "market": {
-  "total_mcap": 2472541324677.2534,
-  "total_mcap_change_24h": -4.485116039004765,
-  "btc_mcap": 1481264741928.828,
-  "btc_change_24h": -1.5002981603487044,
-  "usdt_usdc": 246710745743.43484,
-  "adjusted_btc_dom": 66.54885398503059,
-  "alt_ex_stables": 744565837004.9907,
-  "alt_change_24h": -11.163183274316136,
-  "fetched_at_utc": "2026-11-10 20:48"
+  "total_mcap": 2472645865454.5273,
+  "total_mcap_change_24h": -4.334947259857107,
+  "btc_mcap": 1481084952497.5605,
+  "btc_change_24h": -1.8450836439986678,
+  "usdt_usdc": 245673096872.39563,
+  "adjusted_btc_dom": 66.50664854966041,
+  "alt_ex_stables": 745887816084.5712,
+  "alt_change_24h": -10.14460249031568,
+  "fetched_at_utc": "2026-11-11 01:55"
  },
  "urpd": {
-  "latest_date": "2026-11-10",
+  "latest_date": "2026-11-11",
   "changed": [
-   "2026-11-10"
+   "2026-11-10",
+   "2026-11-11"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
-  "errors": [],
-  "pending": []
- },
- "onchain": {
-  "updated": {},
+  "updated": {
+   "btc_price": 1
+  },
   "errors": [],
   "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ],
+   "realized_profit",
+   "realized_loss"
+  ]
+ },
+ "onchain": {
+  "updated": {
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
+  },
+  "errors": [],
+  "pending": [],
   "mvrv_estimate": {
    "k": 1.0085,
    "calib_days": 30,
-   "bg_last": "2026-11-03",
+   "bg_last": "2026-11-04",
    "est_days": 7
   }
  },
@@ -48,18 +59,11 @@
   "source": "SoSoValue",
   "latest": "2026-11-09",
   "sessions": 25,
-  "notes": [],
-  "alts": {
-   "NEAR": "24 phiên",
-   "LINK": "25 phiên",
-   "ETH": "25 phiên",
-   "SOL": "24 phiên",
-   "XRP": "25 phiên"
-  }
+  "skipped": "SoSoValue chưa có phiên 10/11"
  },
  "market_extra": {
   "done": {
-   "phái sinh": 180,
+   "phái sinh": 181,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
