@@ -53,11 +53,22 @@ ec3ba010379f286553bb1ec59891f73b3aa67e1a7a890d394e36db5c6e4598fc | Nhóm Bitwise
 # 7c2752c54b540cd8d73eacb4467af42da222838b1fc9d463e7748366ed140ca5 | Nhóm Bitwise/NF — ủy thác 1,3 triệu | whale
 # ac47ab30195f6c2ce8445bea02a110d9b6d2aa91cff38d05cd634888dd0bfa7f | Nhóm Bitwise/NF — ví chuyển tiếp | whale
 
-# Cụm tổ chức mới (09–11/2026): ví 940ef3f4… nhận 64,6 triệu NEAR từ d549d25e… rồi chia: 47,5 triệu → 7875aef7…
-# (stake hết vào cnear-1/2/3), 6,9 triệu → f9e0ff50…, 5 triệu → c1d04fde…, 4,5 triệu → f6a3ada5…
-# Chưa rõ chủ (có thể là lưu ký tổ chức). Ví stake 47,5 triệu đã được module hủy stake theo dõi tự động.
-940ef3f4f1e2d72b2036c685e5db7ff38ea0f84cce9b1c538bb1db1bb6678950 | Cụm tổ chức mới — ví phân phối 64,6 triệu | whale
-# d549d25ebc8dcd705ee1aac7d961fc31b07fa52e8d59ba56ddd788f09d6cec46 | Cụm tổ chức mới — nguồn 64,6 triệu | whale
+# Cụm "quỹ NEAR Foundation / hệ sinh thái" chuyển sang lưu ký mới (09–11/2026) — kiểm tra on-chain 12/11/2026:
+# d549d25e… nhận 39,5 triệu NEAR từ nfendowment03.near (quỹ NEAR Foundation) + 20,5 triệu từ ae1b2d06… + 2,67 triệu
+# từ aurorafinance.sputnik-dao.near + 1 triệu từ n1-treasury.sputnik-dao.near + 0,9 triệu từ fg.multisignature.near,
+# rồi chuyển hết 64,6 triệu cho 940ef3f4…; ví này chia tiếp ("ví con"):
+#   → 7875aef7…: 47,5 triệu, stake hết vào cnear-1/2/3 (module hủy stake tự theo dõi)
+#   → f9e0ff50…: ~11,9 triệu (6,9 trực tiếp + 5 triệu qua ví trung chuyển c1d04fde…), đã chuyển 4 triệu → 8f69aac5…;
+#     số dư hiện ~9,0 triệu NEAR rời
+#   → f6a3ada5…: 4,5 triệu (số dư hiện 3,0 triệu)
+# Nếu các ví này nạp lên sàn = nguồn cung lớn từ quỹ hệ sinh thái → theo dõi sát.
+d549d25ebc8dcd705ee1aac7d961fc31b07fa52e8d59ba56ddd788f09d6cec46 | Cụm quỹ NEAR — ví nguồn (nhận từ nfendowment03) | whale
+940ef3f4f1e2d72b2036c685e5db7ff38ea0f84cce9b1c538bb1db1bb6678950 | Cụm quỹ NEAR — ví phân phối 64,6 triệu | whale
+7875aef71e16a1c4ec9855a4ad77c0b533d84ec340110f79b652c9b49d7444aa | Ví con cụm quỹ NEAR — stake 47,5 triệu (cnear) | whale
+f9e0ff50970bfdee2a59e039f9da76f267bba161e1a9b11dd16a81e8ef702091 | Ví con cụm quỹ NEAR — 9 triệu rời | whale
+f6a3ada5900f61b5089494beb1292fdccd2ba7ec01dade714e556e6717afa9db | Ví con cụm quỹ NEAR — 3 triệu rời | whale
+8f69aac559670a8223b64f145654434fc193722749eafc75f42bba2ca8fbad70 | Ví cháu cụm quỹ NEAR — nhận 4 triệu từ f9e0ff50 | whale
+# c1d04fdeaf5dba2ae6951b8dfe8a5aefd31cb7feaf4dc931061ebd18e1c3436b | Cụm quỹ NEAR — ví trung chuyển (số dư 0) | whale
 
 # Cá voi cá nhân
 # • 98500395…: tạo 2023; hủy stake ở 5 pool ngày 06/11, rút 1,79 triệu ngày 09/11, rồi stake lại 1,3 triệu vào
