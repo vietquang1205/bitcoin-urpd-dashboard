@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5"
+NEAR_VERSION = "V5.2"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
@@ -300,6 +300,10 @@ def fetch_account(account):
 STAKE_TRACK_MIN = 20_000        # chỉ lưu người ủy thác có tổng (stake + đang hủy) ≥ 20k NEAR
 STAKE_EVENT_MIN = 50_000        # ghi sự kiện stake/hủy stake/rút từ 50k NEAR
 TRANSFER_MIN = 50_000           # chuyển lớn từ 50k NEAR
+CHILD_MIN = 20_000              # cá voi/ví con chuyển ≥ 20k sang ví mới → coi là "ví con" (chia nhỏ để giấu)
+CHILD_KEEP_DAYS = 45            # theo dõi ví con 45 ngày kể từ lần hoạt động cuối
+CHILD_MAX = 30                  # tối đa 30 ví con
+CHILD_MAX_DEPTH = 3             # tối đa 3 tầng (cá voi → con → cháu → chắt)
 UNLOCK_EPOCHS = 4               # NEAR: tiền hủy stake rút được sau 4 epoch
 EPOCH_LENGTH_BLOCKS = 43_200
 EVENT_KEEP_DAYS = 90
@@ -438,56 +442,132 @@ def classify_transfer(frm, to, method, exch):
         return "intents"
     if to == "wrap.near":
         return "wrap"
+    if to in ("meta-pool.near", "linear-protocol.near"):
+        return "stake"
     return "wallet"
 
 
+def child_label(data, acct, labels=None):
+    c = (data.get("children") or {}).get(acct)
+    if not c:
+        return None
+    root = c.get("root")
+    name = (labels or {}).get(root) or c.get("root_label") or _short_acct(root)
+    return f"Ví con của {name}" + (f" (tầng {c['depth']})" if c.get("depth", 1) > 1 else "")
+
+
+def _short_acct(a, n=22):
+    a = str(a or "")
+    return a if len(a) <= n else a[:8] + "…" + a[-6:]
+
+
 def update_big_transfers(data, watch, key=""):
-    """Module 2 — chuyển lớn (≥ TRANSFER_MIN NEAR) của ví sàn, cá voi và ví vừa hủy stake/rút gần đây."""
+    """Module 2 — chuyển lớn (≥ TRANSFER_MIN NEAR) của ví sàn, cá voi, ví vừa hủy stake/rút và ví con của cá voi.
+    Cá voi (watchlist 'whale', ví vừa hủy stake/rút) và ví con của họ: ngưỡng thấp hơn (CHILD_MIN) để bắt kiểu
+    chia nhỏ sang nhiều ví con rồi gom/nạp sàn dần."""
     exch = {w["account"] for w in watch if w["type"] == "exchange"}
     labels = {w["account"]: w["label"] for w in watch}
-    week = (utc_now() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
+    now = utc_now()
+    week = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
+    keep_cut = (now - timedelta(days=CHILD_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
+    protocol = {w["account"] for w in watch if w["type"] in ("protocol", "validator")} | set(KNOWN_CONTRACTS)
     movers = {}
     for e in data.get("stake_events") or []:
-        if e.get("time_utc", "") >= week and e["kind"] in ("withdraw", "unstake"):
+        if (e.get("time_utc", "") >= week and e["kind"] in ("withdraw", "unstake")
+                and e["account"] not in protocol and not _is_pool(e["account"])):
             movers[e["account"]] = movers.get(e["account"], 0) + e["amount"]
     follow = {a: t for a, t in (data.get("follow") or {}).items() if t >= week}   # ví nhận tiền lớn cần theo tiếp
+    children = {a: c for a, c in (data.get("children") or {}).items()
+                if c.get("last", "") >= keep_cut and a not in exch}
+    whales = {w["account"] for w in watch if w["type"] == "whale" and w["account"] not in children}
+    family = {a for a in (whales | set(children) | set(movers))
+              if a not in exch and a not in protocol and a not in KNOWN_CONTRACTS and not _is_pool(a)}
+    # Ưu tiên: ví sàn → ví vừa hủy stake/rút → ví con → ví nhận tiền lớn đang bám → cá voi trong watchlist
+    kids_sorted = [a for a, _ in sorted(children.items(), key=lambda kv: (-kv[1].get("received", 0)))]
     targets = list(dict.fromkeys(
-        [a for a in exch] + [w["account"] for w in watch if w["type"] == "whale"]
-        + [a for a, _ in sorted(movers.items(), key=lambda kv: -kv[1])] + list(follow)))[:30 if key else 18]
+        [a for a in exch] + [a for a, _ in sorted(movers.items(), key=lambda kv: -kv[1])] + kids_sorted + list(follow)
+        + sorted(whales)))[:45 if key else 30]
     seen = set(data.get("transfer_seen") or [])
     out = data.get("big_transfers") or []
     errs, n_new = [], 0
+
+    def lab(a):
+        return labels.get(a) or child_label({"children": children}, a, labels) or KNOWN_CONTRACTS.get(a)
+
     for acct in targets:
         try:
             txns = nb_account_txns(acct, key)
         except Exception as e:
             errs.append(f"{acct[:20]}: {str(e)[:60]}")
             continue
+        min_amt = CHILD_MIN if acct in family else TRANSFER_MIN
         for t in txns:
             rid = t.get("receipt_id") or t.get("id")
             if not rid or rid in seen or not (t.get("outcomes") or {}).get("status", True):
                 continue
             amt = sum((safe_float(a.get("deposit")) or 0) for a in t.get("actions") or []) / YOCTO
-            if amt < TRANSFER_MIN:
+            if amt < min_amt:
                 continue
             frm, to = t.get("predecessor_account_id"), t.get("receiver_account_id")
             method = next((a.get("method") for a in t.get("actions") or [] if a.get("method")), None)
             ts = datetime.fromtimestamp(int(str(t.get("block_timestamp"))[:13]) / 1000, tz=timezone.utc)
+            ts_s = ts.strftime("%Y-%m-%d %H:%M")
             kind = classify_transfer(frm, to, method, exch)
-            out.append({"time_utc": ts.strftime("%Y-%m-%d %H:%M"), "from": frm, "to": to, "amount": round(amt),
+            if acct in children:
+                children[acct]["last"] = max(children[acct].get("last", ""), ts_s)
+            # Ví con: cá voi / ví con chia tiền sang ví mới (không phải sàn, pool, hợp đồng, cá voi khác)
+            if (kind == "wallet" and frm == acct and acct in family and to not in exch and to not in whales
+                    and to != acct and to not in KNOWN_CONTRACTS):
+                par = children.get(acct)
+                depth = (par["depth"] + 1) if par else 1
+                if depth <= CHILD_MAX_DEPTH:
+                    root = par["root"] if par else acct
+                    c = children.get(to)
+                    if c is None and len(children) < CHILD_MAX * 2:
+                        c = children[to] = {"root": root, "root_label": labels.get(root), "parent": acct,
+                                            "depth": depth, "first": ts_s, "last": ts_s, "received": 0, "n": 0}
+                    if c is not None and c.get("root") == root:
+                        c["received"] = round(c.get("received", 0) + amt)
+                        c["n"] = c.get("n", 0) + 1
+                        c["last"] = max(c.get("last", ""), ts_s)
+                        kind = "to_child"
+            if amt < TRANSFER_MIN and kind not in ("to_child", "to_exchange"):
+                seen.add(rid)
+                continue
+            out.append({"time_utc": ts_s, "from": frm, "to": to, "amount": round(amt),
                         "kind": kind, "method": method, "tx": t.get("transaction_hash"),
-                        "from_label": labels.get(frm) or KNOWN_CONTRACTS.get(frm), "to_label": labels.get(to) or KNOWN_CONTRACTS.get(to),
-                        "watched": acct, "after_unstake": acct in movers})
+                        "from_label": lab(frm), "to_label": lab(to),
+                        "watched": acct, "after_unstake": acct in movers,
+                        "family": (children.get(frm) or {}).get("root") or (frm if frm in family else None)})
             seen.add(rid)
             n_new += 1
-            if kind == "wallet" and to not in exch and to != acct:
-                follow[to] = ts.strftime("%Y-%m-%d %H:%M")            # đi theo ví nhận ở các lần chạy sau
+            if kind == "wallet" and to not in exch and to != acct and frm not in protocol and to not in protocol:
+                follow[to] = ts_s            # đi theo ví nhận ở các lần chạy sau
         time.sleep(0.6 if key else 2.5)
-    cut = (utc_now() - timedelta(days=EVENT_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
+    cut = (now - timedelta(days=EVENT_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
     data["big_transfers"] = sorted([x for x in out if x["time_utc"] >= cut], key=lambda x: x["time_utc"])[-2000:]
     data["transfer_seen"] = list(seen)[-6000:]
     data["follow"] = dict(sorted(follow.items(), key=lambda kv: kv[1])[-40:])
+    data["children"] = dict(sorted(children.items(), key=lambda kv: -kv[1].get("received", 0))[:CHILD_MAX])
     return n_new, errs
+
+
+def children_summary(data, days=7, now=None):
+    """Ví con của cá voi: số ví mới trong N ngày, tổng NEAR chia sang, nhóm nào đang chia nhỏ nhiều nhất."""
+    now = now or utc_now()
+    cut = (now - timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
+    ch = data.get("children") or {}
+    new = {a: c for a, c in ch.items() if c.get("first", "") >= cut}
+    by_root = {}
+    for a, c in new.items():
+        r = by_root.setdefault(c["root"], {"root": c["root"], "root_label": c.get("root_label"), "n": 0, "near": 0})
+        r["n"] += 1
+        r["near"] += c.get("received", 0)
+    tr = [x for x in data.get("big_transfers") or [] if x["time_utc"] >= cut]
+    to_exch = sum(x["amount"] for x in tr if x["kind"] == "to_exchange" and x["from"] in ch)
+    return {"days": days, "tracked": len(ch), "new": len(new), "new_near": round(sum(c.get("received", 0) for c in new.values())),
+            "children_to_exchange": round(to_exch),
+            "splitters": sorted(by_root.values(), key=lambda r: -r["n"])[:5]}
 
 
 def stake_flow_summary(data, days=7, now=None):
@@ -515,7 +595,7 @@ def transfer_summary(data, days=7, now=None):
     cut = (now - timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
     tr = [x for x in data.get("big_transfers") or [] if x["time_utc"] >= cut]
     s = {k: sum(x["amount"] for x in tr if x["kind"] == k) for k in
-         ("to_exchange", "from_exchange", "intents", "wrap", "stake", "unstake_withdraw", "wallet")}
+         ("to_exchange", "from_exchange", "intents", "wrap", "stake", "unstake_withdraw", "wallet", "to_child")}
     return {"days": days, "count": len(tr), **s, "net_to_exchange": s["to_exchange"] - s["from_exchange"]}
 
 
@@ -1060,6 +1140,9 @@ def flow_line(data):
     if data.get("transfers_last_utc"):
         t7 = transfer_summary(data, 7)
         parts.append(f"lên sàn ròng 7 ngày {fmt_near(t7['net_to_exchange'], signed=True)}")
+        cs = children_summary(data, 7)
+        if cs["new"]:
+            parts.append(f"🧩 {cs['new']} ví con mới ({fmt_near(cs['new_near'])})")
     return " · ".join(parts)
 
 
@@ -1415,8 +1498,12 @@ def run_near_update():
     listed = {w["account"] for w in watch}
     watch += [{"account": a, "label": f"Validator — {a}", "type": "validator"}
               for a in top_validators if a not in listed]
+    # Ví con của cá voi (tự phát hiện) → chụp số dư như cá voi để chuyển nội bộ "nhà cá voi" triệt tiêu nhau
+    listed = {w["account"] for w in watch}
+    watch += [{"account": a, "label": child_label(data, a) or f"Ví con — {a}", "type": "whale"}
+              for a in (data.get("children") or {}) if a not in listed]
     snap, fails = {}, []
-    for w in watch[:60]:
+    for w in watch[:90]:
         try:
             b = fetch_account(w["account"])
             snap[w["account"]] = {**b, "label": w["label"], "type": w["type"]}
@@ -1535,6 +1622,10 @@ def write_near_report(data):
                                 if e["kind"] in ("unstake", "withdraw")][-8:],
         "big_transfers_7d": transfer_summary(data, 7) if data.get("transfers_last_utc") else None,
         "big_transfers_recent": (data.get("big_transfers") or [])[-8:],
+        "whale_children_7d": children_summary(data, 7) if data.get("transfers_last_utc") else None,
+        "whale_children": [{"account": a, **{k: c.get(k) for k in ("root", "root_label", "parent", "depth", "first",
+                                                                    "last", "received", "n")}}
+                           for a, c in list((data.get("children") or {}).items())[:20]],
         "flow_tracking_since": {"stake": data.get("stake_tracking_since"), "transfer": data.get("transfer_tracking_since")},
         "supports": [f"{z['low']:.3f}-{z['high']:.3f}" for z in sup],
         "resistances": [f"{z['low']:.3f}-{z['high']:.3f}" for z in res],
@@ -2163,7 +2254,7 @@ def near_btc_change(df, btc, days=30):
 KIND_VI = {"unstake": "⏳ Hủy stake", "withdraw": "💸 Rút về ví", "stake": "🔒 Stake thêm", "restake": "🔁 Stake lại",
            "to_exchange": "🔴 Nạp lên sàn", "from_exchange": "🟢 Rút khỏi sàn", "exchange_internal": "⚪ Nội bộ sàn",
            "intents": "🟠 Qua NEAR Intents", "wrap": "🟠 Đổi sang wNEAR", "stake_t": "🔒 Vào pool",
-           "unstake_withdraw": "💸 Từ pool ra ví", "wallet": "➡️ Sang ví khác"}
+           "unstake_withdraw": "💸 Từ pool ra ví", "wallet": "➡️ Sang ví khác", "to_child": "🧩 Chia sang ví con"}
 
 
 def _vn(ts):
@@ -2261,6 +2352,36 @@ def tab_flows(data):
     }))
     cap(f"Quét gần nhất {_vn(data.get('transfers_last_utc'))}. 'Sang ví khác' sẽ được theo tiếp ở lần quét sau "
         "(nếu ví đó gom về sàn sẽ hiện 'Nạp lên sàn'). Chuyển lên sàn không chắc chắn là bán; chỉ là tín hiệu.")
+    tab_children(data)
+
+
+def tab_children(data):
+    ch = data.get("children") or {}
+    st.divider()
+    mk("### 🧩 Ví con của cá mập (chia nhỏ để giấu)")
+    cap(f"Khi cá voi (ví 'whale' trong watchlist, ví vừa hủy stake/rút) hoặc ví con của họ chuyển ≥ {CHILD_MIN:,} NEAR "
+        f"sang một ví mới, app ghi ví đó là **ví con** và theo dõi {CHILD_KEEP_DAYS} ngày (tối đa {CHILD_MAX_DEPTH} tầng, "
+        f"{CHILD_MAX} ví). Ví con được chụp số dư hằng ngày cùng nhóm cá voi, nên chuyển qua lại trong 'nhà cá voi' không bị "
+        "tính nhầm là mua/bán. Ví con nạp lên sàn → hiện '🔴 Nạp lên sàn' ở bảng trên.")
+    if not ch:
+        st.info("Chưa phát hiện ví con nào.")
+        return
+    cs = children_summary(data, 7)
+    c = st.columns(3)
+    c[0].metric("Ví con đang theo dõi", f"{cs['tracked']}")
+    c[1].metric("Ví con mới 7 ngày", f"{cs['new']}", fmt_near(cs["new_near"]) if cs["new"] else None, delta_color="off")
+    c[2].metric("Ví con nạp lên sàn 7 ngày", fmt_near(cs["children_to_exchange"]))
+    snaps = data.get("whales") or {}
+    last_snap = snaps[sorted(snaps)[-1]] if snaps else {}
+    rows = []
+    for a, x in ch.items():
+        bal = (last_snap.get(a) or {}).get("balance")
+        rows.append({"Ví con": _short(a), "Thuộc nhóm": x.get("root_label") or _short(x.get("root")),
+                     "Nhận từ": _short(x.get("parent")), "Tầng": x.get("depth"),
+                     "Tổng nhận": f"{x.get('received', 0):,.0f}", "Số lần": x.get("n"),
+                     "Lần đầu": _vn(x.get("first")), "Gần nhất": _vn(x.get("last")),
+                     "Số dư (ảnh chụp gần nhất)": f"{float(bal):,.0f}" if bal is not None else "—"})
+    show_df(pd.DataFrame(rows))
 
 
 def _cat_light(score):
