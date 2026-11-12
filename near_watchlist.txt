@@ -26,3 +26,44 @@ d04204b6591fefb973a8ed60929f8211af89ee38020da9faf905acdc7a320063 | Binance — v
 451913e633c72fb951effe076d3bd2977e3f08083dcf6c87fa89992b0d437c5c | Binance — ví gom #3 | exchange
 9c484fa5d2d069569ba063fc555c34e621ccd88fdbb0295fc79bad232621c5c1 | Binance — ví gom #4 | exchange
 7e6e17fcb8e8e6a22ecd47bbd1b58b1af3582b97bbfd4a8d974bb9c266fa282b | Binance — ví gom #5 | exchange
+
+# ---------------------------------------------------------------------------
+# BINANCE — VÍ NÓNG MỚI SAU VỤ HACK (kiểm tra on-chain 11/11/2026)
+# • efd224…: tạo đúng ngày 29/10/2026; cùng ngày nhận 8,09 triệu NEAR từ ví nóng chính 5c33c6… + 2,2 triệu từ
+#   ví gom #4 + 2,1 triệu từ ví gom #3 (tổng ~12,4 triệu). Từ đó chi trả 10–20k NEAR cho hơn 40 ví khác nhau
+#   (hành vi xử lý lệnh rút của người dùng) → ví nóng mới của Binance. Số dư ~11,6 triệu NEAR.
+#   (Trước đây app ghi nhầm 4,3 triệu chuyển sang ví này là "rút khỏi sàn".)
+efd224256518a7cacd209867963276efed302a8e222c013c43f4b1bd369ae5af | Binance — ví nóng mới (sau hack 29/10) | exchange
+
+# SÀN/DỊCH VỤ CHƯA RÕ TÊN (nghi ví nóng)
+# • 52435fe9…: ~3,4 triệu NEAR; 100 giao dịch chỉ trong 1 ngày, nhận từ 9 ví và trả cho 24 ví → hành vi ví nóng
+#   sàn hoặc dịch vụ OTC. Ví 96551f38… rút ~95k NEAR khỏi pool staked rồi chuyển 104k vào đây (10/11).
+#   Chưa xác định được tên sàn: nếu thấy báo động sai, thêm # ở đầu dòng để tắt.
+52435fe912307fb3a088b8b8f3882781762fc1f0a404e8579c7fb1a964362c8d | Sàn chưa rõ tên — ví nóng (nghi) | exchange
+
+# ---------------------------------------------------------------------------
+# CÁ VOI / TỔ CHỨC — truy vết từ module hủy stake & chuyển lớn (kiểm tra 11/11/2026)
+# Nhóm "Bitwise ↔ NEAR Foundation": các ví ủy thác ở pool bitwise_1 rút tiền về ví trung chuyển 1e74ab0a…;
+# ví này từng chuyển 5 triệu NEAR cho nfendowment03.near (ví quỹ chi trả của NEAR Foundation, chi cho
+# nf-payments*, treasury DAO) → nhiều khả năng là kho bạc/lưu ký của NEAR Foundation hoặc đối tác. Hủy stake ở
+# nhóm này thường là chi tiêu vận hành, ít khả năng là cá mập xả hàng — nhưng vẫn là nguồn cung ra thị trường.
+1e74ab0a225c87cf49c5b031f29208195ba5b284fd0fefceaa9e283455686c02 | Nhóm Bitwise/NF — ví trung chuyển (~4 triệu) | whale
+ec3ba010379f286553bb1ec59891f73b3aa67e1a7a890d394e36db5c6e4598fc | Nhóm Bitwise/NF — ủy thác 12,4 triệu ở bitwise_1 | whale
+765001b8488a159aa72d94ecf08a5e279e6b4d7e073af7a19948e35a97723ea4 | Nhóm Bitwise/NF — ủy thác bitwise_1 #2 | whale
+# 7c2752c54b540cd8d73eacb4467af42da222838b1fc9d463e7748366ed140ca5 | Nhóm Bitwise/NF — ủy thác 1,3 triệu | whale
+# ac47ab30195f6c2ce8445bea02a110d9b6d2aa91cff38d05cd634888dd0bfa7f | Nhóm Bitwise/NF — ví chuyển tiếp | whale
+
+# Cụm tổ chức mới (09–11/2026): ví 940ef3f4… nhận 64,6 triệu NEAR từ d549d25e… rồi chia: 47,5 triệu → 7875aef7…
+# (stake hết vào cnear-1/2/3), 6,9 triệu → f9e0ff50…, 5 triệu → c1d04fde…, 4,5 triệu → f6a3ada5…
+# Chưa rõ chủ (có thể là lưu ký tổ chức). Ví stake 47,5 triệu đã được module hủy stake theo dõi tự động.
+940ef3f4f1e2d72b2036c685e5db7ff38ea0f84cce9b1c538bb1db1bb6678950 | Cụm tổ chức mới — ví phân phối 64,6 triệu | whale
+# d549d25ebc8dcd705ee1aac7d961fc31b07fa52e8d59ba56ddd788f09d6cec46 | Cụm tổ chức mới — nguồn 64,6 triệu | whale
+
+# Cá voi cá nhân
+# • 98500395…: tạo 2023; hủy stake ở 5 pool ngày 06/11, rút 1,79 triệu ngày 09/11, rồi stake lại 1,3 triệu vào
+#   p2p-org ngày 11/11 → đổi validator, không bán. Còn ~0,95 triệu NEAR rời trong ví.
+98500395d5a604735a5e44ea8158e94f39473838bf03d27c7f9d7e1b516c8986 | Cá voi đổi validator (~0,95 triệu rời) | whale
+# • eec102b3…: đang hủy stake 2,62 triệu NEAR ở figment (chờ mở khóa), còn 1,93 triệu stake + 0,3 triệu rời.
+eec102b30e72e579de3d01074465566351f3f727ec89338ed26e77099ab7a2db | Cá voi figment — đang hủy stake 2,6 triệu | whale
+# • f593c153…: đang stake ~5,99 triệu NEAR ở staked.poolv1.near; hủy stake 187k ngày 11/11 (kiểm tra 12/11/2026).
+f593c153578b81b910a14d03892dd0cb4656a00f3a36666094bf7d8b2d916e7f | Cá voi pool staked — 6 triệu | whale
