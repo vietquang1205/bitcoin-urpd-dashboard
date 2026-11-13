@@ -1,5 +1,5 @@
 {
- "updated_at_utc": "2026-11-13 14:13",
+ "updated_at_utc": "2026-11-13 17:43",
  "daily": {
   "2025-10-03": {
    "stables_total": 298069179501.0,
@@ -3306,7 +3306,7 @@
    "oi_usd": 3251799958.1918,
    "perp_volume_usd": 1922674365.266,
    "long_short_ratio": 1.49,
-   "funding_apr": -0.844156633253625,
+   "funding_apr": -8.79920976e-05,
    "price": 83760.4,
    "stables_total": 303896752574.0,
    "usdt": 184076527715.0,
@@ -3621,8 +3621,8 @@
    "stables_total": 296377250116.0,
    "usdt": 179631491514.0,
    "usdc": 71854720053.0,
-   "cb_premium_pct": -0.030071833840334114,
-   "cb_premium_hours": 21,
+   "cb_premium_pct": -0.031482866691609795,
+   "cb_premium_hours": 18,
    "fng": 34.0,
    "fng_class": "Fear",
    "taker_sell": 2519531.11,
@@ -3800,27 +3800,32 @@
    "cb_premium_hours": 24,
    "oi_usd": 3866452373.4788,
    "perp_volume_usd": 7858106983.0125,
-   "long_short_ratio": 3.28,
-   "taker_sell": 7431013.77,
-   "taker_buy": 6572608.55
+   "long_short_ratio": 3.11,
+   "taker_sell": 8417949.52,
+   "taker_buy": 7490003.35
   },
   "2026-11-13": {
-   "funding_apr": 1.9600706073744005,
-   "price": 69328.8,
+   "funding_apr": 2.6999195932402005,
+   "price": 69105.6,
    "fng": 20.0,
    "fng_class": "Extreme Fear",
-   "stables_total": 287750416584.77,
-   "usdt": 175523135307.99,
-   "usdc": 69451685100.22,
-   "cb_premium_pct": -0.00044296675475970676,
-   "cb_premium_hours": 15
+   "stables_total": 287777689546.12,
+   "usdt": 175545956282.31,
+   "usdc": 69453085833.06,
+   "cb_premium_pct": -0.0057784263270595675,
+   "cb_premium_hours": 18,
+   "oi_usd": 3458826730.1744,
+   "perp_volume_usd": 13023422352.6897,
+   "long_short_ratio": 3.12,
+   "taker_sell": 341775.33,
+   "taker_buy": 333680.83
   }
  },
  "now": {
   "hl_funding_apr": 10.950000000000001,
-  "hl_oi_usd": 2799905226.70836,
-  "cb_premium_now": -0.009522775799220007,
-  "cb_premium_hour_utc": "2026-11-13 14:00"
+  "hl_oi_usd": 2731525172.990753,
+  "cb_premium_now": -0.09744553190951244,
+  "cb_premium_hour_utc": "2026-11-13 17:00"
  },
  "errors": []
 }
