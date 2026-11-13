@@ -1,94 +1,2651 @@
-# Danh sách ví NEAR theo dõi — GitHub Actions chụp số dư mỗi ngày.
-# Mỗi dòng: account.near | Tên hiển thị | loại
-# loại: whale, exchange, validator, protocol, unknown
-# 20 validator pool lớn nhất được theo dõi TỰ ĐỘNG, không cần ghi vào đây.
-# Chỉ gắn nhãn "exchange" cho ví sàn có bằng chứng rõ (nhãn explorer, hoặc hành vi on-chain điển hình của sàn).
-#
-# Ví dụ (bỏ dấu # ở đầu dòng để bật):
-# some-whale.near | Cá voi #1 | whale
-# exchange-hot-wallet.near | Ví nóng sàn X | exchange
+"""
+NEAR Monitor V2 — trang riêng (pages/NEAR_Monitor.py) theo cùng kiến trúc với BTC URPD Monitor.
 
-wrap.near | Wrapped NEAR (wNEAR) | protocol
-meta-pool.near | Meta Pool (liquid staking) | protocol
+Hai chế độ chạy:
+  • Dashboard:          Streamlit tự chạy file này khi mở trang "NEAR Monitor".
+                        CHỈ ĐỌC near_history.json (+ giá trực tiếp), không gọi hàng loạt API.
+  • Cập nhật dữ liệu:   python pages/NEAR_Monitor.py --update-data   (GitHub Actions gọi mỗi ngày)
+                        Lấy giá/khối lượng (CoinGecko), staking + số dư ví (NEAR RPC),
+                        TVL/stablecoin/DEX (DeFiLlama), phái sinh (OKX, dự phòng Hyperliquid),
+                        hoạt động mạng (NearBlocks — chỉ khi có NEARBLOCKS_API_KEY).
 
-# ---------------------------------------------------------------------------
-# BINANCE — nhận diện qua giao dịch on-chain (NearBlocks API, kiểm tra 09/11/2026)
-# • binancecold3.near: ~105,6 triệu NEAR, tạo 11/2020; chuyển 10–17 triệu NEAR qua lại với ví nóng 5c33c6…
-#   (bổ sung ví nóng khi thiếu, thu gom về khi thừa) → ví lạnh của Binance.
-# • 5c33c6…: nhận nạp từ rất nhiều ví người dùng mỗi ~12 phút rồi gom về binancecold3 → ví nóng chính.
-#   Ngày 29/10/2026 (vụ hack Binance) toàn bộ ví nóng bị gom về binancecold3; từ đó gần như không hoạt động.
-# • 4 ví phụ bên dưới cùng chuyển (gom) NEAR về binancecold3 trong đợt 29/10 và trước đó → ví nóng/ví gom của Binance.
-# Theo dõi CẢ ví lạnh + ví nóng: chuyển nội bộ triệt tiêu nhau → tổng số dư = "dự trữ NEAR trên Binance".
-# Tổng tăng = người dùng nạp NEAR lên sàn (thường để bán); tổng giảm = rút khỏi sàn.
-binancecold3.near | Binance — ví lạnh | exchange
-5c33c6218d47e00ef229f60da78d0897e1ee9665312550b8afd5f9c7bc6957d2 | Binance — ví nóng chính | exchange
-d04204b6591fefb973a8ed60929f8211af89ee38020da9faf905acdc7a320063 | Binance — ví gom #2 | exchange
-451913e633c72fb951effe076d3bd2977e3f08083dcf6c87fa89992b0d437c5c | Binance — ví gom #3 | exchange
-9c484fa5d2d069569ba063fc555c34e621ccd88fdbb0295fc79bad232621c5c1 | Binance — ví gom #4 | exchange
-7e6e17fcb8e8e6a22ecd47bbd1b58b1af3582b97bbfd4a8d974bb9c266fa282b | Binance — ví gom #5 | exchange
+Danh sách ví theo dõi: file near_watchlist.txt ở thư mục gốc repo, mỗi dòng
+    account.near | Tên hiển thị | loại        (loại: whale, exchange, validator, protocol, unknown)
+Nếu chưa có file, updater tự theo dõi 20 validator pool lớn nhất.
 
-# ---------------------------------------------------------------------------
-# BINANCE — VÍ NÓNG MỚI SAU VỤ HACK (kiểm tra on-chain 11/11/2026)
-# • efd224…: tạo đúng ngày 29/10/2026; cùng ngày nhận 8,09 triệu NEAR từ ví nóng chính 5c33c6… + 2,2 triệu từ
-#   ví gom #4 + 2,1 triệu từ ví gom #3 (tổng ~12,4 triệu). Từ đó chi trả 10–20k NEAR cho hơn 40 ví khác nhau
-#   (hành vi xử lý lệnh rút của người dùng) → ví nóng mới của Binance. Số dư ~11,6 triệu NEAR.
-#   (Trước đây app ghi nhầm 4,3 triệu chuyển sang ví này là "rút khỏi sàn".)
-efd224256518a7cacd209867963276efed302a8e222c013c43f4b1bd369ae5af | Binance — ví nóng mới (sau hack 29/10) | exchange
+Lưu ý: Binance.com chặn máy chủ ở Mỹ (lỗi 451) — Streamlit Cloud và GitHub Actions đều ở Mỹ,
+nên bản này dùng Coinbase/Kraken/OKX thay cho Binance.
+"""
+import os
+import re
+import sys
+import json
+import time
+from datetime import datetime, timedelta, timezone
 
-# SÀN/DỊCH VỤ CHƯA RÕ TÊN (nghi ví nóng)
-# • 52435fe9…: ~3,4 triệu NEAR; 100 giao dịch chỉ trong 1 ngày, nhận từ 9 ví và trả cho 24 ví → hành vi ví nóng
-#   sàn hoặc dịch vụ OTC. Ví 96551f38… rút ~95k NEAR khỏi pool staked rồi chuyển 104k vào đây (10/11).
-#   Chưa xác định được tên sàn: nếu thấy báo động sai, thêm # ở đầu dòng để tắt.
-52435fe912307fb3a088b8b8f3882781762fc1f0a404e8579c7fb1a964362c8d | Sàn chưa rõ tên — ví nóng (nghi) | exchange
+import requests
+import numpy as np
+import pandas as pd
+import streamlit as st
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-# ---------------------------------------------------------------------------
-# CÁ VOI / TỔ CHỨC — truy vết từ module hủy stake & chuyển lớn (kiểm tra 11/11/2026)
-# Nhóm "Bitwise ↔ NEAR Foundation": các ví ủy thác ở pool bitwise_1 rút tiền về ví trung chuyển 1e74ab0a…;
-# ví này từng chuyển 5 triệu NEAR cho nfendowment03.near (ví quỹ chi trả của NEAR Foundation, chi cho
-# nf-payments*, treasury DAO) → nhiều khả năng là kho bạc/lưu ký của NEAR Foundation hoặc đối tác. Hủy stake ở
-# nhóm này thường là chi tiêu vận hành, ít khả năng là cá mập xả hàng — nhưng vẫn là nguồn cung ra thị trường.
-1e74ab0a225c87cf49c5b031f29208195ba5b284fd0fefceaa9e283455686c02 | Nhóm Bitwise/NF — ví trung chuyển (~4 triệu) | whale
-ec3ba010379f286553bb1ec59891f73b3aa67e1a7a890d394e36db5c6e4598fc | Nhóm Bitwise/NF — ủy thác 12,4 triệu ở bitwise_1 | whale
-765001b8488a159aa72d94ecf08a5e279e6b4d7e073af7a19948e35a97723ea4 | Nhóm Bitwise/NF — ủy thác bitwise_1 #2 | whale
-# 7c2752c54b540cd8d73eacb4467af42da222838b1fc9d463e7748366ed140ca5 | Nhóm Bitwise/NF — ủy thác 1,3 triệu | whale
-# ac47ab30195f6c2ce8445bea02a110d9b6d2aa91cff38d05cd634888dd0bfa7f | Nhóm Bitwise/NF — ví chuyển tiếp | whale
+NEAR_VERSION = "V5.3"
+UPDATE_MODE = "--update-data" in sys.argv
 
-# Cụm "quỹ NEAR Foundation / hệ sinh thái" chuyển sang lưu ký mới (09–11/2026) — kiểm tra on-chain 12/11/2026:
-# d549d25e… nhận 39,5 triệu NEAR từ nfendowment03.near (quỹ NEAR Foundation) + 20,5 triệu từ ae1b2d06… + 2,67 triệu
-# từ aurorafinance.sputnik-dao.near + 1 triệu từ n1-treasury.sputnik-dao.near + 0,9 triệu từ fg.multisignature.near,
-# rồi chuyển hết 64,6 triệu cho 940ef3f4…; ví này chia tiếp ("ví con"):
-#   → 7875aef7…: 47,5 triệu, stake hết vào cnear-1/2/3 (module hủy stake tự theo dõi)
-#   → f9e0ff50…: ~11,9 triệu (6,9 trực tiếp + 5 triệu qua ví trung chuyển c1d04fde…), đã chuyển 4 triệu → 8f69aac5…;
-#     số dư hiện ~9,0 triệu NEAR rời
-#   → f6a3ada5…: 4,5 triệu (số dư hiện 3,0 triệu)
-# Nếu các ví này nạp lên sàn = nguồn cung lớn từ quỹ hệ sinh thái → theo dõi sát.
-d549d25ebc8dcd705ee1aac7d961fc31b07fa52e8d59ba56ddd788f09d6cec46 | Cụm quỹ NEAR — ví nguồn (nhận từ nfendowment03) | whale
-940ef3f4f1e2d72b2036c685e5db7ff38ea0f84cce9b1c538bb1db1bb6678950 | Cụm quỹ NEAR — ví phân phối 64,6 triệu | whale
-7875aef71e16a1c4ec9855a4ad77c0b533d84ec340110f79b652c9b49d7444aa | Ví con cụm quỹ NEAR — stake 47,5 triệu (cnear) | whale
-f9e0ff50970bfdee2a59e039f9da76f267bba161e1a9b11dd16a81e8ef702091 | Ví con cụm quỹ NEAR — 9 triệu rời | whale
-f6a3ada5900f61b5089494beb1292fdccd2ba7ec01dade714e556e6717afa9db | Ví con cụm quỹ NEAR — 3 triệu rời | whale
-8f69aac559670a8223b64f145654434fc193722749eafc75f42bba2ca8fbad70 | Ví cháu cụm quỹ NEAR — nhận 4 triệu từ f9e0ff50 | whale
-# c1d04fdeaf5dba2ae6951b8dfe8a5aefd31cb7feaf4dc931061ebd18e1c3436b | Cụm quỹ NEAR — ví trung chuyển (số dư 0) | whale
+NEAR_FILE = "near_history.json"
+WATCHLIST_FILE = "near_watchlist.txt"
+ETF_FILE = "etf_flows_history.json"   # app BTC lấy dòng tiền ETF (gồm ETF NEAR) từ SoSoValue
+BTC_PRICE_FILE = "bgeometrics_realized_pl_history.json"   # dùng lại giá BTC của app BTC để tính NEAR/BTC
+NEAR_CG_ID = "near"
+RPC_URLS = ["https://rpc.mainnet.fastnear.com", "https://free.rpc.fastnear.com", "https://rpc.mainnet.near.org"]
+YOCTO = 1e24
+HISTORY_DAYS = 730
+VN_TZ = timezone(timedelta(hours=7))
+HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 NEAR-Monitor/2", "Accept": "application/json"}
+VALID_TYPES = {"whale", "exchange", "validator", "protocol", "unknown"}
 
-# Cá voi cá nhân
-# • 98500395…: tạo 2023; hủy stake ở 5 pool ngày 06/11, rút 1,79 triệu ngày 09/11, rồi stake lại 1,3 triệu vào
-#   p2p-org ngày 11/11 → đổi validator, không bán. Còn ~0,95 triệu NEAR rời trong ví.
-98500395d5a604735a5e44ea8158e94f39473838bf03d27c7f9d7e1b516c8986 | Cá voi đổi validator (~0,95 triệu rời) | whale
-# • eec102b3…: đang hủy stake 2,62 triệu NEAR ở figment (chờ mở khóa), còn 1,93 triệu stake + 0,3 triệu rời.
-eec102b30e72e579de3d01074465566351f3f727ec89338ed26e77099ab7a2db | Cá voi figment — đang hủy stake 2,6 triệu | whale
-# • f593c153…: đang stake ~5,99 triệu NEAR ở staked.poolv1.near; hủy stake 187k ngày 11/11 (kiểm tra 12/11/2026).
-f593c153578b81b910a14d03892dd0cb4656a00f3a36666094bf7d8b2d916e7f | Cá voi pool staked — 6 triệu | whale
 
-# ---------------------------------------------------------------------------
-# VÍ CON / ĐƯỜNG NẠP SÀN CỦA CỤM QUỸ NEAR — phát hiện 13/11/2026 (module ví con + lịch sử chuyển)
-# • 84134c05…: nhận tiền từ f6a3ada5… (ví con cụm quỹ) rồi nạp thẳng vào ví nóng chính Binance 5c33c6… chỉ vài phút sau:
-#   26/09 1,0tr · 01/10 0,8tr + 0,2tr · 09/10 1,0tr · 14/10 0,5tr · 16/10 1,0tr · 21/10 0,5tr · 22/10 0,5tr ≈ 5,5 triệu NEAR.
-# • 5a711468…: nhận 500k từ 940ef3f4… ngày 24/10, 12 phút sau nạp 500k vào Binance.
-# • 55d56981…: ngày 10/11 nạp lại 1 triệu NEAR cho f6a3ada5… → theo dõi xem có lặp lại đường f6a3 → 84134c05 → Binance.
-# • d0de89b2…: ví chia nhỏ của nhóm Bitwise/NF (nhận từ 1e74ab0a…, chia tiếp cho ≥6 ví con tầng 2).
-84134c051d4d473612b2f097d205ca763ad05e2cb00439eac3526e2daeffc6ec | Ví cháu cụm quỹ NEAR — đường nạp Binance (đã nạp ~5,5tr) | whale
-5a711468be8a9d01dc77eeaa20202ac5e4df9d5a71f3c17bcd48e302d3c5ddf2 | Ví con cụm quỹ NEAR — đã nạp Binance 500k | whale
-55d56981f32d239a17231cb3ed072c786024dca97b847d94e4cf56d3bcfc85a7 | Nguồn nạp lại ví con cụm quỹ (1tr ngày 10/11) | whale
-d0de89b2a3fa9ad1aa8412681a300128d7b8fac21968aef384b0b2c08014e187 | Nhóm Bitwise/NF — ví chia nhỏ (tầng 1) | whale
-nfendowment03.near | Quỹ NEAR Foundation (endowment) — đã chuyển 39,5tr cho cụm quỹ | whale
-# ae1b2d06cee9353fba5ce28827f4cccbbf6e0dc161dfc3b154f71c5902c3fcca | Nguồn 20,5tr cho cụm quỹ NEAR (chưa rõ) | whale
+# =============================================================================
+# TIỆN ÍCH
+# =============================================================================
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def utc_today():
+    return utc_now().date()
+
+
+def day_str(d):
+    return d.strftime("%Y-%m-%d")
+
+
+def parse_day(text):
+    return datetime.strptime(str(text)[:10], "%Y-%m-%d").date()
+
+
+def is_day_key(k):
+    try:
+        parse_day(k)
+        return isinstance(k, str) and len(k) == 10
+    except Exception:
+        return False
+
+
+def safe_float(x):
+    try:
+        v = float(x)
+        return v if np.isfinite(v) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def fmt_price(x):
+    if x is None or not np.isfinite(x):
+        return "N/A"
+    return f"${x:,.4f}" if abs(x) < 10 else f"${x:,.2f}"
+
+
+def fmt_big_usd(x, signed=False):
+    if x is None or not np.isfinite(x):
+        return "N/A"
+    sign = ("+" if x >= 0 else "-") if signed else ("-" if x < 0 else "")
+    a = abs(x)
+    for div, suf in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if a >= div:
+            return f"{sign}${a / div:.2f}{suf}"
+    return f"{sign}${a:,.0f}"
+
+
+def fmt_near(x, signed=False):
+    if x is None or not np.isfinite(x):
+        return "N/A"
+    a = abs(x)
+    sign = ("+" if x >= 0 else "-") if signed else ("-" if x < 0 else "")
+    if a >= 1e9:
+        return f"{sign}{a / 1e9:.2f}B Ⓝ"
+    if a >= 1e6:
+        return f"{sign}{a / 1e6:.2f}M Ⓝ"
+    return f"{sign}{a:,.0f} Ⓝ"
+
+
+def clean_secret(raw):
+    """Lấy đúng giá trị kể cả khi lỡ dán 'TÊN = "giá trị"' hoặc nhiều dòng."""
+    for line in str(raw or "").strip().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r'^[A-Za-z_][A-Za-z0-9_]*\s*=\s*(.+)$', line)
+        return (m.group(1) if m else line).strip().strip('"').strip("'").strip()
+    return ""
+
+
+def redact(msg):
+    text = str(msg)
+    for name in ("NEARBLOCKS_API_KEY", "COINGECKO_API_KEY", "GITHUB_TOKEN"):
+        v = clean_secret(os.environ.get(name, ""))
+        if v and len(v) >= 6:
+            text = text.replace(v, "***")
+    text = re.sub(r"(?i)(header value:).*", r"\1 ***", text, flags=re.S)
+    return re.sub(r"github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9]{20,}", "***", text)
+
+
+def _get(url, params=None, headers=None, timeout=25, retries=2):
+    """GET có thử lại khi bị giới hạn (429) hoặc lỗi mạng tạm thời."""
+    last = None
+    for attempt in range(retries + 1):
+        try:
+            r = requests.get(url, params=params, headers={**HTTP_HEADERS, **(headers or {})}, timeout=timeout)
+            if r.status_code == 429 and attempt < retries:
+                time.sleep(15 * (attempt + 1))
+                continue
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            last = e
+            if attempt < retries:
+                time.sleep(3)
+    raise RuntimeError(redact(last))
+
+
+def _to_date(ts):
+    """ms / s / ISO → date (UTC)."""
+    if ts is None:
+        return None
+    try:
+        x = float(ts)
+        if x > 1e11:
+            x /= 1000
+        return datetime.fromtimestamp(x, tz=timezone.utc).date()
+    except (TypeError, ValueError):
+        pass
+    try:
+        return pd.to_datetime(ts, utc=True).date()
+    except Exception:
+        return None
+
+
+# =============================================================================
+# NGUỒN DỮ LIỆU
+# =============================================================================
+def _cg_headers():
+    key = clean_secret(os.environ.get("COINGECKO_API_KEY", ""))
+    return {"x-cg-demo-api-key": key} if key else {}
+
+
+def fetch_coingecko_history(days):
+    """Giá, vốn hóa và tổng khối lượng (mọi sàn) theo ngày."""
+    j = _get(f"https://api.coingecko.com/api/v3/coins/{NEAR_CG_ID}/market_chart",
+             params={"vs_currency": "usd", "days": int(days), "interval": "daily"}, headers=_cg_headers())
+    cols = {}
+    for key, name in (("prices", "price"), ("market_caps", "market_cap"), ("total_volumes", "volume_usd")):
+        for ts, v in j.get(key, []) or []:
+            d = _to_date(ts)
+            if d is not None and safe_float(v) is not None:
+                cols.setdefault(d, {})[name] = float(v)
+    return cols
+
+
+def fetch_coingecko_now():
+    j = _get(f"https://api.coingecko.com/api/v3/coins/{NEAR_CG_ID}",
+             params={"localization": "false", "tickers": "false", "market_data": "true",
+                     "community_data": "false", "developer_data": "false", "sparkline": "false"},
+             headers=_cg_headers(), retries=0, timeout=15)
+    md = j.get("market_data", {})
+    return {
+        "price": safe_float(md.get("current_price", {}).get("usd")),
+        "change_24h": safe_float(md.get("price_change_percentage_24h")),
+        "market_cap": safe_float(md.get("market_cap", {}).get("usd")),
+        "fdv": safe_float(md.get("fully_diluted_valuation", {}).get("usd")),
+        "volume_24h": safe_float(md.get("total_volume", {}).get("usd")),
+        "circulating": safe_float(md.get("circulating_supply")),
+        "total_supply": safe_float(md.get("total_supply")),
+        "source": "CoinGecko",
+    }
+
+
+def fetch_coinbase_now():
+    j = _get("https://api.exchange.coinbase.com/products/NEAR-USD/stats", retries=0, timeout=15)
+    last, open_ = safe_float(j.get("last")), safe_float(j.get("open"))
+    return {"price": last, "change_24h": (last / open_ - 1) * 100 if last and open_ else None,
+            "volume_24h": (safe_float(j.get("volume")) or 0) * (last or 0) or None, "source": "Coinbase"}
+
+
+def fetch_candles(days=60):
+    """Nến 4–6 giờ cho volume profile ngắn hạn: Coinbase → Kraken → Binance (data-api)."""
+    errors = []
+    try:  # Coinbase: tối đa 300 nến/lần; 6 giờ × 300 = 75 ngày
+        end = utc_now()
+        start = end - timedelta(days=min(int(days), 74))
+        rows = _get("https://api.exchange.coinbase.com/products/NEAR-USD/candles",
+                    params={"granularity": 21600, "start": start.isoformat(), "end": end.isoformat()}, retries=1)
+        df = pd.DataFrame(rows, columns=["t", "low", "high", "open", "close", "volume"])
+        if not df.empty:
+            df["time"] = pd.to_datetime(df["t"], unit="s", utc=True)
+            df["quote_volume"] = df["volume"] * df["close"]
+            return df.sort_values("time").reset_index(drop=True), "Coinbase (nến 6 giờ)"
+    except Exception as e:
+        errors.append(f"Coinbase: {e}")
+    try:  # Kraken: nến 4 giờ, tối đa 720
+        j = _get("https://api.kraken.com/0/public/OHLC", params={"pair": "NEARUSD", "interval": 240}, retries=1)
+        res = j.get("result", {})
+        key = next((k for k in res if k != "last"), None)
+        df = pd.DataFrame(res.get(key, []), columns=["t", "open", "high", "low", "close", "vwap", "volume", "count"])
+        if not df.empty:
+            for c in ("open", "high", "low", "close", "volume"):
+                df[c] = df[c].astype(float)
+            df["time"] = pd.to_datetime(df["t"], unit="s", utc=True)
+            df["quote_volume"] = df["volume"] * df["close"]
+            df = df[df["time"] >= utc_now() - timedelta(days=int(days))]
+            return df.sort_values("time").reset_index(drop=True), "Kraken (nến 4 giờ)"
+    except Exception as e:
+        errors.append(f"Kraken: {e}")
+    try:
+        rows = _get("https://data-api.binance.vision/api/v3/klines",
+                    params={"symbol": "NEARUSDT", "interval": "4h", "limit": min(1000, int(days) * 6)}, retries=1)
+        df = pd.DataFrame([{"time": pd.to_datetime(r[0], unit="ms", utc=True), "open": float(r[1]),
+                            "high": float(r[2]), "low": float(r[3]), "close": float(r[4]),
+                            "quote_volume": float(r[7])} for r in rows])
+        if not df.empty:
+            return df, "Binance (nến 4 giờ)"
+    except Exception as e:
+        errors.append(f"Binance: {e}")
+    raise RuntimeError(" | ".join(errors))
+
+
+def near_rpc(method, params):
+    last = None
+    for url in RPC_URLS:
+        try:
+            r = requests.post(url, json={"jsonrpc": "2.0", "id": "near-monitor", "method": method, "params": params},
+                              headers={"content-type": "application/json"}, timeout=25)
+            r.raise_for_status()
+            j = r.json()
+            if j.get("error"):
+                raise RuntimeError(str(j["error"])[:200])
+            return j.get("result", {})
+        except Exception as e:
+            last = e
+    raise RuntimeError(f"NEAR RPC lỗi: {last}")
+
+
+def fetch_staking():
+    block = near_rpc("block", {"finality": "final"})
+    header = block.get("header", {})
+    vals = near_rpc("validators", [None])
+    current = vals.get("current_validators", []) or []
+    stakes = sorted(((v.get("account_id"), (safe_float(v.get("stake")) or 0) / YOCTO) for v in current),
+                    key=lambda x: -x[1])
+    total_stake = sum(s for _, s in stakes)
+    total_supply = (safe_float(header.get("total_supply")) or 0) / YOCTO
+    top10 = sum(s for _, s in stakes[:10])
+    return {
+        "total_supply": total_supply or None, "total_stake": total_stake or None,
+        "staking_ratio": total_stake / total_supply * 100 if total_supply else None,
+        "validators": len(stakes), "top10_stake_share": top10 / total_stake * 100 if total_stake else None,
+        "epoch_height": vals.get("epoch_height"), "block_height": header.get("height"),
+        "top_validators": [a for a, _ in stakes[:20] if a],
+    }
+
+
+def fetch_account(account):
+    res = near_rpc("query", {"request_type": "view_account", "finality": "final", "account_id": account.strip()})
+    liquid = (safe_float(res.get("amount")) or 0) / YOCTO
+    locked = (safe_float(res.get("locked")) or 0) / YOCTO
+    return {"balance": liquid + locked, "liquid": liquid, "locked": locked}
+
+
+# ----------------------------------------------------------------------------- Hủy stake & chuyển lớn
+STAKE_TRACK_MIN = 20_000        # chỉ lưu người ủy thác có tổng (stake + đang hủy) ≥ 20k NEAR
+STAKE_EVENT_MIN = 50_000        # ghi sự kiện stake/hủy stake/rút từ 50k NEAR
+TRANSFER_MIN = 50_000           # chuyển lớn từ 50k NEAR
+CHILD_MIN = 20_000              # cá voi/ví con chuyển ≥ 20k sang ví mới → coi là "ví con" (chia nhỏ để giấu)
+CHILD_KEEP_DAYS = 45            # theo dõi ví con 45 ngày kể từ lần hoạt động cuối
+CHILD_MAX = 30                  # tối đa 30 ví con
+CHILD_MAX_DEPTH = 3             # tối đa 3 tầng (cá voi → con → cháu → chắt)
+NB_MAX_CALLS_FREE = 12          # NearBlocks gói miễn phí: 6 lượt/phút, 333 lượt/ngày → tối đa 12 lượt/lần chạy
+NB_MAX_CALLS_KEY = 45
+NB_PAUSE_FREE = 10.5            # giãn 10,5 giây/lượt để không vượt 6 lượt/phút
+NB_PAUSE_KEY = 0.5
+FP_RESYNC_DAYS = 3              # ví "đứng im" vẫn quét lại sau 3 ngày cho chắc
+TRANSFER_INTERVAL_H = 2         # nhờ lọc bằng dấu vân tay RPC, quét chuyển lớn mỗi lần chạy (2 giờ)
+UNLOCK_EPOCHS = 4               # NEAR: tiền hủy stake rút được sau 4 epoch
+EPOCH_LENGTH_BLOCKS = 43_200
+EVENT_KEEP_DAYS = 90
+KNOWN_CONTRACTS = {
+    "wrap.near": "wNEAR (thường để giao dịch trên DEX)", "intents.near": "NEAR Intents (đổi/chuyển chuỗi)",
+    "meta-pool.near": "Meta Pool", "linear-protocol.near": "LiNEAR", "v2.ref-finance.near": "Ref Finance (DEX)",
+    "lockup.near": "Lockup",
+}
+
+
+def view_call(account, method, args=None):
+    """Gọi hàm chỉ-đọc của hợp đồng NEAR qua RPC, trả JSON đã giải mã."""
+    import base64
+    res = near_rpc("query", {"request_type": "call_function", "finality": "final", "account_id": account,
+                             "method_name": method,
+                             "args_base64": base64.b64encode(json.dumps(args or {}).encode()).decode()})
+    return json.loads(bytes(res.get("result") or []).decode() or "null")
+
+
+def fetch_pool_accounts(pool, min_total=STAKE_TRACK_MIN, page=2000, max_pages=40):
+    """Toàn bộ người ủy thác của 1 pool (lọc ≥ min_total NEAR) → {account: [staked, unstaked, can_withdraw]}."""
+    out, start = {}, 0
+    for _ in range(max_pages):
+        rows = view_call(pool, "get_accounts", {"from_index": start, "limit": page}) or []
+        for r in rows:
+            s = (safe_float(r.get("staked_balance")) or 0) / YOCTO
+            u = (safe_float(r.get("unstaked_balance")) or 0) / YOCTO
+            if s + u >= min_total:
+                out[r["account_id"]] = [round(s, 2), round(u, 2), bool(r.get("can_withdraw"))]
+        if len(rows) < page:
+            break
+        start += page
+        time.sleep(0.1)
+    return out
+
+
+def epoch_info():
+    """Epoch hiện tại + thời lượng 1 epoch ước tính (giờ) từ thời gian khối thực tế."""
+    vals = near_rpc("validators", [None])
+    head = near_rpc("block", {"finality": "final"}).get("header", {})
+    start_h, cur_h = vals.get("epoch_start_height"), head.get("height")
+    hours = 12.0
+    try:
+        start = near_rpc("block", {"block_id": start_h}).get("header", {})
+        dt = (int(head["timestamp"]) - int(start["timestamp"])) / 1e9
+        if cur_h and start_h and cur_h > start_h and dt > 0:
+            hours = EPOCH_LENGTH_BLOCKS * dt / (cur_h - start_h) / 3600
+    except Exception:
+        pass
+    epoch_start_utc = None
+    try:
+        progress = (cur_h - start_h) / EPOCH_LENGTH_BLOCKS
+        epoch_start_utc = utc_now() - timedelta(hours=hours * progress)
+    except Exception:
+        pass
+    return {"epoch": vals.get("epoch_height"), "epoch_hours": round(hours, 2),
+            "epoch_start_utc": epoch_start_utc.strftime("%Y-%m-%d %H:%M") if epoch_start_utc else None}
+
+
+def _diff_stakers(prev, cur, pool, ep, now_s):
+    """So 2 ảnh chụp 1 pool → danh sách sự kiện hủy stake / rút / stake thêm (≥ STAKE_EVENT_MIN)."""
+    ev = []
+    for acct in set(prev) | set(cur):
+        s0, u0, _ = prev.get(acct, [0, 0, True])
+        s1, u1, cw1 = cur.get(acct, [0, 0, True])
+        ds, du = s1 - s0, u1 - u0
+        base = {"time_utc": now_s, "pool": pool, "account": acct, "epoch": ep.get("epoch")}
+        if du >= STAKE_EVENT_MIN:              # unstaked chỉ tăng khi có lệnh hủy stake
+            eta = None
+            try:
+                start = datetime.strptime(ep["epoch_start_utc"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+                eta = (start + timedelta(hours=ep["epoch_hours"] * UNLOCK_EPOCHS)).strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                pass
+            ev.append({**base, "kind": "unstake", "amount": round(du), "unlock_eta_utc": eta})
+        elif du <= -STAKE_EVENT_MIN:           # unstaked giảm: rút về ví, hoặc stake lại
+            restake = max(0.0, min(-du, ds))
+            withdrawn = -du - restake
+            if withdrawn >= STAKE_EVENT_MIN:
+                ev.append({**base, "kind": "withdraw", "amount": round(withdrawn)})
+            if restake >= STAKE_EVENT_MIN:
+                ev.append({**base, "kind": "restake", "amount": round(restake)})
+        if ds >= STAKE_EVENT_MIN and du > -STAKE_EVENT_MIN:
+            ev.append({**base, "kind": "stake", "amount": round(ds)})
+    return ev
+
+
+def update_staking_flows(data, pools):
+    """Module 1 — ảnh chụp người ủy thác lớn ở các pool top, so với lần trước → sự kiện hủy stake/rút/stake."""
+    ep = epoch_info()
+    now_s = utc_now().strftime("%Y-%m-%d %H:%M")
+    old = data.get("stakers") or {}
+    prev_pools = old.get("pools") or {}
+    cur_pools, errs = {}, []
+    for pool in pools:
+        try:
+            cur_pools[pool] = fetch_pool_accounts(pool)
+        except Exception as e:
+            errs.append(f"{pool}: {str(e)[:80]}")
+            if pool in prev_pools:
+                cur_pools[pool] = prev_pools[pool]       # lỗi tạm thời: giữ ảnh cũ, không tạo sự kiện giả
+    events = data.get("stake_events") or []
+    new = []
+    for pool, cur in cur_pools.items():
+        if pool in prev_pools and cur is not prev_pools.get(pool):
+            new += _diff_stakers(prev_pools[pool], cur, pool, ep, now_s)
+    cut = (utc_now() - timedelta(days=EVENT_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
+    data["stake_events"] = [e for e in events + new if e.get("time_utc", "") >= cut][-3000:]
+    data["stakers"] = {"time_utc": now_s, "epoch": ep, "pools": cur_pools}
+    return len(new), errs
+
+
+def nb_account_txns(account, key="", per_page=25):
+    headers = {"Authorization": f"Bearer {key}"} if key else None
+    j = _get(f"https://api.nearblocks.io/v1/account/{account}/txns", params={"per_page": per_page},
+             headers=headers, retries=0)
+    return j.get("txns") or []
+
+
+def _is_pool(acct):
+    return acct.endswith(".poolv1.near") or acct.endswith(".pool.near") or acct.endswith(".pool.f863973.m0")
+
+
+def classify_transfer(frm, to, method, exch):
+    if to in exch and frm not in exch:
+        return "to_exchange"
+    if frm in exch and to not in exch:
+        return "from_exchange"
+    if frm in exch and to in exch:
+        return "exchange_internal"
+    if _is_pool(to):
+        return "stake"
+    if _is_pool(frm):
+        return "unstake_withdraw"
+    if to in ("intents.near",) or (method and "intent" in str(method)):
+        return "intents"
+    if to == "wrap.near":
+        return "wrap"
+    if to in ("meta-pool.near", "linear-protocol.near"):
+        return "stake"
+    return "wallet"
+
+
+def account_fingerprint(account):
+    """Dấu vân tay miễn phí qua RPC: (số dư, tổng nonce của các khóa). Số dư đổi = có tiền vào/ra;
+    nonce đổi = ví vừa tự ký giao dịch (kể cả ví trung chuyển nhận rồi chuyển đi ngay, số dư không đổi)."""
+    res = near_rpc("query", {"request_type": "view_account", "finality": "final", "account_id": account})
+    bal = round(((safe_float(res.get("amount")) or 0) + (safe_float(res.get("locked")) or 0)) / YOCTO)
+    nonce = 0
+    try:
+        keys = near_rpc("query", {"request_type": "view_access_key_list", "finality": "final", "account_id": account})
+        nonce = sum(int((k.get("access_key") or {}).get("nonce") or 0) for k in keys.get("keys") or [])
+    except Exception:
+        nonce = -1
+    return [bal, nonce]
+
+
+def child_label(data, acct, labels=None):
+    c = (data.get("children") or {}).get(acct)
+    if not c:
+        return None
+    root = c.get("root")
+    name = (labels or {}).get(root) or c.get("root_label") or _short_acct(root)
+    return f"Ví con của {name}" + (f" (tầng {c['depth']})" if c.get("depth", 1) > 1 else "")
+
+
+def _short_acct(a, n=22):
+    a = str(a or "")
+    return a if len(a) <= n else a[:8] + "…" + a[-6:]
+
+
+def update_big_transfers(data, watch, key=""):
+    """Module 2 — chuyển lớn (≥ TRANSFER_MIN NEAR) của ví sàn, cá voi, ví vừa hủy stake/rút và ví con của cá voi.
+    Cá voi (watchlist 'whale', ví vừa hủy stake/rút) và ví con của họ: ngưỡng thấp hơn (CHILD_MIN) để bắt kiểu
+    chia nhỏ sang nhiều ví con rồi gom/nạp sàn dần."""
+    exch = {w["account"] for w in watch if w["type"] == "exchange"}
+    labels = {w["account"]: w["label"] for w in watch}
+    now = utc_now()
+    week = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
+    keep_cut = (now - timedelta(days=CHILD_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
+    protocol = {w["account"] for w in watch if w["type"] in ("protocol", "validator")} | set(KNOWN_CONTRACTS)
+    movers = {}
+    for e in data.get("stake_events") or []:
+        if (e.get("time_utc", "") >= week and e["kind"] in ("withdraw", "unstake")
+                and e["account"] not in protocol and not _is_pool(e["account"])):
+            movers[e["account"]] = movers.get(e["account"], 0) + e["amount"]
+    follow = {a: t for a, t in (data.get("follow") or {}).items() if t >= week}   # ví nhận tiền lớn cần theo tiếp
+    children = {a: c for a, c in (data.get("children") or {}).items()
+                if c.get("last", "") >= keep_cut and a not in exch}
+    whales = {w["account"] for w in watch if w["type"] == "whale" and w["account"] not in children}
+    family = {a for a in (whales | set(children) | set(movers))
+              if a not in exch and a not in protocol and a not in KNOWN_CONTRACTS and not _is_pool(a)}
+    # Ưu tiên: ví sàn → ví vừa hủy stake/rút → ví con → ví nhận tiền lớn đang bám → cá voi trong watchlist
+    kids_sorted = [a for a, _ in sorted(children.items(), key=lambda kv: (-kv[1].get("received", 0)))]
+    candidates = list(dict.fromkeys(
+        [a for a in exch] + [a for a, _ in sorted(movers.items(), key=lambda kv: -kv[1])] + kids_sorted + list(follow)
+        + sorted(whales)))
+    # Lọc bằng dấu vân tay RPC (miễn phí): chỉ gọi NearBlocks cho ví có thay đổi → tiết kiệm lượt gọi
+    scan_fp = data.get("scan_fp") or {}
+    resync = (now - timedelta(days=FP_RESYNC_DAYS)).strftime("%Y-%m-%d %H:%M")
+    fps, targets, idle = {}, [], 0
+    for a in candidates:
+        try:
+            fps[a] = account_fingerprint(a)
+        except Exception:
+            fps[a] = None                       # RPC lỗi → cứ quét cho chắc
+        prev = scan_fp.get(a) or {}
+        if fps[a] is not None and prev.get("fp") == fps[a] and prev.get("t", "") >= resync:
+            idle += 1
+            continue
+        targets.append(a)
+        time.sleep(0.05)
+    # Ví sàn đổi số dư quét trước; các ví còn lại xoay vòng: ví lâu chưa quét (hoặc chưa quét lần nào) được ưu tiên
+    ex_t = [a for a in targets if a in exch]
+    rest = sorted((a for a in targets if a not in exch), key=lambda a: (scan_fp.get(a) or {}).get("t", ""))
+    targets = ex_t + rest
+    max_calls = NB_MAX_CALLS_KEY if key else NB_MAX_CALLS_FREE
+    deferred = max(0, len(targets) - max_calls)
+    targets = targets[:max_calls]
+    stats = {"time_utc": now.strftime("%Y-%m-%d %H:%M"), "candidates": len(candidates), "idle_skipped": idle,
+             "to_scan": len(targets) + deferred, "scanned": 0, "deferred": deferred, "rate_limited": False}
+    seen = set(data.get("transfer_seen") or [])
+    out = data.get("big_transfers") or []
+    errs, n_new = [], 0
+
+    def lab(a):
+        return labels.get(a) or child_label({"children": children}, a, labels) or KNOWN_CONTRACTS.get(a)
+
+    for i, acct in enumerate(targets):
+        if i:
+            time.sleep(NB_PAUSE_KEY if key else NB_PAUSE_FREE)
+        try:
+            txns = nb_account_txns(acct, key)
+        except Exception as e:
+            msg = str(e)
+            errs.append(f"{acct[:20]}: {msg[:60]}")
+            if "429" in msg or "Too Many" in msg:
+                stats["rate_limited"] = True
+                stats["deferred"] += len(targets) - i - 1
+                break                           # dừng, phần còn lại quét ở lần chạy sau (dấu vân tay chưa cập nhật)
+            continue
+        stats["scanned"] += 1
+        if fps.get(acct) is not None:
+            scan_fp[acct] = {"fp": fps[acct], "t": now.strftime("%Y-%m-%d %H:%M")}
+        min_amt = CHILD_MIN if acct in family else TRANSFER_MIN
+        for t in txns:
+            rid = t.get("receipt_id") or t.get("id")
+            if not rid or rid in seen or not (t.get("outcomes") or {}).get("status", True):
+                continue
+            amt = sum((safe_float(a.get("deposit")) or 0) for a in t.get("actions") or []) / YOCTO
+            if amt < min_amt:
+                continue
+            frm, to = t.get("predecessor_account_id"), t.get("receiver_account_id")
+            method = next((a.get("method") for a in t.get("actions") or [] if a.get("method")), None)
+            ts = datetime.fromtimestamp(int(str(t.get("block_timestamp"))[:13]) / 1000, tz=timezone.utc)
+            ts_s = ts.strftime("%Y-%m-%d %H:%M")
+            kind = classify_transfer(frm, to, method, exch)
+            if acct in children:
+                children[acct]["last"] = max(children[acct].get("last", ""), ts_s)
+            # Ví con: cá voi / ví con chia tiền sang ví mới (không phải sàn, pool, hợp đồng, cá voi khác)
+            if (kind == "wallet" and frm == acct and acct in family and to not in exch and to not in whales
+                    and to != acct and to not in KNOWN_CONTRACTS):
+                par = children.get(acct)
+                depth = (par["depth"] + 1) if par else 1
+                if depth <= CHILD_MAX_DEPTH:
+                    root = par["root"] if par else acct
+                    c = children.get(to)
+                    if c is None and len(children) < CHILD_MAX * 2:
+                        c = children[to] = {"root": root, "root_label": labels.get(root), "parent": acct,
+                                            "depth": depth, "first": ts_s, "last": ts_s, "received": 0, "n": 0}
+                    if c is not None and c.get("root") == root:
+                        c["received"] = round(c.get("received", 0) + amt)
+                        c["n"] = c.get("n", 0) + 1
+                        c["last"] = max(c.get("last", ""), ts_s)
+                        kind = "to_child"
+            if amt < TRANSFER_MIN and kind not in ("to_child", "to_exchange"):
+                seen.add(rid)
+                continue
+            out.append({"time_utc": ts_s, "from": frm, "to": to, "amount": round(amt),
+                        "kind": kind, "method": method, "tx": t.get("transaction_hash"),
+                        "from_label": lab(frm), "to_label": lab(to),
+                        "watched": acct, "after_unstake": acct in movers,
+                        "family": (children.get(frm) or {}).get("root") or (frm if frm in family else None)})
+            seen.add(rid)
+            n_new += 1
+            if kind == "wallet" and to not in exch and to != acct and frm not in protocol and to not in protocol:
+                follow[to] = ts_s            # đi theo ví nhận ở các lần chạy sau
+    cut = (now - timedelta(days=EVENT_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
+    data["big_transfers"] = sorted([x for x in out if x["time_utc"] >= cut], key=lambda x: x["time_utc"])[-2000:]
+    data["transfer_seen"] = list(seen)[-6000:]
+    data["follow"] = dict(sorted(follow.items(), key=lambda kv: kv[1])[-40:])
+    data["children"] = dict(sorted(children.items(), key=lambda kv: -kv[1].get("received", 0))[:CHILD_MAX])
+    live = set(candidates)
+    data["scan_fp"] = {a: v for a, v in scan_fp.items() if a in live}
+    data["transfer_scan_stats"] = stats
+    return n_new, errs
+
+
+def children_summary(data, days=7, now=None):
+    """Ví con của cá voi: số ví mới trong N ngày, tổng NEAR chia sang, nhóm nào đang chia nhỏ nhiều nhất."""
+    now = now or utc_now()
+    cut = (now - timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
+    ch = data.get("children") or {}
+    new = {a: c for a, c in ch.items() if c.get("first", "") >= cut}
+    by_root = {}
+    for a, c in new.items():
+        r = by_root.setdefault(c["root"], {"root": c["root"], "root_label": c.get("root_label"), "n": 0, "near": 0})
+        r["n"] += 1
+        r["near"] += c.get("received", 0)
+    tr = [x for x in data.get("big_transfers") or [] if x["time_utc"] >= cut]
+    to_exch = sum(x["amount"] for x in tr if x["kind"] == "to_exchange" and x["from"] in ch)
+    return {"days": days, "tracked": len(ch), "new": len(new), "new_near": round(sum(c.get("received", 0) for c in new.values())),
+            "children_to_exchange": round(to_exch),
+            "splitters": sorted(by_root.values(), key=lambda r: -r["n"])[:5]}
+
+
+def stake_flow_summary(data, days=7, now=None):
+    """Tổng hợp sự kiện stake trong N ngày + lượng đang chờ mở khóa (từ ảnh chụp mới nhất)."""
+    now = now or utc_now()
+    cut = (now - timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
+    ev = [e for e in data.get("stake_events") or [] if e.get("time_utc", "") >= cut]
+    tot = {k: sum(e["amount"] for e in ev if e["kind"] == k) for k in ("unstake", "withdraw", "stake", "restake")}
+    pending = ready = tracked = 0.0
+    for accts in ((data.get("stakers") or {}).get("pools") or {}).values():
+        for s, u, cw in accts.values():
+            tracked += s
+            if u > 0:
+                if cw:
+                    ready += u
+                else:
+                    pending += u
+    return {"days": days, "events": len(ev), **tot, "pending_unlock": round(pending), "ready_to_withdraw": round(ready),
+            "tracked_stake": round(tracked), "epoch": (data.get("stakers") or {}).get("epoch"),
+            "snapshot_utc": (data.get("stakers") or {}).get("time_utc")}
+
+
+def transfer_summary(data, days=7, now=None):
+    now = now or utc_now()
+    cut = (now - timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
+    tr = [x for x in data.get("big_transfers") or [] if x["time_utc"] >= cut]
+    s = {k: sum(x["amount"] for x in tr if x["kind"] == k) for k in
+         ("to_exchange", "from_exchange", "intents", "wrap", "stake", "unstake_withdraw", "wallet", "to_child")}
+    return {"days": days, "count": len(tr), **s, "net_to_exchange": s["to_exchange"] - s["from_exchange"]}
+
+
+def fetch_defillama():
+    """TVL, stablecoin và khối lượng DEX của chain NEAR (toàn bộ lịch sử)."""
+    out, errors = {}, []
+    try:
+        for row in _get("https://api.llama.fi/v2/historicalChainTvl/Near"):
+            d = _to_date(row.get("date"))
+            if d and safe_float(row.get("tvl")) is not None:
+                out.setdefault(d, {})["tvl"] = float(row["tvl"])
+    except Exception as e:
+        errors.append(f"TVL: {e}")
+    try:
+        for row in _get("https://stablecoins.llama.fi/stablecoincharts/Near"):
+            d = _to_date(row.get("date"))
+            circ = row.get("totalCirculatingUSD") or row.get("totalCirculating") or {}
+            v = sum(safe_float(x) or 0 for x in circ.values()) if isinstance(circ, dict) else safe_float(circ)
+            if d and v:
+                out.setdefault(d, {})["stables"] = float(v)
+    except Exception as e:
+        errors.append(f"Stablecoin: {e}")
+    try:
+        j = _get("https://api.llama.fi/overview/dexs/near",
+                 params={"excludeTotalDataChart": "false", "excludeTotalDataChartBreakdown": "true",
+                         "dataType": "dailyVolume"})
+        for ts, v in j.get("totalDataChart", []) or []:
+            d = _to_date(ts)
+            if d and safe_float(v) is not None:
+                out.setdefault(d, {})["dex_volume"] = float(v)
+    except Exception as e:
+        errors.append(f"DEX: {e}")
+    return out, errors
+
+
+def fetch_derivatives():
+    """Phái sinh NEAR: OKX (OI, khối lượng, long/short, funding) → dự phòng Hyperliquid."""
+    out, errors, now = {}, [], {}
+    okx = "https://www.okx.com/api/v5"
+    try:
+        j = _get(f"{okx}/rubik/stat/contracts/open-interest-volume", params={"ccy": "NEAR", "period": "1D"})
+        for row in j.get("data", []) or []:
+            d = _to_date(row[0])
+            if d:
+                out.setdefault(d, {}).update({"oi_usd": safe_float(row[1]), "perp_volume_usd": safe_float(row[2])})
+    except Exception as e:
+        errors.append(f"OKX OI: {e}")
+    try:
+        j = _get(f"{okx}/rubik/stat/contracts/long-short-account-ratio", params={"ccy": "NEAR", "period": "1D"})
+        for row in j.get("data", []) or []:
+            d = _to_date(row[0])
+            if d and safe_float(row[1]) is not None:
+                out.setdefault(d, {})["long_short_ratio"] = float(row[1])
+    except Exception as e:
+        errors.append(f"OKX long/short: {e}")
+    taker_err = []   # khối lượng chủ động mua/bán (taker) trên hợp đồng: [ts, sellVol, buyVol]
+    for path, prm in (("taker-volume-contract", {"instId": "NEAR-USDT-SWAP", "period": "1D", "unit": "1"}),
+                      ("taker-volume", {"ccy": "NEAR", "instType": "CONTRACTS", "period": "1D"})):
+        try:
+            j = _get(f"{okx}/rubik/stat/{path}", params=prm)
+            n = 0
+            for row in j.get("data", []) or []:
+                d = _to_date(row[0])
+                sell, buy = safe_float(row[1]), safe_float(row[2])
+                if d and sell is not None and buy is not None:
+                    out.setdefault(d, {}).update({"taker_sell": sell, "taker_buy": buy})
+                    n += 1
+            if n:
+                taker_err = []
+                break
+        except Exception as e:
+            taker_err.append(f"OKX taker ({path}): {e}")
+    errors += taker_err
+    try:
+        j = _get(f"{okx}/public/funding-rate-history", params={"instId": "NEAR-USDT-SWAP", "limit": 100})
+        rows = [(int(r["fundingTime"]), safe_float(r.get("realizedRate") or r.get("fundingRate")))
+                for r in j.get("data", []) or [] if r.get("fundingTime")]
+        rows = sorted((t, v) for t, v in rows if v is not None)
+        if len(rows) >= 2:
+            gaps = np.diff([t for t, _ in rows]) / 3.6e6
+            interval_h = float(np.median(gaps)) or 8.0
+            per_year = 24 * 365 / interval_h
+            daily = {}
+            for t, v in rows:
+                daily.setdefault(_to_date(t), []).append(v)
+            for d, vs in daily.items():
+                out.setdefault(d, {})["funding_apr"] = float(np.mean(vs)) * per_year * 100
+            now["funding_interval_h"] = interval_h
+        now["funding_source"] = "OKX"
+    except Exception as e:
+        errors.append(f"OKX funding: {e}")
+    try:  # ảnh chụp hiện tại từ Hyperliquid (funding theo giờ, OI theo số coin)
+        r = requests.post("https://api.hyperliquid.xyz/info", json={"type": "metaAndAssetCtxs"}, timeout=20)
+        r.raise_for_status()
+        meta, ctxs = r.json()
+        names = [u.get("name") for u in meta.get("universe", [])]
+        if "NEAR" in names:
+            c = ctxs[names.index("NEAR")]
+            mark = safe_float(c.get("markPx"))
+            now.update({"hl_funding_apr": (safe_float(c.get("funding")) or 0) * 24 * 365 * 100,
+                        "hl_oi_usd": (safe_float(c.get("openInterest")) or 0) * (mark or 0),
+                        "hl_volume_usd": safe_float(c.get("dayNtlVlm"))})
+    except Exception as e:
+        errors.append(f"Hyperliquid: {e}")
+    return out, now, errors
+
+
+def fetch_nearblocks(api_key):
+    """Hoạt động mạng theo ngày (cần NEARBLOCKS_API_KEY). Đọc linh hoạt vì API không công bố schema."""
+    out, errors = {}, []
+    headers = {"Authorization": f"Bearer {api_key}"}
+    for path, mapping in (("/v3/txn-stats", {"txns": ("txn", "txns", "count")}),
+                          ("/v3/address-stats", {"active_accounts": ("active", "addresses", "count")})):
+        try:
+            j = _get("https://api.nearblocks.io" + path, headers=headers, retries=1)
+            rows = None
+            stack = [j]
+            while stack and rows is None:
+                node = stack.pop()
+                if isinstance(node, list) and node and isinstance(node[0], dict) and "date" in node[0]:
+                    rows = node
+                elif isinstance(node, dict):
+                    stack.extend(node.values())
+            for row in rows or []:
+                d = _to_date(row.get("date"))
+                if not d:
+                    continue
+                for name, hints in mapping.items():
+                    for k, v in row.items():
+                        if k != "date" and any(h in k.lower() for h in hints) and safe_float(v) is not None:
+                            out.setdefault(d, {})[name] = float(v)
+                            break
+        except Exception as e:
+            errors.append(f"NearBlocks {path}: {e}")
+    return out, errors
+
+
+# ----------------------------------------------------------------------------- Tin tức NEAR
+NEAR_NEWS_QUERIES = ['"NEAR Protocol"', '"NEAR token" OR "NEAR price"', '"NEAR AI" OR "NEAR Intents" OR "Illia Polosukhin"']
+NEWS_POS = ("partnership", "partners", "launch", "launches", "launched", "upgrade", "listing", "lists", "etf",
+            "approval", "approved", "inflows", "adoption", "record", "surge", "surges", "rally", "rallies", "jumps",
+            "soars", "breakout", "integration", "integrates", "milestone", "acquires", "bullish", "gains")
+NEWS_NEG = ("hack", "hacked", "exploit", "outage", "delist", "delisting", "lawsuit", "sues", "unlock", "unlocks",
+            "sell-off", "selloff", "plunge", "plunges", "drops", "falls", "slides", "tumbles", "outflows", "bearish",
+            "downgrade", "halt", "halts", "investigation", "scam", "dump", "crash")
+
+
+def news_tag(title):
+    t = title.lower()
+
+    def has(words):
+        return any(re.search(r"(?<![a-z0-9])" + re.escape(w) + r"(?![a-z0-9])", t) for w in words)
+    if has(NEWS_NEG):
+        return -1
+    if has(NEWS_POS):
+        return 1
+    return 0
+
+
+def _translate_vi(text):
+    try:
+        r = requests.get("https://translate.googleapis.com/translate_a/single",
+                         params={"client": "gtx", "sl": "en", "tl": "vi", "dt": "t", "q": text[:500]},
+                         headers=HTTP_HEADERS, timeout=10)
+        r.raise_for_status()
+        return "".join(p[0] for p in r.json()[0] if p and p[0]).strip() or text
+    except Exception:
+        return text
+
+
+def fetch_near_news(days=7, limit=25, translate=True):
+    import xml.etree.ElementTree as ET
+    from email.utils import parsedate_to_datetime
+    from urllib.parse import quote_plus
+    cutoff = utc_now() - timedelta(days=days)
+    rows, seen = [], set()
+    for q in NEAR_NEWS_QUERIES:
+        try:
+            r = requests.get("https://news.google.com/rss/search?q=" + quote_plus(q) + "&hl=en-US&gl=US&ceid=US:en",
+                             headers=HTTP_HEADERS, timeout=15)
+            r.raise_for_status()
+            root = ET.fromstring(r.content)
+        except Exception:
+            continue
+        for item in root.findall("./channel/item"):
+            title = (item.findtext("title") or "").strip()
+            if not title or title.lower() in seen:
+                continue
+            try:
+                pub = parsedate_to_datetime(item.findtext("pubDate") or "").astimezone(timezone.utc)
+            except Exception:
+                continue
+            if pub < cutoff:
+                continue
+            seen.add(title.lower())
+            src = item.find("source")
+            rows.append({"title": title, "link": (item.findtext("link") or "").strip(),
+                         "source": (src.text or "").strip() if src is not None else "Google News",
+                         "published": pub.strftime("%Y-%m-%d %H:%M"), "tag": news_tag(title)})
+    rows.sort(key=lambda x: x["published"], reverse=True)
+    rows = rows[:limit]
+    if translate:
+        for r in rows:
+            r["title_vi"] = _translate_vi(r["title"])
+    return rows
+
+
+# =============================================================================
+# MÔ HÌNH GIÁ VỐN ƯỚC TÍNH (tương tự URPD của BTC)
+# =============================================================================
+# NEAR không có UTXO nên không đo được giá vốn on-chain như BTC. Mô hình này ƯỚC TÍNH:
+#   • Mỗi ngày một phần nguồn cung "đổi chủ" = hệ số luân chuyển × (khối lượng / nguồn cung lưu hành).
+#   • Phần đổi chủ được chuyển (từ mọi vùng giá cũ, theo tỷ lệ) sang mức giá của ngày hôm đó.
+#   • Lượng NEAR mới phát hành (cung tăng) được ghi nhận tại giá ngày phát hành.
+#   • Phần cung chưa "đổi chủ" trong cửa sổ dữ liệu = "giá vốn cũ hơn" (không xác định).
+# Khối lượng sàn lớn hơn nhiều so với lượng coin thật sự đổi chủ, nên hệ số luân chuyển < 1.
+def daily_frame(data):
+    daily = data.get("daily", {}) if isinstance(data, dict) else {}
+    rows = [{"date": parse_day(d), **rec} for d, rec in daily.items() if is_day_key(d) and isinstance(rec, dict)]
+    if not rows:
+        return pd.DataFrame(columns=["date"])
+    df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+    for c in df.columns:
+        if c != "date":
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
+
+
+def cost_basis_model(df, alpha=0.2, n_bins=160):
+    """Trả dict: edges, dist (NEAR theo vùng giá), unknown, snapshots (bins × ngày), dates, prices."""
+    need = {"price", "volume_usd", "market_cap"}
+    if df is None or df.empty or not need.issubset(df.columns):
+        return None
+    d = df.dropna(subset=["price", "volume_usd", "market_cap"])
+    d = d[(d.price > 0) & (d.market_cap > 0)].tail(730)
+    if len(d) < 30:
+        return None
+    prices = d.price.to_numpy(float)
+    supply = (d.market_cap / d.price).to_numpy(float)
+    volume = (d.volume_usd / d.price).to_numpy(float)
+    top = float(prices.max()) * 1.15
+    step = top / n_bins
+    edges = np.arange(n_bins + 1) * step
+    dist = np.zeros(n_bins)
+    unknown = float(supply[0])
+    snaps = np.zeros((n_bins, len(d)))
+    prev_supply = supply[0]
+    for i, (p, s, v) in enumerate(zip(prices, supply, volume)):
+        b = min(n_bins - 1, int(p // step))
+        f = float(np.clip(alpha * v / max(s, 1.0), 0.0, 0.5))
+        moved = dist * f
+        dist -= moved
+        moved_unknown = unknown * f
+        unknown -= moved_unknown
+        dist[b] += moved.sum() + moved_unknown
+        growth = s - prev_supply
+        if growth > 0:          # NEAR mới phát hành / mở khóa → giá vốn tại giá hôm đó
+            dist[b] += growth
+        elif growth < 0:        # cung lưu hành giảm (đốt/khóa lại) → bớt đều theo tỷ lệ
+            total = dist.sum() + unknown
+            if total > 0:
+                k = max(0.0, 1 + growth / total)
+                dist *= k
+                unknown *= k
+        prev_supply = s
+        snaps[:, i] = dist
+    return {"edges": edges, "dist": dist, "unknown": unknown, "snaps": snaps,
+            "dates": list(d.date), "prices": prices, "step": step}
+
+
+def model_metrics(model, price):
+    if not model or not price:
+        return {}
+    mids = (model["edges"][:-1] + model["edges"][1:]) / 2
+    dist = model["dist"]
+    known = float(dist.sum())
+    total = known + model["unknown"]
+    if known <= 0:
+        return {}
+    realized = float((dist * mids).sum() / known)
+    in_loss = float(dist[mids > price].sum())
+    return {"realized_price": realized, "mvrv": price / realized if realized else None,
+            "loss_pct": in_loss / known * 100, "known_pct": known / total * 100 if total else None,
+            "in_loss": in_loss, "known": known}
+
+
+def model_series(model):
+    """Giá vốn ước tính & % cung lỗ theo từng ngày (từ snapshots)."""
+    if not model:
+        return pd.DataFrame()
+    mids = (model["edges"][:-1] + model["edges"][1:]) / 2
+    rows = []
+    for i, (d, p) in enumerate(zip(model["dates"], model["prices"])):
+        col = model["snaps"][:, i]
+        k = col.sum()
+        if k > 0:
+            rows.append({"date": d, "price": p, "realized_price": float((col * mids).sum() / k),
+                         "loss_pct": float(col[mids > p].sum() / k * 100)})
+    return pd.DataFrame(rows)
+
+
+def find_zones(model, price, n=3, window=0.35, zone_bins=3):
+    """Cụm giá vốn ước tính dày nhất dưới/trên giá (giống vùng hỗ trợ/kháng cự của trang BTC)."""
+    if not model or not price:
+        return [], []
+    edges, amt = model["edges"], model["dist"]
+    if len(amt) < zone_bins:
+        return [], []
+    sums = np.convolve(amt, np.ones(zone_bins), "valid")
+    lows, highs = edges[:len(sums)], edges[:len(sums)] + zone_bins * model["step"]
+    known = float(amt.sum()) or 1.0
+
+    def pick(mask):
+        idx = np.where(mask)[0]
+        chosen = []
+        for i in idx[np.argsort(sums[idx])[::-1]]:
+            if sums[i] <= 0:
+                break
+            if all(abs(i - j) >= zone_bins for j in chosen):
+                chosen.append(i)
+            if len(chosen) == n:
+                break
+        return [{"low": float(lows[i]), "high": float(highs[i]), "near": float(sums[i]),
+                 "share_pct": float(sums[i]) / known * 100,
+                 "distance_pct": ((lows[i] + highs[i]) / 2 / price - 1) * 100} for i in chosen]
+
+    sup = pick((highs <= price) & (lows >= price * (1 - window)))
+    res = pick((lows >= price) & (highs <= price * (1 + window)))
+    return sorted(sup, key=lambda z: -z["high"]), sorted(res, key=lambda z: z["low"])
+
+
+# =============================================================================
+# TÍN HIỆU & TÓM TẮT
+# =============================================================================
+def _light(v, good_above=None, bad_below=None, good_below=None, bad_above=None):
+    if v is None or not np.isfinite(v):
+        return "⚪"
+    if good_above is not None:
+        return "🟢" if v > good_above else ("🔴" if v < bad_below else "🟡")
+    return "🟢" if v < good_below else ("🔴" if v > bad_above else "🟡")
+
+
+def last_val(df, col, before=None):
+    if df is None or df.empty or col not in df.columns:
+        return None, None
+    s = df[["date", col]].dropna()
+    if before is not None:
+        s = s[s["date"] <= before]
+    if s.empty:
+        return None, None
+    return float(s.iloc[-1][col]), s.iloc[-1]["date"]
+
+
+def change_pct(df, col, days):
+    v, d = last_val(df, col)
+    if v is None:
+        return None
+    old, _ = last_val(df, col, before=d - timedelta(days=days))
+    return (v / old - 1) * 100 if old else None
+
+
+def change_abs(df, col, days):
+    v, d = last_val(df, col)
+    if v is None:
+        return None
+    old, _ = last_val(df, col, before=d - timedelta(days=days))
+    return v - old if old is not None else None
+
+
+def ema(series, span):
+    return series.ewm(span=span, adjust=False).mean()
+
+
+def build_signals(price, df, mm, mseries, whale_flow7, near_btc_30):
+    rows = []
+    if mm.get("realized_price"):
+        d = (price / mm["realized_price"] - 1) * 100
+        rows.append(["Giá so với giá vốn ước tính", _light(d, good_above=5, bad_below=-5),
+                     f"{d:+.1f}% (giá vốn ≈ {fmt_price(mm['realized_price'])})",
+                     "Trên giá vốn: số đông đang lãi. Dưới: số đông lỗ, nhịp hồi dễ gặp bán hòa vốn."])
+    if df is not None and not df.empty and df["price"].notna().sum() >= 60:
+        e200 = float(ema(df["price"].dropna(), 200).iloc[-1])
+        d = (price / e200 - 1) * 100
+        rows.append(["Giá so với EMA200 (xu hướng dài)", _light(d, good_above=0, bad_below=-10),
+                     f"{d:+.1f}% (EMA200 {fmt_price(e200)})", "Trên EMA200 = xu hướng dài hạn tăng."])
+    if mseries is not None and len(mseries) > 8:
+        dl = float(mseries.loss_pct.iloc[-1] - mseries.loss_pct.iloc[-8])
+        rows.append(["% cung ước tính đang lỗ — thay đổi 7 ngày", _light(dl, good_below=-2, bad_above=2),
+                     f"{mseries.loss_pct.iloc[-1]:.1f}% ({dl:+.1f} điểm %)", "Giảm: ít người lỗ hơn → áp lực bán hòa vốn nhẹ đi."])
+    for col, name, note in (("tvl", "TVL hệ sinh thái — 30 ngày", "Tăng: vốn đang vào DeFi trên NEAR."),
+                            ("stables", "Stablecoin trên NEAR — 30 ngày", "Tăng: thêm 'đạn' USD sẵn sàng trên chain.")):
+        c = change_pct(df, col, 30)
+        if c is not None:
+            rows.append([name, _light(c, good_above=5, bad_below=-5), f"{c:+.1f}%", note])
+    c = change_abs(df, "staking_ratio", 7)
+    if c is not None:
+        rows.append(["Tỷ lệ staking — 7 ngày", _light(c, good_above=0.2, bad_below=-0.2), f"{c:+.2f} điểm %",
+                     "Tăng: thêm NEAR bị khóa stake → bớt cung lưu thông."])
+    f, _ = last_val(df, "funding_apr")
+    if f is not None:
+        rows.append(["Funding perp (năm hóa)", "🔴" if f > 25 else ("🟢" if f < 0 else "🟡"), f"{f:+.1f}%/năm",
+                     "Rất cao: long dùng đòn bẩy đông, dễ bị quét. Âm: short đông (thường là tín hiệu ngược)."])
+    if whale_flow7 is not None:
+        rows.append(["Ví cá voi theo dõi — dòng ròng 7 ngày", "🟢" if whale_flow7 > 0 else ("🔴" if whale_flow7 < 0 else "🟡"),
+                     fmt_near(whale_flow7, signed=True), "Chỉ ví nhóm 'whale' trong near_watchlist.txt; tăng ≠ chắc chắn mua."])
+    if near_btc_30 is not None:
+        rows.append(["Sức mạnh so với BTC (NEAR/BTC 30 ngày)", _light(near_btc_30, good_above=3, bad_below=-3),
+                     f"{near_btc_30:+.1f}%", "Dương: NEAR mạnh hơn BTC."])
+    g = sum(r[1] == "🟢" for r in rows)
+    r_ = sum(r[1] == "🔴" for r in rows)
+    verdict = ("⚪ Chưa đủ dữ liệu" if not rows else "🟢 Nghiêng tích cực" if g - r_ >= 2
+               else "🔴 Nghiêng tiêu cực" if r_ - g >= 2 else "🟡 Trung tính / trái chiều")
+    return rows, g, r_, verdict
+
+
+def daily_brief(live, df, mm, mseries, zones, whale_flow1):
+    out = []
+    p = live.get("price")
+    if p:
+        chg = f" ({live['change_24h']:+.2f}% 24h)" if live.get("change_24h") is not None else ""
+        out.append(f"💲 Giá NEAR **{fmt_price(p)}**{chg}.")
+    if mm.get("realized_price"):
+        out.append(f"🧱 Giá vốn ước tính **{fmt_price(mm['realized_price'])}** — giá đang "
+                   f"{(p / mm['realized_price'] - 1) * 100:+.1f}%; khoảng **{mm['loss_pct']:.0f}%** cung ước tính đang lỗ.")
+    for col, name in (("tvl", "TVL"), ("stables", "Stablecoin")):
+        v, _ = last_val(df, col)
+        c7 = change_pct(df, col, 7)
+        if v is not None:
+            out.append(f"🏦 {name} trên NEAR **{fmt_big_usd(v)}**" + (f" ({c7:+.1f}% 7 ngày)." if c7 is not None else "."))
+    sr, _ = last_val(df, "staking_ratio")
+    if sr is not None:
+        c = change_abs(df, "staking_ratio", 1)
+        out.append(f"🔒 Đang stake **{sr:.1f}%** tổng cung" + (f" ({c:+.2f} điểm % so với hôm trước)." if c is not None else "."))
+    f, _ = last_val(df, "funding_apr")
+    if f is not None:
+        out.append(f"📈 Funding perp **{f:+.1f}%/năm**.")
+    if whale_flow1 is not None:
+        out.append(f"🐋 Ví cá voi theo dõi: dòng ròng hôm nay **{fmt_near(whale_flow1, signed=True)}**.")
+    sup, res = zones
+    if sup or res:
+        s = f"{fmt_price(sup[0]['low'])}–{fmt_price(sup[0]['high'])}" if sup else "N/A"
+        r = f"{fmt_price(res[0]['low'])}–{fmt_price(res[0]['high'])}" if res else "N/A"
+        out.append(f"🎯 Hỗ trợ gần nhất **{s}** · kháng cự gần nhất **{r}** (cụm giá vốn ước tính dày nhất).")
+    return out
+
+
+# =============================================================================
+# CÁ VOI: danh sách ví & dòng tiền
+# =============================================================================
+def parse_watchlist(text):
+    rows = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [x.strip() for x in line.split("|")]
+        account = parts[0]
+        if not re.match(r"^[a-z0-9._-]{2,64}$", account):
+            continue
+        label = parts[1] if len(parts) > 1 and parts[1] else account
+        kind = parts[2].lower() if len(parts) > 2 else "unknown"
+        rows.append({"account": account, "label": label, "type": kind if kind in VALID_TYPES else "unknown"})
+    return rows
+
+
+def whale_frame(data):
+    rows = []
+    for d, snap in (data.get("whales") or {}).items():
+        if not is_day_key(d) or not isinstance(snap, dict):
+            continue
+        for acct, rec in snap.items():
+            if isinstance(rec, dict) and safe_float(rec.get("balance")) is not None:
+                rows.append({"date": parse_day(d), "account": acct, "label": rec.get("label", acct),
+                             "type": rec.get("type", "unknown"), "balance": float(rec["balance"])})
+    return pd.DataFrame(rows)
+
+
+def group_flow(wf, kind, days):
+    """Dòng ròng của nhóm ví: chỉ tính các ví có mặt ở cả hai ngày (tránh nhảy số khi thêm/bớt ví)."""
+    if wf is None or wf.empty:
+        return None
+    g = wf[wf["type"] == kind]
+    if g.empty:
+        return None
+    last = g["date"].max()
+    old_day = g[g["date"] <= last - timedelta(days=days)]["date"].max()
+    if pd.isna(old_day):
+        return None
+    a = g[g["date"] == last].set_index("account")["balance"]
+    b = g[g["date"] == old_day].set_index("account")["balance"]
+    common = a.index.intersection(b.index)
+    return float((a[common] - b[common]).sum()) if len(common) else None
+
+
+# =============================================================================
+# BÁO CÁO TỔNG HỢP HẰNG NGÀY — 6 nhóm tín hiệu → 1 đánh giá xu hướng
+# =============================================================================
+def near_etf_frame(etf_data):
+    """ETF NEAR giao ngay tại Mỹ (NRR…) từ file ETF của app BTC → DataFrame date,total,aum,cum,f_<quỹ>."""
+    d = ((etf_data or {}).get("alts") or {}).get("NEAR") or {}
+    rows = []
+    for k, rec in (d.get("daily") or {}).items():
+        if is_day_key(k) and isinstance(rec, dict) and safe_float(rec.get("total")) is not None:
+            rows.append({"date": parse_day(k), "total": float(rec["total"]), "aum": safe_float(rec.get("aum")),
+                         "cum": safe_float(rec.get("cum")),
+                         **{f"f_{t}": safe_float(v) for t, v in (rec.get("funds") or {}).items()}})
+    if not rows:
+        return pd.DataFrame(columns=["date", "total", "aum", "cum"])
+    return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+
+
+def etf_summary(edf, end=None):
+    """Tóm tắt ETF NEAR đến ngày end (không nhìn trước)."""
+    if edf is None or edf.empty:
+        return None
+    e = edf[edf.date <= end] if end is not None else edf
+    if e.empty:
+        return None
+    last = e.iloc[-1]
+    sign, streak = np.sign(last.total), 0
+    for v in reversed(e.total.tolist()):
+        if v != 0 and np.sign(v) == sign:
+            streak += 1
+        else:
+            break
+    fc = [c for c in e.columns if c.startswith("f_")]
+    has = e[fc].notna().any(axis=1) if fc else pd.Series(False, index=e.index)
+    fl = e[has].iloc[-1] if has.any() else last          # quỹ báo số từng quỹ muộn 1 phiên
+    funds = {c[2:]: float(fl[c]) for c in fc if safe_float(fl[c]) not in (None, 0.0)}
+    return {"date": last.date, "last": float(last.total), "sum5": float(e.total.tail(5).sum()),
+            "sum20": float(e.total.tail(20).sum()), "aum": safe_float(last.aum), "cum": safe_float(last.cum),
+            "streak": int(streak * (sign or 1)), "n": len(e), "funds": funds}
+
+
+def flow_line(data):
+    """1 dòng: hủy stake 24h + chờ mở khóa + chuyển lớn lên sàn 7 ngày."""
+    if not data.get("stakers"):
+        return None
+    d1, d7 = stake_flow_summary(data, 1), stake_flow_summary(data, 7)
+    parts = [f"⏰ Hủy stake 24h **{fmt_near(d1['unstake'])}** (7 ngày {fmt_near(d7['unstake'])})",
+             f"chờ mở khóa {fmt_near(d7['pending_unlock'])}", f"đã rút 7 ngày {fmt_near(d7['withdraw'])}"]
+    if data.get("transfers_last_utc"):
+        t7 = transfer_summary(data, 7)
+        parts.append(f"lên sàn ròng 7 ngày {fmt_near(t7['net_to_exchange'], signed=True)}")
+        cs = children_summary(data, 7)
+        if cs["new"]:
+            parts.append(f"🧩 {cs['new']} ví con mới ({fmt_near(cs['new_near'])})")
+    return " · ".join(parts)
+
+
+def etf_line(es):
+    if not es:
+        return None
+    k = es["streak"]
+    return (f"🏦 ETF NEAR phiên {es['date']:%d/%m}: **{fmt_big_usd(es['last'], signed=True)}** · 5 phiên "
+            f"{fmt_big_usd(es['sum5'], signed=True)}" + (f" · {abs(k)} phiên {'vào' if k > 0 else 'ra'} liên tiếp" if abs(k) >= 2 else "")
+            + (f" · tổng tài sản {fmt_big_usd(es['aum'])}" if es.get("aum") else ""))
+
+
+def flows_for_report(data, now=None):
+    """Chỉ dùng tín hiệu khi đã theo dõi đủ lâu (≥ 2 ngày) để tránh kết luận từ dữ liệu quá ngắn."""
+    now = now or utc_now()
+
+    def ok(key):
+        t = data.get(key)
+        try:
+            return (now - datetime.strptime(t, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)).days >= 2
+        except Exception:
+            return False
+    return {"stake": stake_flow_summary(data, 7, now) if ok("stake_tracking_since") else None,
+            "transfer": transfer_summary(data, 7, now) if ok("transfer_tracking_since") else None}
+
+
+def _local_json(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+REPORT_WEIGHTS = {"Giá & xu hướng": 0.25, "Khối lượng": 0.15, "Hệ sinh thái": 0.15,
+                  "Phái sinh": 0.20, "Dòng tiền (ETF · cá voi · sàn)": 0.15, "Tin tức": 0.10}
+
+
+def rsi(series, n=14):
+    d = series.diff()
+    up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
+    dn = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
+    rs = up / dn.replace(0, np.nan)
+    return 100 - 100 / (1 + rs)
+
+
+def _window_mean(df, col, days, end):
+    if col not in df.columns:
+        return None
+    s = df[(df.date > end - timedelta(days=days)) & (df.date <= end)][col].dropna()
+    return float(s.mean()) if len(s) >= max(2, days // 3) else None
+
+
+def _pct(a, b):
+    return (a / b - 1) * 100 if a is not None and b not in (None, 0) else None
+
+
+def compute_report(df, realized_price=None, wf=None, news=None, as_of=None, etf=None, flows=None):
+    """Trả {'categories': [...], 'score': 0–100, 'verdict', 'agree', 'ret7'} — chỉ dùng dữ liệu đến ngày as_of."""
+    if df is None or df.empty or "price" not in df.columns:
+        return None
+    if as_of is not None:
+        df = df[df.date <= as_of]
+    p = df.dropna(subset=["price"])
+    if len(p) < 30:
+        return None
+    end = p.date.iloc[-1]
+    price = float(p.price.iloc[-1])
+    old7 = p[p.date <= end - timedelta(days=7)]
+    ret7 = _pct(price, float(old7.price.iloc[-1])) if not old7.empty else None
+    cats = []
+
+    def sig(label, val, detail):
+        return {"label": label, "val": val, "detail": detail}
+
+    # A. Giá & xu hướng
+    s = []
+    e20, e50 = float(ema(p.price, 20).iloc[-1]), float(ema(p.price, 50).iloc[-1])
+    s.append(sig("Giá so với EMA50", 1 if price > e50 else -1, f"{_pct(price, e50):+.1f}%"))
+    s.append(sig("EMA20 so với EMA50", 1 if e20 > e50 else -1, "EMA20 trên EMA50" if e20 > e50 else "EMA20 dưới EMA50"))
+    if ret7 is not None:
+        s.append(sig("Biến động giá 7 ngày", 1 if ret7 > 5 else (-1 if ret7 < -5 else 0), f"{ret7:+.1f}%"))
+    r = float(rsi(p.price).iloc[-1]) if len(p) > 20 else None
+    if r is not None and np.isfinite(r):
+        s.append(sig("RSI 14 ngày", -1 if r > 70 else (1 if r < 30 else 0),
+                     f"{r:.0f}" + (" — quá mua" if r > 70 else " — quá bán" if r < 30 else "")))
+    if realized_price:
+        s.append(sig("Giá so với giá vốn ước tính", 1 if price > realized_price else -1,
+                     f"{_pct(price, realized_price):+.1f}%"))
+    cats.append(("Giá & xu hướng", s))
+
+    # B. Khối lượng
+    s = []
+    v7, v30 = _window_mean(df, "volume_usd", 7, end), _window_mean(df, "volume_usd", 30, end)
+    if v7 and v30 and ret7 is not None:
+        ch = _pct(v7, v30)
+        val = (1 if ret7 > 0 else -1) if ch > 15 else 0
+        s.append(sig("Khối lượng giao ngay 7N so với 30N", val,
+                     f"{ch:+.0f}% · " + ("giá tăng kèm vol tăng" if val > 0 else "giá giảm kèm vol tăng" if val < 0
+                                         else "vol không tăng rõ")))
+    d7, d30 = _window_mean(df, "dex_volume", 7, end), _window_mean(df, "dex_volume", 30, end)
+    if d7 and d30:
+        ch = _pct(d7, d30)
+        s.append(sig("Khối lượng DEX 7N so với 30N", 1 if ch > 10 else (-1 if ch < -10 else 0), f"{ch:+.0f}%"))
+    cats.append(("Khối lượng", s))
+
+    # C. Hệ sinh thái
+    s = []
+    if "tvl" in df.columns:
+        t = df.dropna(subset=["tvl", "price"])
+        t = t.assign(tvl_near=t.tvl / t.price)
+        a, _ = last_val(t, "tvl_near", before=end)
+        b, _ = last_val(t, "tvl_near", before=end - timedelta(days=30))
+        ch = _pct(a, b)
+        if ch is not None:
+            s.append(sig("TVL tính bằng NEAR — 30 ngày", 1 if ch > 5 else (-1 if ch < -5 else 0),
+                         f"{ch:+.1f}% (đã loại ảnh hưởng của giá)"))
+    a, _ = last_val(df, "stables", before=end)
+    b, _ = last_val(df, "stables", before=end - timedelta(days=30))
+    ch = _pct(a, b)
+    if ch is not None:
+        s.append(sig("Stablecoin trên NEAR — 30 ngày", 1 if ch > 3 else (-1 if ch < -3 else 0), f"{ch:+.1f}%"))
+    a, _ = last_val(df, "staking_ratio", before=end)
+    b, _ = last_val(df, "staking_ratio", before=end - timedelta(days=7))
+    if a is not None and b is not None:
+        ch = a - b
+        s.append(sig("Tỷ lệ staking — 7 ngày", 1 if ch > 0.2 else (-1 if ch < -0.2 else 0), f"{ch:+.2f} điểm %"))
+    cats.append(("Hệ sinh thái", s))
+
+    # D. Phái sinh
+    s = []
+    f, _ = last_val(df, "funding_apr", before=end)
+    if f is not None:
+        s.append(sig("Funding (năm hóa)", -1 if f > 25 else (1 if f < -5 else 0),
+                     f"{f:+.1f}%" + (" — long quá đông" if f > 25 else " — short đông" if f < -5 else "")))
+    if "oi_usd" in df.columns and ret7 is not None:
+        o = df.dropna(subset=["oi_usd", "price"])
+        o = o.assign(oi_near=o.oi_usd / o.price)
+        a, _ = last_val(o, "oi_near", before=end)
+        b, _ = last_val(o, "oi_near", before=end - timedelta(days=7))
+        ch = _pct(a, b)
+        if ch is not None:
+            val = (1 if ret7 > 0 else -1) if ch > 10 else 0
+            s.append(sig("Open interest 7 ngày (tính bằng NEAR)", val,
+                         f"{ch:+.0f}% · " + ("vị thế mới theo chiều tăng" if val > 0 else
+                                             "vị thế mới theo chiều giảm" if val < 0 else "không tăng rõ")))
+    ls, _ = last_val(df, "long_short_ratio", before=end)
+    if ls is not None:
+        s.append(sig("Tỷ lệ tài khoản long/short", -1 if ls > 2.5 else (1 if ls < 0.9 else 0),
+                     f"{ls:.2f}" + (" — đám đông nghiêng long (tín hiệu ngược)" if ls > 2.5 else
+                                    " — đám đông nghiêng short" if ls < 0.9 else "")))
+    if {"taker_buy", "taker_sell"}.issubset(df.columns):
+        tk = df[(df.date > end - timedelta(days=7)) & (df.date <= end)].dropna(subset=["taker_buy", "taker_sell"])
+        if len(tk) >= 3 and tk.taker_sell.sum() > 0:
+            ratio = float(tk.taker_buy.sum() / tk.taker_sell.sum())
+            s.append(sig("Lực mua chủ động / bán chủ động 7 ngày", 1 if ratio > 1.05 else (-1 if ratio < 0.95 else 0),
+                         f"{ratio:.2f}"))
+    cats.append(("Phái sinh", s))
+
+    # E. Dòng tiền: ETF NEAR (tổ chức Mỹ) + ví cá voi/sàn
+    s = []
+    es = etf_summary(etf, end)
+    if es and es["n"] >= 3 and (end - es["date"]).days <= 7:
+        rel = es["sum5"] / es["aum"] * 100 if es.get("aum") else None
+        val = ((1 if rel > 1 else (-1 if rel < -1 else 0)) if rel is not None
+               else (1 if es["sum5"] > 2e6 else (-1 if es["sum5"] < -2e6 else 0)))
+        s.append(sig("ETF NEAR giao ngay (Mỹ) — 5 phiên", val,
+                     f"{fmt_big_usd(es['sum5'], signed=True)}" + (f" ({rel:+.1f}% tổng tài sản)" if rel is not None else "")
+                     + f" · phiên {es['date']:%d/%m}: {fmt_big_usd(es['last'], signed=True)}"))
+    if flows and as_of is None:
+        sf, tf = flows.get("stake"), flows.get("transfer")
+        if sf and sf.get("tracked_stake"):
+            net = sf["unstake"] - sf["stake"]
+            rel = net / sf["tracked_stake"] * 100
+            s.append(sig("Hủy stake ròng 7 ngày (người ủy thác lớn)", -1 if rel > 0.5 else (1 if rel < -0.5 else 0),
+                         f"{fmt_near(net, signed=True)} ({rel:+.2f}% lượng stake theo dõi) · đang chờ mở khóa "
+                         f"{fmt_near(sf['pending_unlock'])}"))
+        if tf and tf.get("count") is not None:
+            net = tf["net_to_exchange"]
+            s.append(sig("Chuyển lớn lên sàn ròng 7 ngày", -1 if net > 1_000_000 else (1 if net < -1_000_000 else 0),
+                         f"{fmt_near(net, signed=True)} · đổi qua Intents {fmt_near(tf['intents'])} · {tf['count']} lệnh ≥50k"))
+    if wf is not None and not wf.empty:
+        w = wf[wf.date <= end] if as_of is not None else wf
+        for kind, label, sign in (("whale", "Ví cá voi — dòng ròng 7 ngày", 1), ("exchange", "Ví sàn — nạp/rút ròng 7 ngày", -1)):
+            fl = group_flow(w, kind, 7)
+            if fl is None:
+                continue
+            hold = float(w[(w.type == kind) & (w.date == w.date.max())].balance.sum()) or 1.0
+            rel = fl / hold * 100
+            th = 0.5 if kind == "whale" else 1.0
+            val = sign * (1 if rel > th else (-1 if rel < -th else 0))
+            if fl == 0:
+                word = "không đổi"
+            elif kind == "exchange":
+                word = "nạp lên sàn" if fl > 0 else "rút khỏi sàn"
+            else:
+                word = "tăng" if fl > 0 else "giảm"
+            s.append(sig(label, val, f"{fmt_near(fl, signed=True)} ({rel:+.2f}%) — {word}"))
+    cats.append(("Dòng tiền (ETF · cá voi · sàn)", s))
+
+    # F. Tin tức (chỉ ảnh hưởng nhẹ)
+    s = []
+    if news:
+        recent = [n for n in news if n.get("published", "") >= (utc_now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M")]
+        pos, neg = sum(n.get("tag") == 1 for n in recent), sum(n.get("tag") == -1 for n in recent)
+        s.append(sig("Tin 3 ngày gần nhất (gắn nhãn theo từ khóa)", 1 if pos - neg >= 2 else (-1 if neg - pos >= 2 else 0),
+                     f"{pos} tích cực · {neg} tiêu cực · {len(recent) - pos - neg} trung tính"))
+    cats.append(("Tin tức", s))
+
+    out, num, den = [], 0.0, 0.0
+    for name, sigs in cats:
+        if not sigs:
+            out.append({"name": name, "signals": [], "score": None})
+            continue
+        sc = float(np.mean([x["val"] for x in sigs]))
+        out.append({"name": name, "signals": sigs, "score": sc})
+        num += REPORT_WEIGHTS[name] * sc
+        den += REPORT_WEIGHTS[name]
+    x = num / den if den else 0.0
+    score = 50 + 50 * x
+    verdict = ("🟢 Tích cực" if score >= 65 else "🟢 Hơi tích cực" if score >= 55 else
+               "🟡 Trung tính" if score > 45 else "🟠 Hơi tiêu cực" if score > 35 else "🔴 Tiêu cực")
+    used = [c for c in out if c["score"] is not None]
+    agree = sum(1 for c in used if np.sign(c["score"]) == np.sign(x) and x != 0)
+    return {"categories": out, "score": score, "verdict": verdict, "agree": agree, "n_cats": len(used),
+            "price": price, "date": end, "ret7": ret7}
+
+
+def outlook_text(rep, zones):
+    """Diễn giải xu hướng 1–2 tuần + điều kiện xác nhận/vô hiệu (không phải khuyến nghị)."""
+    sup, res = zones
+    s1 = f"{fmt_price(sup[0]['low'])}–{fmt_price(sup[0]['high'])}" if sup else None
+    r1 = f"{fmt_price(res[0]['low'])}–{fmt_price(res[0]['high'])}" if res else None
+    sc = rep["score"]
+    if sc >= 55:
+        head = "Các nhóm dữ liệu đang nghiêng về **khả năng tăng** trong 1–2 tuần tới."
+        cond = (f"Xác nhận nếu giá giữ trên vùng {s1} và vượt được {r1}. " if s1 and r1 else "") + \
+               (f"Đánh giá này **mất hiệu lực** nếu giá đóng ngày dưới {s1}." if s1 else "")
+    elif sc <= 45:
+        head = "Các nhóm dữ liệu đang nghiêng về **khả năng giảm/yếu** trong 1–2 tuần tới."
+        cond = (f"Áp lực còn nếu giá không lấy lại được {r1}; vùng cần chú ý phía dưới là {s1}. " if s1 and r1 else "") + \
+               (f"Đánh giá này **mất hiệu lực** nếu giá vượt và giữ trên {r1}." if r1 else "")
+    else:
+        head = "Các nhóm dữ liệu **trái chiều** — chưa có xu hướng rõ cho 1–2 tuần tới."
+        cond = (f"Chờ giá ra khỏi khoảng {s1} → {r1} để xác nhận hướng đi." if s1 and r1 else "")
+    return head, cond, f"{rep['agree']}/{rep['n_cats']} nhóm dữ liệu cùng chiều với đánh giá chung."
+
+
+def score_history(df, mseries, wf, days=120, etf=None):
+    """Điểm tổng hợp tính lại cho từng ngày quá khứ (không gồm tin tức) — để xem độ tin cậy của chỉ báo."""
+    if df is None or df.empty or "price" not in df.columns:
+        return pd.DataFrame()
+    dates = df.dropna(subset=["price"]).date
+    dates = dates[dates >= dates.max() - timedelta(days=days)]
+    rp = dict(zip(mseries.date, mseries.realized_price)) if mseries is not None and not mseries.empty else {}
+    rows = []
+    for d in dates:
+        rep = compute_report(df, rp.get(d), wf, None, as_of=d, etf=etf)
+        if rep:
+            rows.append({"date": d, "score": rep["score"], "price": rep["price"]})
+    out = pd.DataFrame(rows)
+    if not out.empty:   # giá 7 ngày sau đó — để đối chiếu đánh giá có đúng không
+        nxt = out.set_index("date").price
+        out["ret_next7"] = [(_pct(nxt.get(d + timedelta(days=7)), p) if (d + timedelta(days=7)) in nxt.index else None)
+                            for d, p in zip(out.date, out.price)]
+    return out
+
+
+# =============================================================================
+# CHẾ ĐỘ CẬP NHẬT — python pages/NEAR_Monitor.py --update-data
+# =============================================================================
+def _log(msg):
+    print(f"[{utc_now():%H:%M:%S}] NEAR {redact(msg)}", flush=True)
+
+
+def _merge(daily, rows, keep_keys=None):
+    n = 0
+    for d, rec in rows.items():
+        if d is None or not isinstance(rec, dict):
+            continue
+        if d > utc_today():
+            continue
+        clean = {k: v for k, v in rec.items() if v is not None and (keep_keys is None or k in keep_keys)}
+        if clean:
+            daily.setdefault(day_str(d), {}).update(clean)
+            n += 1
+    return n
+
+
+def run_near_update():
+    try:
+        with open(NEAR_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        data = data if isinstance(data, dict) else {}
+    except Exception:
+        data = {}
+    daily = data.setdefault("daily", {})
+    whales = data.setdefault("whales", {})
+    errors, done = {}, {}
+    today = utc_today()
+
+    # 1) Giá / vốn hóa / khối lượng — CoinGecko (lần đầu 365 ngày, sau đó 30 ngày gần nhất)
+    have_price = sorted(k for k, v in daily.items() if isinstance(v, dict) and v.get("price"))
+    days = 365 if len(have_price) < 300 else 30
+    try:
+        rows = fetch_coingecko_history(days)
+        rows.pop(today, None)                     # điểm hôm nay chưa chốt ngày
+        done["giá"] = _merge(daily, rows)
+    except Exception as e:
+        errors["coingecko"] = str(e)[:200]
+
+    # 2) DeFiLlama: TVL, stablecoin, DEX
+    rows, errs = fetch_defillama()
+    done["defillama"] = _merge(daily, {d: r for d, r in rows.items() if d >= today - timedelta(days=HISTORY_DAYS)})
+    if errs:
+        errors["defillama"] = " | ".join(errs)[:300]
+
+    # 3) Staking & tổng cung — RPC (ảnh chụp hôm nay)
+    top_validators = []
+    try:
+        s = fetch_staking()
+        top_validators = s.pop("top_validators", [])
+        daily.setdefault(day_str(today), {}).update({k: v for k, v in s.items() if v is not None})
+        done["staking"] = 1
+    except Exception as e:
+        errors["rpc"] = str(e)[:200]
+
+    # 4) Phái sinh
+    rows, now, errs = fetch_derivatives()
+    done["phái sinh"] = _merge(daily, rows)
+    if now:
+        daily.setdefault(day_str(today), {}).update({k: v for k, v in now.items() if v is not None and k.startswith("hl_")})
+        data["derivatives_meta"] = {k: v for k, v in now.items() if not k.startswith("hl_")}
+    if errs:
+        errors["phái sinh"] = " | ".join(errs)[:300]
+
+    # 5) NearBlocks (tùy chọn)
+    key = clean_secret(os.environ.get("NEARBLOCKS_API_KEY", ""))
+    if key:
+        rows, errs = fetch_nearblocks(key)
+        done["nearblocks"] = _merge(daily, rows)
+        if errs:
+            errors["nearblocks"] = " | ".join(errs)[:300]
+
+    # 6) Số dư ví theo dõi
+    try:
+        with open(WATCHLIST_FILE, "r", encoding="utf-8") as f:
+            watch = parse_watchlist(f.read())
+    except FileNotFoundError:
+        watch = []
+    # Luôn theo dõi thêm 20 validator pool lớn nhất (dòng ủy thác stake vào/ra)
+    listed = {w["account"] for w in watch}
+    watch += [{"account": a, "label": f"Validator — {a}", "type": "validator"}
+              for a in top_validators if a not in listed]
+    # Ví con của cá voi (tự phát hiện) → chụp số dư như cá voi để chuyển nội bộ "nhà cá voi" triệt tiêu nhau
+    listed = {w["account"] for w in watch}
+    watch += [{"account": a, "label": child_label(data, a) or f"Ví con — {a}", "type": "whale"}
+              for a in (data.get("children") or {}) if a not in listed]
+    snap, fails = {}, []
+    for w in watch[:90]:
+        try:
+            b = fetch_account(w["account"])
+            snap[w["account"]] = {**b, "label": w["label"], "type": w["type"]}
+        except Exception as e:
+            fails.append(f"{w['account']}: {str(e)[:80]}")
+        time.sleep(0.15)
+    if snap:
+        whales[day_str(today)] = snap
+        done["ví"] = len(snap)
+    if fails:
+        errors["ví"] = "; ".join(fails[:5])
+
+    # 6b) Module 1 — hủy stake / rút / stake của người ủy thác lớn ở 20 pool top (RPC, mỗi lần chạy)
+    if top_validators:
+        try:
+            n_ev, errs = update_staking_flows(data, top_validators)
+            data.setdefault("stake_tracking_since", utc_now().strftime("%Y-%m-%d %H:%M"))
+            done["hủy stake"] = n_ev
+            if errs:
+                errors["hủy stake"] = "; ".join(errs[:4])
+        except Exception as e:
+            errors["hủy stake"] = str(e)[:200]
+
+    # 6c) Module 2 — chuyển lớn (NearBlocks; tối đa mỗi 6 giờ để tiết kiệm lượt gọi)
+    try:
+        last = data.get("transfers_last_utc")
+        age = ((utc_now() - datetime.strptime(last, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)).total_seconds() / 3600
+               if last else 999)
+        if age >= TRANSFER_INTERVAL_H - 0.25 or os.environ.get("NEAR_TRANSFER_FORCE") == "1":
+            n_tr, errs = update_big_transfers(data, watch, key)
+            data["transfers_last_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
+            data.setdefault("transfer_tracking_since", data["transfers_last_utc"])
+            done["chuyển lớn"] = n_tr
+            if errs:
+                errors["chuyển lớn"] = "; ".join(errs[:4])
+    except Exception as e:
+        errors["chuyển lớn"] = str(e)[:200]
+
+    # 7) Tin tức NEAR (dịch sẵn tiêu đề sang tiếng Việt cho dashboard + Telegram)
+    try:
+        news = fetch_near_news()
+        if news:
+            data["news"] = news
+            done["tin"] = len(news)
+    except Exception as e:
+        errors["tin"] = str(e)[:200]
+
+    # Dọn & lưu
+    data["daily"] = dict(sorted((k, v) for k, v in daily.items() if is_day_key(k))[-HISTORY_DAYS:])
+    data["whales"] = dict(sorted((k, v) for k, v in whales.items() if is_day_key(k))[-400:])
+    data["status"] = {"last_run_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "updated": done,
+                      "errors": {k: redact(v) for k, v in errors.items()}}
+    with open(NEAR_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    _log(f"cập nhật {done}")
+    for k, v in errors.items():
+        _log(f"  ⚠️ {k}: {v}")
+    try:
+        write_near_report(data)
+    except Exception as e:
+        _log(f"  ⚠️ daily_report.json: {e}")
+    try:
+        if send_near_telegram(data):
+            with open(NEAR_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    except Exception as e:
+        _log(f"  ⚠️ Telegram: {e}")
+
+
+def write_near_report(data):
+    """Ghi phần NEAR vào daily_report.json (dùng chung với BTC) để báo cáo nhanh theo yêu cầu."""
+    df = daily_frame(data)
+    live = {}
+    for fn in (fetch_coingecko_now, fetch_coinbase_now):
+        try:
+            live = fn()
+            if live.get("price"):
+                break
+        except Exception:
+            continue
+    price = live.get("price") or (float(df.price.dropna().iloc[-1]) if "price" in df.columns and df.price.notna().any() else None)
+    if not price:
+        return
+    model = cost_basis_model(df)
+    mm = model_metrics(model, price)
+    sup, res = find_zones(model, price)
+    wf = whale_frame(data)
+    etf = near_etf_frame(_local_json(ETF_FILE))
+    es = etf_summary(etf)
+    flows = flows_for_report(data)
+    rep = compute_report(df, mm.get("realized_price"), wf, data.get("news"), etf=etf, flows=flows)
+    qty = safe_float(clean_secret(os.environ.get("NEAR_HOLDINGS", ""))) or 5000.0
+
+    def lv(col):
+        v, _ = last_val(df, col)
+        return None if v is None else round(v, 4)
+    near = {
+        "price_live": round(price, 4), "change_24h": live.get("change_24h"), "holdings": qty,
+        "holdings_value_usd": round(qty * price, 2),
+        "cost_basis_est": round(mm["realized_price"], 4) if mm.get("realized_price") else None,
+        "supply_in_loss_est_pct": round(mm["loss_pct"], 1) if mm.get("loss_pct") is not None else None,
+        "tvl": lv("tvl"), "tvl_chg_30d_pct": change_pct(df, "tvl", 30), "stables": lv("stables"),
+        "staking_ratio": lv("staking_ratio"), "funding_apr": lv("funding_apr"), "oi_usd": lv("oi_usd"),
+        "long_short_ratio": lv("long_short_ratio"),
+        "whale_flow_7d": group_flow(wf, "whale", 7), "exchange_flow_7d": group_flow(wf, "exchange", 7),
+        "etf": ({"latest_date": day_str(es["date"]), "latest_usd": round(es["last"]), "sum_5d_usd": round(es["sum5"]),
+                 "sum_20d_usd": round(es["sum20"]), "streak": es["streak"],
+                 "aum_usd": round(es["aum"]) if es.get("aum") else None,
+                 "cum_usd": round(es["cum"]) if es.get("cum") is not None else None,
+                 "funds_latest": {k: round(v) for k, v in es["funds"].items()},
+                 "last_5": [{"date": day_str(r.date), "usd": round(r.total)} for r in etf.tail(5).itertuples()]}
+                if es else None),
+        "stake_flows_7d": stake_flow_summary(data, 7) if data.get("stakers") else None,
+        "stake_flows_1d": stake_flow_summary(data, 1) if data.get("stakers") else None,
+        "stake_events_recent": [e for e in (data.get("stake_events") or [])
+                                if e["kind"] in ("unstake", "withdraw")][-8:],
+        "big_transfers_7d": transfer_summary(data, 7) if data.get("transfers_last_utc") else None,
+        "big_transfers_recent": (data.get("big_transfers") or [])[-8:],
+        "whale_children_7d": children_summary(data, 7) if data.get("transfers_last_utc") else None,
+        "whale_children": [{"account": a, **{k: c.get(k) for k in ("root", "root_label", "parent", "depth", "first",
+                                                                    "last", "received", "n")}}
+                           for a, c in list((data.get("children") or {}).items())[:20]],
+        "flow_tracking_since": {"stake": data.get("stake_tracking_since"), "transfer": data.get("transfer_tracking_since")},
+        "supports": [f"{z['low']:.3f}-{z['high']:.3f}" for z in sup],
+        "resistances": [f"{z['low']:.3f}-{z['high']:.3f}" for z in res],
+        "report": None,
+        "news": [{"title": n["title"], "title_vi": n.get("title_vi"), "tag": n.get("tag"), "time_utc": n.get("published")}
+                 for n in (data.get("news") or [])[:6]],
+    }
+    if rep:
+        head, cond, agree = outlook_text(rep, (sup, res))
+        near["report"] = {
+            "score": round(rep["score"]), "verdict": rep["verdict"], "agree": agree, "outlook": head,
+            "conditions": cond, "data_date": str(rep["date"]),
+            "categories": [{"name": c["name"], "score": None if c["score"] is None else round(c["score"], 2),
+                            "signals": [f"{x['label']}: {x['detail']}" for x in c["signals"]]}
+                           for c in rep["categories"]],
+        }
+    try:
+        with open("daily_report.json", "r", encoding="utf-8") as f:
+            out = json.load(f)
+        out = out if isinstance(out, dict) else {}
+    except Exception:
+        out = {}
+    out["near"] = near
+    out["near_generated_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
+    with open("daily_report.json", "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, indent=1, default=str)
+
+
+def _tg_html(text):
+    text = str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+
+
+def send_near_telegram(data):
+    """Báo cáo NEAR qua Telegram, 1 lần/ngày. Trả True nếu đã gửi."""
+    bot = clean_secret(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+    chat = clean_secret(os.environ.get("TELEGRAM_CHAT_ID", ""))
+    today = day_str(utc_today())
+    if not bot or not chat or data.get("telegram_last") == today:
+        return False
+    df = daily_frame(data)
+    live = {}
+    for fn in (fetch_coingecko_now, fetch_coinbase_now):
+        try:
+            live = fn()
+            if live.get("price"):
+                break
+        except Exception:
+            continue
+    price = live.get("price") or (float(df.price.dropna().iloc[-1]) if "price" in df.columns else None)
+    if not price:
+        return False
+    model = cost_basis_model(df)
+    mm = model_metrics(model, price)
+    zones = find_zones(model, price)
+    etf = near_etf_frame(_local_json(ETF_FILE))
+    rep = compute_report(df, mm.get("realized_price"), whale_frame(data), data.get("news"), etf=etf,
+                         flows=flows_for_report(data))
+    if not rep:
+        return False
+    qty = safe_float(clean_secret(os.environ.get("NEAR_HOLDINGS", ""))) or 5000.0
+    head, cond, agree = outlook_text(rep, zones)
+    lines = [f"<b>🟢 NEAR — báo cáo {today}</b>",
+             _tg_html(f"Giá **{fmt_price(price)}**" + (f" ({live['change_24h']:+.2f}% 24h)" if live.get("change_24h") is not None else "")
+                      + f" · {qty:,.0f} NEAR ≈ **{fmt_big_usd(qty * price)}**"),
+             _tg_html(f"Đánh giá: **{rep['verdict']}** — {rep['score']:.0f}/100 · {agree}"),
+             _tg_html(head), _tg_html(cond)]
+    if etf_line(etf_summary(etf)):
+        lines.append(_tg_html(etf_line(etf_summary(etf))))
+    if flow_line(data):
+        lines.append(_tg_html(flow_line(data)))
+    lines.append("")
+    for c in rep["categories"]:
+        if c["score"] is None:
+            continue
+        icon = "🟢" if c["score"] > 0.2 else ("🔴" if c["score"] < -0.2 else "🟡")
+        lines.append(_tg_html(f"{icon} {c['name']}: " + "; ".join(f"{x['label']} {x['detail']}" for x in c["signals"][:2])))
+    top = [n for n in (data.get("news") or [])[:3]]
+    if top:
+        lines.append("")
+        lines += [_tg_html(f"📰 {n.get('title_vi') or n['title']}") for n in top]
+    lines.append("<i>Tham khảo, không phải khuyến nghị đầu tư.</i>")
+    r = requests.post(f"https://api.telegram.org/bot{bot}/sendMessage",
+                      json={"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML",
+                            "disable_web_page_preview": True}, timeout=20)
+    r.raise_for_status()
+    data["telegram_last"] = today
+    _log("Telegram NEAR: đã gửi")
+    return True
+
+
+# =============================================================================
+# LỚP DỮ LIỆU CHO DASHBOARD (chỉ đọc, có cache)
+# =============================================================================
+def _secret(name, default=""):
+    try:
+        v = st.secrets.get(name, None)
+    except Exception:
+        v = None
+    return clean_secret(v) if v else clean_secret(os.environ.get(name, default)) or default
+
+
+def read_data_file(filename):
+    """Bản mới nhất trên GitHub (Actions vừa commit) → nếu lỗi thì file đi kèm bản deploy."""
+    repo, branch = _secret("GITHUB_REPO"), _secret("GITHUB_BRANCH", "main") or "main"
+    err = None
+    if repo:
+        try:
+            r = requests.get(f"https://raw.githubusercontent.com/{repo}/{branch}/{filename}",
+                             params={"t": int(time.time() // 300)}, headers=HTTP_HEADERS, timeout=30)
+            if r.status_code == 200:
+                data = json.loads(r.text)
+                return (data if isinstance(data, dict) else {}), f"GitHub {repo}"
+            err = f"GitHub HTTP {r.status_code}"
+        except Exception as e:
+            err = f"lỗi GitHub: {redact(e)[:120]}"
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return (data if isinstance(data, dict) else {}), "file trong bản deploy" + (f" ({err})" if err else "")
+    except FileNotFoundError:
+        return {}, "chưa có dữ liệu" + (f" ({err})" if err else "")
+    except Exception as e:
+        return {}, f"lỗi đọc file: {e}"
+
+
+@st.cache_data(ttl=900, show_spinner="Đang tải dữ liệu NEAR…")
+def load_near():
+    data, source = read_data_file(NEAR_FILE)
+    return data, source
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_near_etf():
+    data, _ = read_data_file(ETF_FILE)
+    return near_etf_frame(data)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_btc_prices():
+    data, _ = read_data_file(BTC_PRICE_FILE)
+    rows = [(parse_day(d), safe_float(r.get("btc_price"))) for d, r in (data.get("daily") or {}).items()
+            if is_day_key(d) and isinstance(r, dict)]
+    return pd.DataFrame([(d, p) for d, p in rows if p], columns=["date", "btc_price"]).sort_values("date")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def live_near():
+    for fn in (fetch_coingecko_now, fetch_coinbase_now):
+        try:
+            d = fn()
+            if d.get("price"):
+                return d
+        except Exception:
+            continue
+    return {}
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def candles_cached(days):
+    try:
+        df, src = fetch_candles(days)
+        return df, src, None
+    except Exception as e:
+        return None, None, str(e)
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def news_cached():
+    try:
+        return fetch_near_news(translate=True)
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def history_cached(version):
+    data, _ = load_near()
+    df = daily_frame(data)
+    model = cost_basis_model(df, alpha=0.2)
+    return score_history(df, model_series(model), whale_frame(data), etf=load_near_etf())
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def model_cached(version, alpha):
+    data, _ = load_near()
+    return cost_basis_model(daily_frame(data), alpha=alpha)
+
+
+# =============================================================================
+# GIAO DIỆN
+# =============================================================================
+def _st_version():
+    try:
+        return tuple(int(x) for x in re.findall(r"\d+", st.__version__)[:2])
+    except Exception:
+        return (0, 0)
+
+
+STRETCH = {"width": "stretch"} if _st_version() >= (1, 50) else {"use_container_width": True}
+BG = "#0b0f14"
+GREEN, RED, AMBER, CYAN, GREY, NEAR_GREEN = "#10b981", "#ef4444", "#f59e0b", "#22d3ee", "#94a3b8", "#00ec97"
+
+
+def _esc(text):
+    return re.sub(r"(?<!\\)\$", r"\\$", str(text))
+
+
+def mk(text, **kw):
+    st.markdown(_esc(text), **kw)
+
+
+def cap(text, **kw):
+    st.caption(_esc(text), **kw)
+
+
+def style_fig(fig, height=440, hovermode="x unified"):
+    fig.update_layout(template="plotly_dark", height=height, paper_bgcolor=BG, plot_bgcolor=BG,
+                      margin=dict(l=55, r=40, t=45, b=40), hovermode=hovermode,
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, bgcolor="rgba(0,0,0,0)"))
+    return fig
+
+
+def show_fig(fig, key):
+    st.plotly_chart(fig, key=key, config={"displaylogo": False}, theme=None, **STRETCH)
+
+
+def show_df(df):
+    st.dataframe(df, hide_index=True, **STRETCH)
+
+
+def inject_css():
+    st.markdown("""
+<style>
+.block-container {padding-top: 2rem; max-width: 1500px;}
+[data-testid="stMetric"] {background: linear-gradient(135deg, rgba(20,40,38,.95), rgba(15,23,42,.95));
+  border: 1px solid rgba(0,236,151,.22); padding: 14px 18px; border-radius: 14px;}
+[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {font-size: .88rem; color: #cbd5e1 !important;}
+[data-testid="stMetricValue"] {font-size: 1.45rem; color: #f8fafc !important;}
+div[data-testid="stDataFrame"] {border-radius: 12px; overflow: hidden;}
+</style>""", unsafe_allow_html=True)
+
+
+def _with_price_axis(fig, prices, secondary=True):
+    if prices is not None and not prices.empty:
+        fig.add_scatter(x=prices.date, y=prices.price, name="Giá NEAR", mode="lines",
+                        line=dict(color="#f8fafc", width=1.6), secondary_y=secondary)
+
+
+def zones_table(zones):
+    return pd.DataFrame([{"Vùng giá": f"{fmt_price(z['low'])} – {fmt_price(z['high'])}",
+                          "NEAR giá vốn (ước tính)": fmt_near(z["near"]),
+                          "% phần đã ước tính": f"{z['share_pct']:.1f}%",
+                          "Cách giá": f"{z['distance_pct']:+.1f}%"} for z in zones])
+
+
+# ----------------------------------------------------------------------------- Tổng quan
+def tab_overview(live, df, mm, mseries, zones, wf, near_btc_30, events_note, etf=None, flowline=None):
+    price = live.get("price")
+    w1, w7 = group_flow(wf, "whale", 1), group_flow(wf, "whale", 7)
+
+    mk("### 📰 Hôm nay có gì thay đổi")
+    brief = daily_brief(live, df, mm, mseries, zones, w1)
+    if etf_line(etf_summary(etf)):
+        brief.append(etf_line(etf_summary(etf)))
+    if flowline:
+        brief.append(flowline)
+    mk("\n".join(f"- {b}" for b in brief) if brief else "Chưa đủ dữ liệu.")
+
+    c = st.columns(4)
+    c[0].metric("Giá NEAR", fmt_price(price), f"{live['change_24h']:+.2f}% 24h" if live.get("change_24h") is not None else None)
+    mcap, _ = last_val(df, "market_cap")
+    c[1].metric("Vốn hóa", fmt_big_usd(live.get("market_cap") or mcap),
+                f"FDV {fmt_big_usd(live['fdv'])}" if live.get("fdv") else None, delta_color="off")
+    c[2].metric("Giá vốn ước tính", fmt_price(mm.get("realized_price")),
+                f"giá {(price / mm['realized_price'] - 1) * 100:+.1f}%" if mm.get("realized_price") and price else None,
+                help="Mô hình từ giá + khối lượng 1–2 năm (xem tab Giá vốn ước tính).")
+    c[3].metric("Cung ước tính đang lỗ", f"{mm['loss_pct']:.1f}%" if mm.get("loss_pct") is not None else "N/A",
+                (f"{mseries.loss_pct.iloc[-1] - mseries.loss_pct.iloc[-2]:+.1f} điểm % (1D)"
+                 if mseries is not None and len(mseries) > 1 else None), delta_color="inverse")
+
+    c = st.columns(4)
+    for i, (col, name) in enumerate((("tvl", "TVL hệ sinh thái"), ("stables", "Stablecoin trên NEAR"))):
+        v, _ = last_val(df, col)
+        ch = change_pct(df, col, 30)
+        c[i].metric(name, fmt_big_usd(v), f"{ch:+.1f}% 30D" if ch is not None else None)
+    sr, _ = last_val(df, "staking_ratio")
+    ch = change_abs(df, "staking_ratio", 7)
+    c[2].metric("Tỷ lệ staking", f"{sr:.1f}%" if sr is not None else "N/A",
+                f"{ch:+.2f} điểm % 7D" if ch is not None else None)
+    f, _ = last_val(df, "funding_apr")
+    c[3].metric("Funding perp (năm hóa)", f"{f:+.1f}%" if f is not None else "N/A",
+                "OKX" if f is not None else None, delta_color="off")
+
+    mk("### 🎯 Vùng hỗ trợ / kháng cự (cụm giá vốn ước tính)")
+    sup, res = zones
+    a, b = st.columns(2)
+    with a:
+        mk("**🟢 Hỗ trợ (dưới giá)**")
+        if sup:
+            show_df(zones_table(sup))
+        else:
+            cap("Chưa có dữ liệu.")
+    with b:
+        mk("**🔴 Kháng cự (trên giá)**")
+        if res:
+            show_df(zones_table(res))
+        else:
+            cap("Chưa có dữ liệu.")
+    if sup:
+        mk(f"- Mất vùng **{fmt_price(sup[0]['low'])}–{fmt_price(sup[0]['high'])}** thì vùng đỡ kế tiếp là "
+           + (f"{fmt_price(sup[1]['low'])}–{fmt_price(sup[1]['high'])}." if len(sup) > 1 else "chưa xác định."))
+    if res:
+        mk(f"- Vượt và giữ trên **{fmt_price(res[0]['low'])}–{fmt_price(res[0]['high'])}** thì vùng cản kế tiếp là "
+           + (f"{fmt_price(res[1]['low'])}–{fmt_price(res[1]['high'])}." if len(res) > 1 else "chưa xác định."))
+
+    mk("### 🚦 Tín hiệu tổng hợp")
+    rows, g, r, verdict = build_signals(price, df, mm, mseries, w7, near_btc_30)
+    mk(f"#### {verdict}")
+    cap(f"{g} 🟢 · {len(rows) - g - r} 🟡 · {r} 🔴 trên {len(rows)} tín hiệu. "
+        "Chỉ báo đếm tín hiệu — không phải xác suất, dự báo hay khuyến nghị mua/bán.")
+    if rows:
+        show_df(pd.DataFrame(rows, columns=["Tín hiệu", "Đèn", "Giá trị", "Cách đọc"]))
+    if events_note:
+        cap(events_note)
+
+
+# ----------------------------------------------------------------------------- Giá vốn ước tính
+def tab_cost_basis(version, price, df):
+    alpha = st.select_slider("Hệ số luân chuyển (mức khối lượng sàn được coi là đổi chủ thật)",
+                             options=[0.05, 0.1, 0.15, 0.2, 0.3, 0.5], value=0.2, key="near_alpha",
+                             help="Thấp = coi phần lớn khối lượng là giao dịch qua lại, giá vốn thay đổi chậm. "
+                                  "Cao = giá vốn bám sát giá gần đây.")
+    model = model_cached(version, alpha)
+    if not model:
+        st.info("Cần ít nhất 30 ngày giá + khối lượng. Chạy workflow **Update BTC data** để tải lịch sử NEAR.")
+        return
+    mm = model_metrics(model, price)
+    sup, res = find_zones(model, price)
+    m = st.columns(4)
+    m[0].metric("Giá vốn ước tính", fmt_price(mm["realized_price"]))
+    m[1].metric("Giá / giá vốn", f"{mm['mvrv']:.2f}x")
+    m[2].metric("Cung ước tính đang lỗ", f"{mm['loss_pct']:.1f}%")
+    m[3].metric("Phần cung đã ước tính được", f"{mm['known_pct']:.0f}%",
+                help="Phần còn lại chưa đổi chủ trong cửa sổ dữ liệu → giá vốn cũ hơn, không xác định.")
+
+    mids = (model["edges"][:-1] + model["edges"][1:]) / 2
+    fig = go.Figure()
+    fig.add_bar(x=mids, y=model["dist"], width=model["step"] * 0.92, marker_color=np.where(mids < price, GREEN, RED),
+                hovertemplate="$%{x:.3f}<br>%{y:,.0f} NEAR<extra></extra>", name="Giá vốn ước tính")
+    for z in sup:
+        fig.add_vrect(x0=z["low"], x1=z["high"], fillcolor=GREEN, opacity=0.10, line_width=0, layer="below")
+    for z in res:
+        fig.add_vrect(x0=z["low"], x1=z["high"], fillcolor=RED, opacity=0.10, line_width=0, layer="below")
+    fig.add_vline(x=price, line_dash="dash", line_color="white", annotation_text=f"Giá {fmt_price(price)}",
+                  annotation_position="top left")
+    fig.add_vline(x=mm["realized_price"], line_dash="dot", line_color=AMBER,
+                  annotation_text=f"Giá vốn TB {fmt_price(mm['realized_price'])}", annotation_position="top right",
+                  annotation_font_color=AMBER)
+    style_fig(fig, 500, hovermode="closest")
+    nz = np.where(model["dist"] > model["dist"].max() * 0.002)[0]
+    x0 = float(model["edges"][nz.min()]) if nz.size else 0.0
+    x1 = float(model["edges"][nz.max() + 1]) if nz.size else float(model["edges"][-1])
+    x0, x1 = min(x0, price) * 0.92, max(x1, price) * 1.05
+    fig.update_layout(showlegend=False, bargap=0.02,
+                      xaxis=dict(title="Giá vốn ước tính (USD)", tickprefix="$", range=[x0, x1]),
+                      yaxis=dict(title="NEAR"))
+    show_fig(fig, "near_cb")
+    cap("🟢 giá vốn dưới giá hiện tại (đang lãi) · 🔴 trên giá (đang lỗ) · nền xanh/đỏ = vùng hỗ trợ/kháng cự.")
+
+    mk("#### 🌡️ Giá vốn ước tính theo thời gian")
+    z = model["snaps"]
+    positive = z[z > 0]
+    zmax = float(np.percentile(positive, 99)) if positive.size else 1.0
+    heat = go.Figure(go.Heatmap(x=model["dates"], y=mids, z=np.clip(z, 0, zmax), zmin=0, zmax=zmax,
+                                colorscale=[[0, "#0b1d1a"], [0.2, "#123d36"], [0.45, "#0f766e"], [0.7, "#00c08b"],
+                                            [1, "#d9ff7a"]], colorbar=dict(title="NEAR"),
+                                hovertemplate="%{x}<br>$%{y:.3f}<br>%{z:,.0f} NEAR<extra></extra>"))
+    heat.add_scatter(x=model["dates"], y=model["prices"], mode="lines", name="Giá NEAR",
+                     line=dict(color="#ffffff", width=1.8))
+    style_fig(heat, 520, hovermode="closest")
+    heat.update_yaxes(range=[float(np.min(model["prices"])) * 0.8, float(np.max(model["prices"])) * 1.1], tickprefix="$")
+    show_fig(heat, "near_cb_heat")
+
+    with st.expander("🧠 Mô hình giá vốn ước tính hoạt động thế nào?"):
+        mk("- NEAR không có UTXO nên **không đo được** giá vốn on-chain như URPD của BTC. Đây là **mô hình ước tính** "
+           "từ giá và tổng khối lượng giao dịch (CoinGecko) theo ngày.\n"
+           "- Mỗi ngày, một phần nguồn cung = hệ số luân chuyển × khối lượng / cung lưu hành được coi là đã đổi chủ, "
+           "và giá vốn của phần đó chuyển về giá ngày hôm đó. NEAR mới phát hành được ghi giá vốn tại giá ngày phát hành.\n"
+           "- Khối lượng sàn gồm nhiều giao dịch qua lại, nên hệ số mặc định 0.2. Đổi hệ số để xem độ nhạy: "
+           "vùng nào vẫn dày ở mọi hệ số là vùng đáng tin hơn.\n"
+           "- Dùng để tham khảo vùng giá có nhiều người mua — không phải dữ liệu ví thật.")
+
+    mk("#### 📊 Volume profile ngắn hạn (khối lượng khớp theo vùng giá)")
+    days = st.radio("Khoảng", [30, 60], index=1, horizontal=True, format_func=lambda x: f"{x} ngày", key="near_vp_days")
+    candles, src, err = candles_cached(days)
+    if candles is None or candles.empty:
+        st.info(f"Chưa lấy được nến giao dịch: {err}")
+        return
+    lo, hi = float(candles.low.min()), float(candles.high.max())
+    edges = np.linspace(lo, hi, 61)
+    prof = np.zeros(60)
+    for l, h, v in zip(candles.low, candles.high, candles.quote_volume):
+        if h <= l:
+            prof[min(59, int(np.searchsorted(edges, l) - 1))] += v
+            continue
+        ov = np.clip(np.minimum(edges[1:], h) - np.maximum(edges[:-1], l), 0, None)
+        if ov.sum() > 0:
+            prof += v * ov / ov.sum()
+    centers = (edges[:-1] + edges[1:]) / 2
+    vp = go.Figure(go.Bar(x=prof, y=centers, orientation="h",
+                          marker_color=np.where(centers < price, GREEN, RED),
+                          hovertemplate="$%{y:.3f}<br>$%{x:,.0f}<extra></extra>"))
+    vp.add_hline(y=price, line_dash="dash", line_color="white", annotation_text=f"Giá {fmt_price(price)}")
+    style_fig(vp, 460, hovermode="closest")
+    vp.update_layout(showlegend=False, xaxis_title="Khối lượng (USD)", yaxis=dict(tickprefix="$"))
+    show_fig(vp, "near_vp")
+    cap(f"Nguồn: {src}. Khối lượng của mỗi nến được chia đều theo biên độ giá của nến đó.")
+
+
+# ----------------------------------------------------------------------------- Hệ sinh thái & staking
+def tab_ecosystem(df, prices, days):
+    d = df[df["date"] >= df["date"].max() - timedelta(days=days - 1)] if not df.empty else df
+    if "tvl" in d.columns or "stables" in d.columns:
+        mk("#### 🏦 TVL & stablecoin trên NEAR")
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        for col, name, color in (("tvl", "TVL", NEAR_GREEN), ("stables", "Stablecoin", CYAN)):
+            if col in d.columns and d[col].notna().any():
+                fig.add_scatter(x=d.date, y=d[col], name=name, line=dict(color=color, width=2), secondary_y=False)
+        _with_price_axis(fig, prices)
+        style_fig(fig, 420)
+        fig.update_yaxes(title_text="USD", secondary_y=False)
+        fig.update_yaxes(title_text="Giá NEAR", tickprefix="$", showgrid=False, secondary_y=True)
+        show_fig(fig, "near_tvl")
+    if "dex_volume" in d.columns and d["dex_volume"].notna().any():
+        mk("#### 🔁 Khối lượng DEX trên NEAR (USD/ngày)")
+        dv = d.dropna(subset=["dex_volume"])
+        fig = go.Figure(go.Bar(x=dv.date, y=dv.dex_volume, marker_color=NEAR_GREEN, name="DEX volume"))
+        fig.add_scatter(x=dv.date, y=dv.dex_volume.rolling(7, min_periods=1).mean(), name="TB 7 ngày",
+                        line=dict(color=AMBER, width=2))
+        style_fig(fig, 340)
+        show_fig(fig, "near_dex")
+
+    mk("#### 🔒 Staking & lạm phát")
+    m = st.columns(4)
+    for i, (col, name, fmt) in enumerate((("total_stake", "Tổng NEAR đang stake", fmt_near),
+                                          ("staking_ratio", "Tỷ lệ staking", lambda v: f"{v:.1f}%"),
+                                          ("validators", "Số validator", lambda v: f"{v:,.0f}"),
+                                          ("top10_stake_share", "Top 10 validator nắm", lambda v: f"{v:.1f}% stake"))):
+        v, _ = last_val(df, col)
+        m[i].metric(name, fmt(v) if v is not None else "N/A")
+    ts = df.dropna(subset=["total_supply"]) if "total_supply" in df.columns else pd.DataFrame()
+    if len(ts) >= 8:
+        a, b = ts.iloc[-1], ts[ts.date <= ts.date.iloc[-1] - timedelta(days=7)]
+        if not b.empty:
+            b = b.iloc[-1]
+            yrs = (a.date - b.date).days / 365
+            infl = ((a.total_supply / b.total_supply) ** (1 / yrs) - 1) * 100 if yrs > 0 else None
+            cap(f"Lạm phát đo được (tổng cung tăng, năm hóa): **{infl:.2f}%/năm** — từ {b.date:%d/%m} đến {a.date:%d/%m}. "
+                "Từ bản nâng cấp 2.9.0 (cuối 2025), lạm phát tối đa của NEAR giảm từ 5% xuống 2.5%/năm.")
+    if "staking_ratio" in df.columns and df["staking_ratio"].notna().sum() >= 2:
+        sr = df.dropna(subset=["staking_ratio"])
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_scatter(x=sr.date, y=sr.staking_ratio, name="Tỷ lệ staking (%)", line=dict(color=NEAR_GREEN, width=2),
+                        secondary_y=False)
+        _with_price_axis(fig, prices)
+        style_fig(fig, 340)
+        show_fig(fig, "near_stake")
+    else:
+        cap("Lịch sử staking được ghi từ ngày bắt đầu chạy GitHub Actions và dày dần theo thời gian.")
+
+    if "txns" in df.columns and df["txns"].notna().any():
+        mk("#### 🌐 Hoạt động mạng (NearBlocks)")
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_bar(x=d.date, y=d.get("txns"), name="Giao dịch/ngày", marker_color="rgba(0,236,151,.6)", secondary_y=False)
+        if "active_accounts" in d.columns:
+            fig.add_scatter(x=d.date, y=d.active_accounts, name="Tài khoản hoạt động", line=dict(color=AMBER),
+                            secondary_y=True)
+        style_fig(fig, 340)
+        show_fig(fig, "near_activity")
+    else:
+        cap("Hoạt động mạng (số giao dịch, tài khoản hoạt động) cần NEARBLOCKS_API_KEY trong secrets của GitHub Actions.")
+
+
+# ----------------------------------------------------------------------------- Phái sinh
+def tab_derivatives(df, prices, days, meta):
+    d = df[df["date"] >= df["date"].max() - timedelta(days=days - 1)] if not df.empty else df
+    cols = [c for c in ("funding_apr", "oi_usd", "long_short_ratio") if c in d.columns and d[c].notna().any()]
+    if not cols:
+        st.info("Chưa có dữ liệu phái sinh (OKX/Hyperliquid).")
+        return
+    m = st.columns(4)
+    f, _ = last_val(df, "funding_apr")
+    oi, _ = last_val(df, "oi_usd")
+    ls, _ = last_val(df, "long_short_ratio")
+    hl, _ = last_val(df, "hl_funding_apr")
+    m[0].metric("Funding OKX (năm hóa)", f"{f:+.1f}%" if f is not None else "N/A")
+    m[1].metric("Open interest OKX", fmt_big_usd(oi), f"{change_pct(df, 'oi_usd', 7):+.1f}% 7D"
+                if change_pct(df, "oi_usd", 7) is not None else None)
+    m[2].metric("Tỷ lệ tài khoản long/short", f"{ls:.2f}" if ls is not None else "N/A")
+    m[3].metric("Funding Hyperliquid (năm hóa)", f"{hl:+.1f}%" if hl is not None else "N/A")
+    fig = make_subplots(rows=len(cols), cols=1, shared_xaxes=True, vertical_spacing=0.07,
+                        subplot_titles=[{"funding_apr": "Funding năm hóa (%)", "oi_usd": "Open interest (USD)",
+                                         "long_short_ratio": "Tỷ lệ tài khoản long/short"}[c] for c in cols])
+    for i, c in enumerate(cols, start=1):
+        s = d.dropna(subset=[c])
+        if c == "funding_apr":
+            fig.add_bar(x=s.date, y=s[c], marker_color=np.where(s[c] >= 0, GREEN, RED), name=c, row=i, col=1)
+        else:
+            fig.add_scatter(x=s.date, y=s[c], line=dict(color=CYAN if c == "oi_usd" else AMBER, width=2), name=c,
+                            row=i, col=1)
+    style_fig(fig, 240 * len(cols) + 60)
+    fig.update_layout(showlegend=False)
+    show_fig(fig, "near_deriv")
+    interval = (meta or {}).get("funding_interval_h")
+    cap("Nguồn: OKX (NEAR-USDT-SWAP)" + (f", funding mỗi {interval:.0f} giờ" if interval else "") +
+        "; Hyperliquid làm dự phòng. Funding dương cao + OI tăng nhanh = đòn bẩy long dồn, dễ có cú quét; "
+        "funding âm kéo dài = short đông.")
+
+
+# ----------------------------------------------------------------------------- Cá voi
+TYPE_VI = {"whale": "🐋 Cá voi", "exchange": "🏦 Ví sàn", "validator": "🛡️ Validator", "protocol": "⚙️ Giao thức",
+           "unknown": "❔ Khác"}
+
+
+def tab_whales(wf, repo):
+    link = f"https://github.com/{repo}/edit/main/{WATCHLIST_FILE}" if repo else None
+    cap("Số dư native NEAR (liquid + locked) của các ví trong near_watchlist.txt, GitHub Actions chụp mỗi ngày. "
+        "Số dư tăng/giảm không khẳng định mua/bán; ví sàn phải tự xác minh trước khi gắn nhãn 'exchange'.")
+    if link:
+        mk(f"✏️ Sửa danh sách ví: [{WATCHLIST_FILE}]({link}) — mỗi dòng `account.near | Tên | loại` "
+           "(loại: whale, exchange, validator, protocol, unknown).")
+    if wf is None or wf.empty:
+        st.info("Chưa có ảnh chụp số dư nào. Chạy workflow để tạo ngày đầu tiên.")
+        return
+    types = [t for t in ("whale", "exchange", "validator", "protocol", "unknown") if t in set(wf["type"])]
+    last = wf["date"].max()
+    m = st.columns(len(types))
+    for i, t in enumerate(types):
+        total = float(wf[(wf.type == t) & (wf.date == last)].balance.sum())
+        f7 = group_flow(wf, t, 7)
+        m[i].metric(f"{TYPE_VI[t]} ({wf[(wf.type == t) & (wf.date == last)].account.nunique()} ví)", fmt_near(total),
+                    f"{fmt_near(f7, signed=True)} 7D" if f7 is not None else None)
+    rows = []
+    for t in types:
+        rows.append({"Nhóm": TYPE_VI[t], **{f"Dòng ròng {n}D": fmt_near(group_flow(wf, t, n), signed=True)
+                                    if group_flow(wf, t, n) is not None else "—" for n in (1, 7, 30)}})
+    show_df(pd.DataFrame(rows))
+    if wf["date"].nunique() >= 2:
+        mk("#### Dòng ròng tích lũy theo nhóm (so với ngày đầu có dữ liệu)")
+        fig = go.Figure()
+        for t in types:
+            g = wf[wf.type == t]
+            first_day = g.date.min()
+            base = g[g.date == first_day].set_index("account").balance
+            g = g[g.account.isin(base.index)]          # chỉ ví có từ đầu → không nhảy số khi thêm ví mới
+            s = g.groupby("date").balance.sum() - base.sum()
+            fig.add_scatter(x=s.index, y=s.values, name=TYPE_VI[t], mode="lines+markers")
+        fig.add_hline(y=0, line_color=GREY, line_dash="dot")
+        style_fig(fig, 360)
+        fig.update_yaxes(title_text="NEAR")
+        show_fig(fig, "near_whale_total")
+    cur = wf[wf.date == last].copy()
+    for n in (1, 7, 30):
+        old_day = wf[wf.date <= last - timedelta(days=n)].date.max()
+        old = wf[wf.date == old_day].set_index("account").balance if not pd.isna(old_day) else pd.Series(dtype=float)
+        cur[f"Δ {n}D"] = cur.apply(lambda r: fmt_near(r.balance - old[r.account], signed=True)
+                                   if r.account in old.index else "—", axis=1)
+    cur = cur.sort_values("balance", ascending=False)
+    show_df(pd.DataFrame({"Ví": cur.label, "Account": cur.account, "Loại": cur.type.map(TYPE_VI),
+                          "Số dư": cur.balance.map(fmt_near), "Δ 1D": cur["Δ 1D"], "Δ 7D": cur["Δ 7D"],
+                          "Δ 30D": cur["Δ 30D"]}))
+
+
+# ----------------------------------------------------------------------------- Giá & xu hướng
+def tab_trend(df, btc, days, mseries):
+    p = df.dropna(subset=["price"]) if "price" in df.columns else pd.DataFrame()
+    if p.empty:
+        st.info("Chưa có lịch sử giá.")
+        return
+    p = p.copy()
+    for span in (20, 50, 200):
+        p[f"EMA{span}"] = ema(p.price, span)
+    v = p[p.date >= p.date.max() - timedelta(days=days - 1)]
+    fig = go.Figure()
+    fig.add_scatter(x=v.date, y=v.price, name="Giá NEAR", line=dict(color="#f8fafc", width=2))
+    for span, color in ((20, NEAR_GREEN), (50, AMBER), (200, RED)):
+        fig.add_scatter(x=v.date, y=v[f"EMA{span}"], name=f"EMA{span}", line=dict(color=color, width=1.4))
+    if mseries is not None and not mseries.empty:
+        ms = mseries[mseries.date >= v.date.min()]
+        fig.add_scatter(x=ms.date, y=ms.realized_price, name="Giá vốn ước tính", line=dict(color=CYAN, dash="dot"))
+    style_fig(fig, 460)
+    fig.update_yaxes(tickprefix="$")
+    show_fig(fig, "near_trend")
+    m = st.columns(3)
+    for i, span in enumerate((20, 50, 200)):
+        val = float(p[f"EMA{span}"].iloc[-1])
+        m[i].metric(f"EMA{span}", fmt_price(val), f"giá {(p.price.iloc[-1] / val - 1) * 100:+.1f}%")
+    if btc is not None and not btc.empty:
+        r = p.merge(btc, on="date", how="inner")
+        r = r[r.date >= r.date.max() - timedelta(days=days - 1)] if not r.empty else r
+        if len(r) > 5:
+            r["ratio"] = r.price / r.btc_price * 1e5
+            mk("#### ⚖️ NEAR/BTC (× 100.000)")
+            fig = go.Figure(go.Scatter(x=r.date, y=r.ratio, line=dict(color=NEAR_GREEN, width=2), name="NEAR/BTC"))
+            style_fig(fig, 300)
+            show_fig(fig, "near_btc")
+            cap("Đường đi lên = NEAR mạnh hơn BTC. Giá BTC lấy từ dữ liệu của trang BTC.")
+
+
+def near_btc_change(df, btc, days=30):
+    if btc is None or btc.empty or "price" not in df.columns:
+        return None
+    r = df.dropna(subset=["price"]).merge(btc, on="date", how="inner")
+    if len(r) < days // 2:
+        return None
+    r["ratio"] = r.price / r.btc_price
+    last = r.iloc[-1]
+    old = r[r.date <= last.date - timedelta(days=days)]
+    return (last.ratio / old.ratio.iloc[-1] - 1) * 100 if not old.empty else None
+
+
+
+# ----------------------------------------------------------------------------- Báo cáo hằng ngày
+# ----------------------------------------------------------------------------- Hủy stake & chuyển lớn
+KIND_VI = {"unstake": "⏳ Hủy stake", "withdraw": "💸 Rút về ví", "stake": "🔒 Stake thêm", "restake": "🔁 Stake lại",
+           "to_exchange": "🔴 Nạp lên sàn", "from_exchange": "🟢 Rút khỏi sàn", "exchange_internal": "⚪ Nội bộ sàn",
+           "intents": "🟠 Qua NEAR Intents", "wrap": "🟠 Đổi sang wNEAR", "stake_t": "🔒 Vào pool",
+           "unstake_withdraw": "💸 Từ pool ra ví", "wallet": "➡️ Sang ví khác", "to_child": "🧩 Chia sang ví con"}
+
+
+def _vn(ts):
+    try:
+        return datetime.strptime(ts, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone(VN_TZ).strftime("%d/%m %H:%M")
+    except Exception:
+        return ts or "—"
+
+
+def _short(a, n=22):
+    a = str(a or "")
+    return a if len(a) <= n else a[:8] + "…" + a[-6:]
+
+
+def tab_flows(data):
+    st_ = data.get("stakers") or {}
+    cap("Module 1: mỗi lần chạy, app chụp số dư của mọi người ủy thác ≥ 20.000 NEAR ở 20 validator lớn nhất "
+        "(qua RPC) rồi so với lần trước → biết ai vừa **hủy stake**, **rút về ví**, hay **stake thêm**. "
+        f"NEAR hủy stake phải chờ **{UNLOCK_EPOCHS} epoch** mới rút được → cảnh báo áp lực bán **trước 2–3 ngày**. "
+        "Module 2: theo dõi chuyển ≥ 50.000 NEAR của ví sàn, cá voi, ví vừa hủy stake/rút và các ví nhận tiền từ họ.")
+    if not st_:
+        st.info("Chưa có ảnh chụp người ủy thác. Chạy workflow để tạo ảnh đầu tiên — sự kiện xuất hiện từ lần chạy thứ hai.")
+        return
+    ep = st_.get("epoch") or {}
+    d1, d7 = stake_flow_summary(data, 1), stake_flow_summary(data, 7)
+    c = st.columns(4)
+    c[0].metric("Hủy stake 24h", fmt_near(d1["unstake"]), f"7 ngày {fmt_near(d7['unstake'])}", delta_color="off")
+    c[1].metric("Đang chờ mở khóa", fmt_near(d7["pending_unlock"]),
+                f"~{UNLOCK_EPOCHS} epoch × {ep.get('epoch_hours', 12):.1f} giờ", delta_color="off",
+                help="NEAR đã hủy stake nhưng chưa rút được — có thể lên sàn sau khi mở khóa.")
+    c[2].metric("Đã mở khóa, chưa rút", fmt_near(d7["ready_to_withdraw"]), None)
+    c[3].metric("Rút về ví 7 ngày", fmt_near(d7["withdraw"]), f"stake thêm {fmt_near(d7['stake'])}", delta_color="off")
+    since = data.get("stake_tracking_since")
+    cap(f"Theo dõi từ {_vn(since)} · ảnh chụp gần nhất {_vn(st_.get('time_utc'))} · epoch {ep.get('epoch')} · "
+        f"tổng stake được theo dõi {fmt_near(d7['tracked_stake'])} ở {len(st_.get('pools') or {})} pool.")
+
+    ev = pd.DataFrame(data.get("stake_events") or [])
+    if not ev.empty:
+        ev["day"] = pd.to_datetime(ev.time_utc).dt.tz_localize("UTC").dt.tz_convert(VN_TZ).dt.date
+        daily = ev.pivot_table(index="day", columns="kind", values="amount", aggfunc="sum").fillna(0).tail(30)
+        fig = go.Figure()
+        for k, col, sign in (("stake", "#22c55e", 1), ("restake", "#86efac", 1), ("unstake", "#f59e0b", -1),
+                             ("withdraw", "#ef4444", -1)):
+            if k in daily.columns:
+                fig.add_bar(x=daily.index, y=daily[k] * sign, name=KIND_VI[k], marker_color=col)
+        fig.update_layout(barmode="relative")
+        style_fig(fig, 340)
+        fig.update_yaxes(title_text="NEAR / ngày")
+        show_fig(fig, "near_stake_flows")
+        mk("#### Sự kiện lớn gần đây (≥ 50.000 NEAR)")
+        recent = ev.sort_values("time_utc", ascending=False).head(40)
+        show_df(pd.DataFrame({"Thời gian": recent.time_utc.map(_vn), "Loại": recent.kind.map(KIND_VI),
+                              "Số NEAR": recent.amount.map(lambda x: f"{x:,.0f}"),
+                              "Người ủy thác": recent.account.map(_short), "Pool": recent.pool.map(_short),
+                              "Mở khóa dự kiến": recent.get("unlock_eta_utc", pd.Series([None] * len(recent))).map(
+                                  lambda x: _vn(x) if isinstance(x, str) else "—")}))
+    else:
+        st.info("Chưa có sự kiện ≥ 50.000 NEAR kể từ khi bắt đầu theo dõi.")
+
+    # Đang chờ mở khóa — danh sách lớn nhất
+    rows = []
+    for pool, accts in (st_.get("pools") or {}).items():
+        for acct, (s, u, cw) in accts.items():
+            if u >= STAKE_EVENT_MIN:
+                rows.append({"Người ủy thác": _short(acct), "Pool": _short(pool), "Đang hủy stake": f"{u:,.0f}",
+                             "Trạng thái": "✅ Rút được" if cw else "⏳ Chờ mở khóa", "_u": u})
+    if rows:
+        mk("#### NEAR đang hủy stake (chưa rút) — lớn nhất")
+        show_df(pd.DataFrame(rows).sort_values("_u", ascending=False).drop(columns="_u").head(25))
+
+    st.divider()
+    mk("### 🐋 Chuyển lớn (≥ 50.000 NEAR)")
+    if not data.get("transfers_last_utc"):
+        st.info("Chưa quét chuyển lớn. Module chạy mỗi lần workflow chạy (chỉ gọi NearBlocks cho ví có thay đổi).")
+        return
+    t7 = transfer_summary(data, 7)
+    c = st.columns(4)
+    c[0].metric("Nạp lên sàn 7 ngày", fmt_near(t7["to_exchange"]))
+    c[1].metric("Rút khỏi sàn 7 ngày", fmt_near(t7["from_exchange"]))
+    c[2].metric("Ròng lên sàn", fmt_near(t7["net_to_exchange"], signed=True),
+                "áp lực bán" if t7["net_to_exchange"] > 0 else "rút về giữ" if t7["net_to_exchange"] < 0 else None,
+                delta_color="inverse")
+    c[3].metric("Qua Intents / wNEAR", fmt_near(t7["intents"] + t7["wrap"]), f"{t7['count']} lệnh", delta_color="off")
+    tr = pd.DataFrame(data.get("big_transfers") or [])
+    if tr.empty:
+        cap(f"Chưa có chuyển ≥ 50.000 NEAR · quét gần nhất {_vn(data.get('transfers_last_utc'))}.")
+        return
+    tr = tr.sort_values("time_utc", ascending=False).head(50)
+    show_df(pd.DataFrame({
+        "Thời gian": tr.time_utc.map(_vn), "Loại": tr.kind.map(lambda k: KIND_VI.get(k, k)),
+        "Số NEAR": tr.amount.map(lambda x: f"{x:,.0f}"),
+        "Từ": [lb if isinstance(lb, str) and lb else _short(a) for a, lb in zip(tr["from"], tr.get("from_label", [None] * len(tr)))],
+        "Đến": [lb if isinstance(lb, str) and lb else _short(a) for a, lb in zip(tr["to"], tr.get("to_label", [None] * len(tr)))],
+        "Sau hủy stake?": tr.get("after_unstake", pd.Series([False] * len(tr))).map(lambda v: "⚠️ có" if v else ""),
+    }))
+    ss = data.get("transfer_scan_stats") or {}
+    if ss:
+        cap(f"Lần quét gần nhất: {ss.get('candidates', 0)} ví theo dõi · {ss.get('idle_skipped', 0)} ví đứng im (bỏ qua, "
+            f"kiểm tra miễn phí qua RPC) · quét NearBlocks {ss.get('scanned', 0)} ví"
+            + (f" · hoãn {ss['deferred']} ví sang lần sau" if ss.get("deferred") else "")
+            + (" · ⚠️ bị NearBlocks giới hạn lượt gọi" if ss.get("rate_limited") else "") + ".")
+    cap(f"Quét gần nhất {_vn(data.get('transfers_last_utc'))}. 'Sang ví khác' sẽ được theo tiếp ở lần quét sau "
+        "(nếu ví đó gom về sàn sẽ hiện 'Nạp lên sàn'). Chuyển lên sàn không chắc chắn là bán; chỉ là tín hiệu.")
+    tab_children(data)
+
+
+def tab_children(data):
+    ch = data.get("children") or {}
+    st.divider()
+    mk("### 🧩 Ví con của cá mập (chia nhỏ để giấu)")
+    cap(f"Khi cá voi (ví 'whale' trong watchlist, ví vừa hủy stake/rút) hoặc ví con của họ chuyển ≥ {CHILD_MIN:,} NEAR "
+        f"sang một ví mới, app ghi ví đó là **ví con** và theo dõi {CHILD_KEEP_DAYS} ngày (tối đa {CHILD_MAX_DEPTH} tầng, "
+        f"{CHILD_MAX} ví). Ví con được chụp số dư hằng ngày cùng nhóm cá voi, nên chuyển qua lại trong 'nhà cá voi' không bị "
+        "tính nhầm là mua/bán. Ví con nạp lên sàn → hiện '🔴 Nạp lên sàn' ở bảng trên.")
+    if not ch:
+        st.info("Chưa phát hiện ví con nào.")
+        return
+    cs = children_summary(data, 7)
+    c = st.columns(3)
+    c[0].metric("Ví con đang theo dõi", f"{cs['tracked']}")
+    c[1].metric("Ví con mới 7 ngày", f"{cs['new']}", fmt_near(cs["new_near"]) if cs["new"] else None, delta_color="off")
+    c[2].metric("Ví con nạp lên sàn 7 ngày", fmt_near(cs["children_to_exchange"]))
+    snaps = data.get("whales") or {}
+    last_snap = snaps[sorted(snaps)[-1]] if snaps else {}
+    rows = []
+    for a, x in ch.items():
+        bal = (last_snap.get(a) or {}).get("balance")
+        rows.append({"Ví con": _short(a), "Thuộc nhóm": x.get("root_label") or _short(x.get("root")),
+                     "Nhận từ": _short(x.get("parent")), "Tầng": x.get("depth"),
+                     "Tổng nhận": f"{x.get('received', 0):,.0f}", "Số lần": x.get("n"),
+                     "Lần đầu": _vn(x.get("first")), "Gần nhất": _vn(x.get("last")),
+                     "Số dư (ảnh chụp gần nhất)": f"{float(bal):,.0f}" if bal is not None else "—"})
+    show_df(pd.DataFrame(rows))
+
+
+def _cat_light(score):
+    if score is None:
+        return "⚪"
+    return "🟢" if score > 0.2 else ("🔴" if score < -0.2 else "🟡")
+
+
+def tab_report(live, df, mm, mseries, zones, wf, news, version, etf=None, flows=None):
+    price = live["price"]
+    rep = compute_report(df, mm.get("realized_price"), wf, news, etf=etf, flows=flows)
+    if not rep:
+        st.info("Cần ít nhất 30 ngày dữ liệu giá để lập báo cáo.")
+        return
+    head, cond, agree = outlook_text(rep, zones)
+
+    left, right = st.columns([1, 2])
+    with left:
+        g = go.Figure(go.Indicator(
+            mode="gauge+number", value=rep["score"], number={"suffix": "/100", "font": {"size": 34}, "valueformat": ".0f"},
+            gauge={"axis": {"range": [0, 100]}, "bar": {"color": "#f8fafc", "thickness": 0.25},
+                   "steps": [{"range": [0, 35], "color": "#7f1d1d"}, {"range": [35, 45], "color": "#9a3412"},
+                             {"range": [45, 55], "color": "#78716c"}, {"range": [55, 65], "color": "#166534"},
+                             {"range": [65, 100], "color": "#15803d"}]}))
+        g.update_layout(height=230, margin=dict(l=20, r=20, t=10, b=0), paper_bgcolor=BG, font_color="#e5e7eb")
+        show_fig(g, "near_gauge")
+    with right:
+        mk(f"## {rep['verdict']}")
+        mk(head)
+        if cond:
+            mk(cond)
+        cap(f"{agree} Dữ liệu chốt ngày {rep['date']:%d/%m/%Y}; giá trực tiếp hiện tại {fmt_price(price)}.")
+
+    mk("### 🧩 Sáu nhóm dữ liệu")
+    cols = st.columns(3)
+    for i, c in enumerate(rep["categories"]):
+        with cols[i % 3]:
+            with st.container(border=True):
+                sc = c["score"]
+                mk(f"**{_cat_light(sc)} {c['name']}**  ·  trọng số {int(REPORT_WEIGHTS[c['name']] * 100)}%")
+                if not c["signals"]:
+                    cap("Chưa có dữ liệu cho nhóm này." + (" Thêm ví sàn/cá voi vào near_watchlist.txt."
+                                                            if c["name"].startswith("Dòng tiền") else ""))
+                for x in c["signals"]:
+                    icon = "🟢" if x["val"] > 0 else ("🔴" if x["val"] < 0 else "🟡")
+                    mk(f"{icon} {x['label']}: {x['detail']}")
+
+    # ---- Vị thế của bạn
+    mk("### 💼 Vị thế của bạn")
+    a, b = st.columns(2)
+    default_qty = safe_float(_secret("NEAR_HOLDINGS")) or 5000.0
+    qty = a.number_input("Số NEAR đang giữ", min_value=0.0, value=default_qty, step=100.0, key="near_qty")
+    cost = b.number_input("Giá vốn trung bình của bạn (USD/NEAR) — để 0 nếu không muốn nhập", min_value=0.0,
+                          value=0.0, step=0.01, format="%.4f", key="near_cost")
+    value = qty * price
+    m = st.columns(3)
+    chg = live.get("change_24h")
+    m[0].metric("Giá trị hiện tại", fmt_big_usd(value),
+                f"{fmt_big_usd(value - value / (1 + chg / 100), signed=True)} 24h" if chg is not None else None)
+    if cost > 0:
+        pl = (price - cost) * qty
+        m[1].metric("Lãi/lỗ so với giá vốn", fmt_big_usd(pl, signed=True), f"{(price / cost - 1) * 100:+.1f}%")
+    else:
+        m[1].metric("Lãi/lỗ so với giá vốn", "—", "nhập giá vốn để tính", delta_color="off")
+    if mm.get("realized_price"):
+        m[2].metric("Giá vốn trung bình thị trường (ước tính)", fmt_price(mm["realized_price"]),
+                    f"giá {(price / mm['realized_price'] - 1) * 100:+.1f}%", delta_color="off")
+    sup, res = zones
+    levels = []
+    for i, z in enumerate(sup[:2], start=1):
+        levels.append((f"Về hỗ trợ S{i} (cận dưới)", z["low"]))
+    for i, z in enumerate(res[:2], start=1):
+        levels.append((f"Lên kháng cự R{i} (cận trên)", z["high"]))
+    levels += [("Giảm 10%", price * 0.9), ("Tăng 10%", price * 1.1)]
+    rows = []
+    for name, lv in sorted(levels, key=lambda x: x[1]):
+        row = {"Kịch bản": name, "Giá NEAR": fmt_price(lv), "Giá trị vị thế": fmt_big_usd(qty * lv),
+               "Thay đổi so với hiện tại": f"{fmt_big_usd(qty * (lv - price), signed=True)} ({(lv / price - 1) * 100:+.1f}%)"}
+        if cost > 0:
+            row["Lãi/lỗ so với giá vốn"] = fmt_big_usd(qty * (lv - cost), signed=True)
+        rows.append(row)
+    show_df(pd.DataFrame(rows))
+    cap("Bảng kịch bản chỉ cho biết giá trị vị thế nếu giá chạm các vùng đó — không phải dự báo giá sẽ tới.")
+
+    # ---- Tin tức
+    mk("### 📰 Tin NEAR mới nhất")
+    if news:
+        for n in news[:8]:
+            icon = "🟢" if n.get("tag") == 1 else ("🔴" if n.get("tag") == -1 else "⚪")
+            when = datetime.strptime(n["published"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone(VN_TZ)
+            mk(f"{icon} **{n.get('title_vi') or n['title']}**  \n"
+               f"<small><i>{n['title']}</i> · {n.get('source', '')} · {when:%d/%m %H:%M} · "
+               f"[đọc]({n.get('link', '')})</small>", unsafe_allow_html=True)
+        cap("🟢/🔴 gắn tự động theo từ khóa trong tiêu đề — nhóm Tin tức chỉ chiếm 10% điểm tổng hợp.")
+    else:
+        cap("Chưa lấy được tin.")
+
+    # ---- Lịch sử điểm
+    mk("### 📜 Điểm tổng hợp theo thời gian (tính lại cho từng ngày, không gồm tin tức)")
+    hist = history_cached(version)
+    if hist is None or len(hist) < 10:
+        cap("Chưa đủ lịch sử.")
+    else:
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_scatter(x=hist.date, y=hist.score, name="Điểm tổng hợp", line=dict(color=NEAR_GREEN, width=2),
+                        secondary_y=False)
+        fig.add_scatter(x=hist.date, y=hist.price, name="Giá NEAR", line=dict(color="#f8fafc", width=1.5),
+                        secondary_y=True)
+        for y in (45, 55):
+            fig.add_hline(y=y, line_dash="dot", line_color=GREY, secondary_y=False)
+        style_fig(fig, 380)
+        fig.update_yaxes(range=[0, 100], title_text="Điểm", secondary_y=False)
+        fig.update_yaxes(tickprefix="$", showgrid=False, secondary_y=True)
+        show_fig(fig, "near_score_hist")
+        calls = hist.dropna(subset=["ret_next7"])
+        calls = calls[(calls.score >= 55) | (calls.score <= 45)]
+        if len(calls) >= 10:
+            hit = ((calls.score >= 55) & (calls.ret_next7 > 0)) | ((calls.score <= 45) & (calls.ret_next7 < 0))
+            cap(f"Trong {len(calls)} ngày điểm nghiêng rõ (≥55 hoặc ≤45), giá 7 ngày sau đi đúng hướng "
+                f"**{hit.mean() * 100:.0f}%** số lần. Dưới ~55% nghĩa là chỉ báo chưa đáng tin hơn tung đồng xu.")
+        last7 = hist.tail(7).iloc[::-1]
+        show_df(pd.DataFrame({"Ngày": last7.date.map(lambda d: d.strftime("%d/%m")),
+                              "Điểm": last7.score.map(lambda v: f"{v:.0f}"),
+                              "Giá": last7.price.map(fmt_price)}))
+
+    st.warning("⚠️ Đây là tổng hợp dữ liệu và chỉ báo định lượng để tham khảo, **không phải khuyến nghị mua/bán** "
+               "(dashboard không phải chuyên gia tư vấn tài chính). Thị trường crypto biến động mạnh; quyết định cuối cùng "
+               "nên dựa trên kế hoạch và mức rủi ro bạn chấp nhận được.")
+
+
+def main_near():
+    st.set_page_config(page_title="NEAR Monitor", page_icon="🟢", layout="wide")
+    inject_css()
+    data, source = load_near()
+    df = daily_frame(data)
+    status = data.get("status", {}) if isinstance(data, dict) else {}
+    live = live_near()
+    if not live.get("price") and "price" in df.columns and df.price.notna().any():
+        live = {"price": float(df.price.dropna().iloc[-1]), "source": "giá đóng cửa gần nhất"}
+
+    head, btn = st.columns([5, 1])
+    with head:
+        st.title("🟢 NEAR — bảng theo dõi hằng ngày")
+    with btn:
+        st.write("")
+        if st.button("🔄 Tải lại", **STRETCH):
+            st.cache_data.clear()
+            st.rerun()
+    last_run = status.get("last_run_utc")
+    when = (datetime.strptime(last_run, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone(VN_TZ)
+            .strftime("%d/%m %H:%M") if last_run else "chưa chạy")
+    cap(f"Dữ liệu: {source} • GitHub Actions cập nhật lần cuối {when} giờ VN • giá trực tiếp {live.get('source', 'N/A')} • "
+        f"NEAR Monitor {NEAR_VERSION}")
+    for k, v in (status.get("errors") or {}).items():
+        cap(f"⚠️ {k}: {v[:160]}")
+    if df.empty or not live.get("price"):
+        st.warning("Chưa có dữ liệu NEAR. Thêm bước NEAR vào workflow rồi bấm **Run workflow** trong tab Actions của GitHub.")
+        return
+    if last_run and (utc_now() - datetime.strptime(last_run, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)).days >= 2:
+        st.warning("⚠️ Dữ liệu NEAR đã cũ hơn 2 ngày — kiểm tra GitHub Actions.")
+
+    price = live["price"]
+    version = f"{last_run}|{len(df)}"
+    model = model_cached(version, 0.2)
+    mm = model_metrics(model, price)
+    mseries = model_series(model)
+    zones = find_zones(model, price)
+    wf = whale_frame(data)
+    btc = load_btc_prices()
+    nb30 = near_btc_change(df, btc)
+    prices = df.dropna(subset=["price"])[["date", "price"]] if "price" in df.columns else pd.DataFrame()
+
+    news = data.get("news") or news_cached()
+    etf = load_near_etf()
+    tabs = st.tabs(["🧭 Báo cáo hằng ngày", "📊 Tổng quan", "🧱 Giá vốn ước tính", "🏦 Hệ sinh thái & Staking",
+                    "📈 Phái sinh", "🐋 Cá voi", "⏰ Hủy stake & chuyển lớn", "📉 Giá & xu hướng"])
+    with tabs[0]:
+        tab_report(live, df, mm, mseries, zones, wf, news, version, etf, flows_for_report(data))
+    with tabs[1]:
+        tab_overview(live, df, mm, mseries, zones, wf, nb30, None, etf, flow_line(data))
+    with tabs[2]:
+        tab_cost_basis(version, price, df)
+    with tabs[3]:
+        days = st.radio("Khoảng thời gian", [90, 180, 365], index=1, horizontal=True,
+                        format_func=lambda x: f"{x} ngày", key="near_eco_days")
+        tab_ecosystem(df, prices[prices.date >= prices.date.max() - timedelta(days=days - 1)] if not prices.empty else prices,
+                      days)
+    with tabs[4]:
+        days = st.radio("Khoảng thời gian", [30, 90, 180], index=1, horizontal=True,
+                        format_func=lambda x: f"{x} ngày", key="near_der_days")
+        tab_derivatives(df, prices, days, data.get("derivatives_meta"))
+    with tabs[5]:
+        tab_whales(wf, _secret("GITHUB_REPO"))
+    with tabs[6]:
+        tab_flows(data)
+    with tabs[7]:
+        days = st.radio("Khoảng thời gian", [90, 180, 365], index=1, horizontal=True,
+                        format_func=lambda x: f"{x} ngày", key="near_trend_days")
+        tab_trend(df, btc, days, mseries)
+
+
+if UPDATE_MODE:
+    run_near_update()
+else:
+    main_near()
