@@ -1,5 +1,5 @@
 {
- "updated_at_utc": "2026-11-13 01:04",
+ "updated_at_utc": "2026-11-13 09:29",
  "daily": {
   "2025-10-03": {
    "stables_total": 298069179501.0,
@@ -3306,7 +3306,7 @@
    "oi_usd": 3251799958.1918,
    "perp_volume_usd": 1922674365.266,
    "long_short_ratio": 1.49,
-   "funding_apr": -1.3647880778802501,
+   "funding_apr": -0.844156633253625,
    "price": 83760.4,
    "stables_total": 303896752574.0,
    "usdt": 184076527715.0,
@@ -3793,29 +3793,34 @@
    "price": 71461.0,
    "fng": 28.0,
    "fng_class": "Fear",
-   "stables_total": 289051874290.62,
-   "usdt": 175654816879.07,
-   "usdc": 69889962064.52,
+   "stables_total": 289051874291.0,
+   "usdt": 175654816879.0,
+   "usdc": 69889962065.0,
    "cb_premium_pct": -0.005111940435092536,
    "cb_premium_hours": 24,
    "oi_usd": 3866452373.4788,
    "perp_volume_usd": 7858106983.0125,
-   "long_short_ratio": 3.19,
-   "taker_sell": 1747838.83,
-   "taker_buy": 1562520.42
+   "long_short_ratio": 3.27,
+   "taker_sell": 6330234.35,
+   "taker_buy": 5397895.5
   },
   "2026-11-13": {
-   "funding_apr": 10.95,
-   "price": 70895.0,
+   "funding_apr": 1.9600706073744005,
+   "price": 68931.0,
    "fng": 20.0,
-   "fng_class": "Extreme Fear"
+   "fng_class": "Extreme Fear",
+   "stables_total": 287768289791.82,
+   "usdt": 175505548386.05,
+   "usdc": 69450977926.03,
+   "cb_premium_pct": -0.0006088515413937845,
+   "cb_premium_hours": 10
   }
  },
  "now": {
   "hl_funding_apr": 10.950000000000001,
-  "hl_oi_usd": 2800611656.375873,
-  "cb_premium_now": 0.16500979520677195,
-  "cb_premium_hour_utc": "2026-11-13 01:00"
+  "hl_oi_usd": 2604229531.448266,
+  "cb_premium_now": -0.0038229780183307582,
+  "cb_premium_hour_utc": "2026-11-13 09:00"
  },
  "errors": []
 }

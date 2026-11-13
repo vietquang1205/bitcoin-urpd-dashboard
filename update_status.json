@@ -1,51 +1,44 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-13 01:04",
+ "last_run_utc": "2026-11-13 09:29",
  "market": {
-  "total_mcap": 2408107605247.486,
-  "total_mcap_change_24h": -5.462298174827229,
-  "btc_mcap": 1427038543600.5015,
-  "btc_change_24h": -3.921831366945218,
-  "usdt_usdc": 244727257728.51025,
-  "adjusted_btc_dom": 65.96336817227117,
-  "alt_ex_stables": 736341803918.4741,
-  "alt_change_24h": -9.89731294634767,
-  "fetched_at_utc": "2026-11-13 01:04"
+  "total_mcap": 2345102684677.484,
+  "total_mcap_change_24h": -6.356350954804026,
+  "btc_mcap": 1384645801775.818,
+  "btc_change_24h": -6.15985009641957,
+  "usdt_usdc": 244651289458.14655,
+  "adjusted_btc_dom": 65.9213445703764,
+  "alt_ex_stables": 715805593443.5193,
+  "alt_change_24h": -8.712159830202937,
+  "fetched_at_utc": "2026-11-13 09:29"
  },
  "urpd": {
   "latest_date": "2026-11-13",
   "changed": [
-   "2026-11-12",
    "2026-11-13"
   ],
   "errors": []
  },
  "research": {
-  "updated": {
-   "supply_in_loss": 1,
-   "supply_in_loss_percent": 1,
-   "sth_realized_price": 1,
-   "lth_realized_price": 1
-  },
+  "updated": {},
   "errors": []
  },
  "realized": {
-  "updated": {
-   "realized_profit": 1,
-   "realized_loss": 1,
-   "btc_price": 1
-  },
+  "updated": {},
   "errors": [],
-  "pending": []
+  "pending": [
+   "realized_profit",
+   "realized_loss"
+  ]
  },
  "onchain": {
-  "updated": {
-   "mvrv": 1,
-   "nupl": 1,
-   "sopr": 1
-  },
+  "updated": {},
   "errors": [],
-  "pending": [],
+  "pending": [
+   "mvrv",
+   "nupl",
+   "sopr"
+  ],
   "mvrv_estimate": {
    "k": 1.0074,
    "calib_days": 30,
@@ -60,11 +53,11 @@
   "sessions": 27,
   "notes": [],
   "alts": {
-   "NEAR": "26 phiên",
-   "LINK": "27 phiên",
+   "NEAR": "27 phiên",
+   "LINK": "28 phiên",
    "ETH": "27 phiên",
    "SOL": "27 phiên",
-   "XRP": "27 phiên"
+   "XRP": "28 phiên"
   }
  },
  "market_extra": {
