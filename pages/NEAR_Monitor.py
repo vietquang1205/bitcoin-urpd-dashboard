@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.2"
+NEAR_VERSION = "V5.3"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
@@ -304,6 +304,12 @@ CHILD_MIN = 20_000              # cá voi/ví con chuyển ≥ 20k sang ví mớ
 CHILD_KEEP_DAYS = 45            # theo dõi ví con 45 ngày kể từ lần hoạt động cuối
 CHILD_MAX = 30                  # tối đa 30 ví con
 CHILD_MAX_DEPTH = 3             # tối đa 3 tầng (cá voi → con → cháu → chắt)
+NB_MAX_CALLS_FREE = 12          # NearBlocks gói miễn phí: 6 lượt/phút, 333 lượt/ngày → tối đa 12 lượt/lần chạy
+NB_MAX_CALLS_KEY = 45
+NB_PAUSE_FREE = 10.5            # giãn 10,5 giây/lượt để không vượt 6 lượt/phút
+NB_PAUSE_KEY = 0.5
+FP_RESYNC_DAYS = 3              # ví "đứng im" vẫn quét lại sau 3 ngày cho chắc
+TRANSFER_INTERVAL_H = 2         # nhờ lọc bằng dấu vân tay RPC, quét chuyển lớn mỗi lần chạy (2 giờ)
 UNLOCK_EPOCHS = 4               # NEAR: tiền hủy stake rút được sau 4 epoch
 EPOCH_LENGTH_BLOCKS = 43_200
 EVENT_KEEP_DAYS = 90
@@ -419,7 +425,7 @@ def update_staking_flows(data, pools):
 def nb_account_txns(account, key="", per_page=25):
     headers = {"Authorization": f"Bearer {key}"} if key else None
     j = _get(f"https://api.nearblocks.io/v1/account/{account}/txns", params={"per_page": per_page},
-             headers=headers, retries=1)
+             headers=headers, retries=0)
     return j.get("txns") or []
 
 
@@ -445,6 +451,20 @@ def classify_transfer(frm, to, method, exch):
     if to in ("meta-pool.near", "linear-protocol.near"):
         return "stake"
     return "wallet"
+
+
+def account_fingerprint(account):
+    """Dấu vân tay miễn phí qua RPC: (số dư, tổng nonce của các khóa). Số dư đổi = có tiền vào/ra;
+    nonce đổi = ví vừa tự ký giao dịch (kể cả ví trung chuyển nhận rồi chuyển đi ngay, số dư không đổi)."""
+    res = near_rpc("query", {"request_type": "view_account", "finality": "final", "account_id": account})
+    bal = round(((safe_float(res.get("amount")) or 0) + (safe_float(res.get("locked")) or 0)) / YOCTO)
+    nonce = 0
+    try:
+        keys = near_rpc("query", {"request_type": "view_access_key_list", "finality": "final", "account_id": account})
+        nonce = sum(int((k.get("access_key") or {}).get("nonce") or 0) for k in keys.get("keys") or [])
+    except Exception:
+        nonce = -1
+    return [bal, nonce]
 
 
 def child_label(data, acct, labels=None):
@@ -484,9 +504,33 @@ def update_big_transfers(data, watch, key=""):
               if a not in exch and a not in protocol and a not in KNOWN_CONTRACTS and not _is_pool(a)}
     # Ưu tiên: ví sàn → ví vừa hủy stake/rút → ví con → ví nhận tiền lớn đang bám → cá voi trong watchlist
     kids_sorted = [a for a, _ in sorted(children.items(), key=lambda kv: (-kv[1].get("received", 0)))]
-    targets = list(dict.fromkeys(
+    candidates = list(dict.fromkeys(
         [a for a in exch] + [a for a, _ in sorted(movers.items(), key=lambda kv: -kv[1])] + kids_sorted + list(follow)
-        + sorted(whales)))[:45 if key else 30]
+        + sorted(whales)))
+    # Lọc bằng dấu vân tay RPC (miễn phí): chỉ gọi NearBlocks cho ví có thay đổi → tiết kiệm lượt gọi
+    scan_fp = data.get("scan_fp") or {}
+    resync = (now - timedelta(days=FP_RESYNC_DAYS)).strftime("%Y-%m-%d %H:%M")
+    fps, targets, idle = {}, [], 0
+    for a in candidates:
+        try:
+            fps[a] = account_fingerprint(a)
+        except Exception:
+            fps[a] = None                       # RPC lỗi → cứ quét cho chắc
+        prev = scan_fp.get(a) or {}
+        if fps[a] is not None and prev.get("fp") == fps[a] and prev.get("t", "") >= resync:
+            idle += 1
+            continue
+        targets.append(a)
+        time.sleep(0.05)
+    # Ví sàn đổi số dư quét trước; các ví còn lại xoay vòng: ví lâu chưa quét (hoặc chưa quét lần nào) được ưu tiên
+    ex_t = [a for a in targets if a in exch]
+    rest = sorted((a for a in targets if a not in exch), key=lambda a: (scan_fp.get(a) or {}).get("t", ""))
+    targets = ex_t + rest
+    max_calls = NB_MAX_CALLS_KEY if key else NB_MAX_CALLS_FREE
+    deferred = max(0, len(targets) - max_calls)
+    targets = targets[:max_calls]
+    stats = {"time_utc": now.strftime("%Y-%m-%d %H:%M"), "candidates": len(candidates), "idle_skipped": idle,
+             "to_scan": len(targets) + deferred, "scanned": 0, "deferred": deferred, "rate_limited": False}
     seen = set(data.get("transfer_seen") or [])
     out = data.get("big_transfers") or []
     errs, n_new = [], 0
@@ -494,12 +538,22 @@ def update_big_transfers(data, watch, key=""):
     def lab(a):
         return labels.get(a) or child_label({"children": children}, a, labels) or KNOWN_CONTRACTS.get(a)
 
-    for acct in targets:
+    for i, acct in enumerate(targets):
+        if i:
+            time.sleep(NB_PAUSE_KEY if key else NB_PAUSE_FREE)
         try:
             txns = nb_account_txns(acct, key)
         except Exception as e:
-            errs.append(f"{acct[:20]}: {str(e)[:60]}")
+            msg = str(e)
+            errs.append(f"{acct[:20]}: {msg[:60]}")
+            if "429" in msg or "Too Many" in msg:
+                stats["rate_limited"] = True
+                stats["deferred"] += len(targets) - i - 1
+                break                           # dừng, phần còn lại quét ở lần chạy sau (dấu vân tay chưa cập nhật)
             continue
+        stats["scanned"] += 1
+        if fps.get(acct) is not None:
+            scan_fp[acct] = {"fp": fps[acct], "t": now.strftime("%Y-%m-%d %H:%M")}
         min_amt = CHILD_MIN if acct in family else TRANSFER_MIN
         for t in txns:
             rid = t.get("receipt_id") or t.get("id")
@@ -543,12 +597,14 @@ def update_big_transfers(data, watch, key=""):
             n_new += 1
             if kind == "wallet" and to not in exch and to != acct and frm not in protocol and to not in protocol:
                 follow[to] = ts_s            # đi theo ví nhận ở các lần chạy sau
-        time.sleep(0.6 if key else 2.5)
     cut = (now - timedelta(days=EVENT_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
     data["big_transfers"] = sorted([x for x in out if x["time_utc"] >= cut], key=lambda x: x["time_utc"])[-2000:]
     data["transfer_seen"] = list(seen)[-6000:]
     data["follow"] = dict(sorted(follow.items(), key=lambda kv: kv[1])[-40:])
     data["children"] = dict(sorted(children.items(), key=lambda kv: -kv[1].get("received", 0))[:CHILD_MAX])
+    live = set(candidates)
+    data["scan_fp"] = {a: v for a, v in scan_fp.items() if a in live}
+    data["transfer_scan_stats"] = stats
     return n_new, errs
 
 
@@ -1532,7 +1588,7 @@ def run_near_update():
         last = data.get("transfers_last_utc")
         age = ((utc_now() - datetime.strptime(last, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)).total_seconds() / 3600
                if last else 999)
-        if age >= 6 or os.environ.get("NEAR_TRANSFER_FORCE") == "1":
+        if age >= TRANSFER_INTERVAL_H - 0.25 or os.environ.get("NEAR_TRANSFER_FORCE") == "1":
             n_tr, errs = update_big_transfers(data, watch, key)
             data["transfers_last_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
             data.setdefault("transfer_tracking_since", data["transfers_last_utc"])
@@ -2328,7 +2384,7 @@ def tab_flows(data):
     st.divider()
     mk("### 🐋 Chuyển lớn (≥ 50.000 NEAR)")
     if not data.get("transfers_last_utc"):
-        st.info("Chưa quét chuyển lớn. Module chạy tối đa mỗi 6 giờ.")
+        st.info("Chưa quét chuyển lớn. Module chạy mỗi lần workflow chạy (chỉ gọi NearBlocks cho ví có thay đổi).")
         return
     t7 = transfer_summary(data, 7)
     c = st.columns(4)
@@ -2350,6 +2406,12 @@ def tab_flows(data):
         "Đến": [lb if isinstance(lb, str) and lb else _short(a) for a, lb in zip(tr["to"], tr.get("to_label", [None] * len(tr)))],
         "Sau hủy stake?": tr.get("after_unstake", pd.Series([False] * len(tr))).map(lambda v: "⚠️ có" if v else ""),
     }))
+    ss = data.get("transfer_scan_stats") or {}
+    if ss:
+        cap(f"Lần quét gần nhất: {ss.get('candidates', 0)} ví theo dõi · {ss.get('idle_skipped', 0)} ví đứng im (bỏ qua, "
+            f"kiểm tra miễn phí qua RPC) · quét NearBlocks {ss.get('scanned', 0)} ví"
+            + (f" · hoãn {ss['deferred']} ví sang lần sau" if ss.get("deferred") else "")
+            + (" · ⚠️ bị NearBlocks giới hạn lượt gọi" if ss.get("rate_limited") else "") + ".")
     cap(f"Quét gần nhất {_vn(data.get('transfers_last_utc'))}. 'Sang ví khác' sẽ được theo tiếp ở lần quét sau "
         "(nếu ví đó gom về sàn sẽ hiện 'Nạp lên sàn'). Chuyển lên sàn không chắc chắn là bán; chỉ là tín hiệu.")
     tab_children(data)
