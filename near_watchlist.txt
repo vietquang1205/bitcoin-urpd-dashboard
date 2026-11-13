@@ -78,3 +78,17 @@ f6a3ada5900f61b5089494beb1292fdccd2ba7ec01dade714e556e6717afa9db | Ví con cụm
 eec102b30e72e579de3d01074465566351f3f727ec89338ed26e77099ab7a2db | Cá voi figment — đang hủy stake 2,6 triệu | whale
 # • f593c153…: đang stake ~5,99 triệu NEAR ở staked.poolv1.near; hủy stake 187k ngày 11/11 (kiểm tra 12/11/2026).
 f593c153578b81b910a14d03892dd0cb4656a00f3a36666094bf7d8b2d916e7f | Cá voi pool staked — 6 triệu | whale
+
+# ---------------------------------------------------------------------------
+# VÍ CON / ĐƯỜNG NẠP SÀN CỦA CỤM QUỸ NEAR — phát hiện 13/11/2026 (module ví con + lịch sử chuyển)
+# • 84134c05…: nhận tiền từ f6a3ada5… (ví con cụm quỹ) rồi nạp thẳng vào ví nóng chính Binance 5c33c6… chỉ vài phút sau:
+#   26/09 1,0tr · 01/10 0,8tr + 0,2tr · 09/10 1,0tr · 14/10 0,5tr · 16/10 1,0tr · 21/10 0,5tr · 22/10 0,5tr ≈ 5,5 triệu NEAR.
+# • 5a711468…: nhận 500k từ 940ef3f4… ngày 24/10, 12 phút sau nạp 500k vào Binance.
+# • 55d56981…: ngày 10/11 nạp lại 1 triệu NEAR cho f6a3ada5… → theo dõi xem có lặp lại đường f6a3 → 84134c05 → Binance.
+# • d0de89b2…: ví chia nhỏ của nhóm Bitwise/NF (nhận từ 1e74ab0a…, chia tiếp cho ≥6 ví con tầng 2).
+84134c051d4d473612b2f097d205ca763ad05e2cb00439eac3526e2daeffc6ec | Ví cháu cụm quỹ NEAR — đường nạp Binance (đã nạp ~5,5tr) | whale
+5a711468be8a9d01dc77eeaa20202ac5e4df9d5a71f3c17bcd48e302d3c5ddf2 | Ví con cụm quỹ NEAR — đã nạp Binance 500k | whale
+55d56981f32d239a17231cb3ed072c786024dca97b847d94e4cf56d3bcfc85a7 | Nguồn nạp lại ví con cụm quỹ (1tr ngày 10/11) | whale
+d0de89b2a3fa9ad1aa8412681a300128d7b8fac21968aef384b0b2c08014e187 | Nhóm Bitwise/NF — ví chia nhỏ (tầng 1) | whale
+nfendowment03.near | Quỹ NEAR Foundation (endowment) — đã chuyển 39,5tr cho cụm quỹ | whale
+# ae1b2d06cee9353fba5ce28827f4cccbbf6e0dc161dfc3b154f71c5902c3fcca | Nguồn 20,5tr cho cụm quỹ NEAR (chưa rõ) | whale
