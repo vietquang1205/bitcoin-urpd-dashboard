@@ -1,48 +1,55 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-13 23:31",
+ "last_run_utc": "2026-11-14 02:34",
  "market": {
-  "total_mcap": 2311616929653.357,
-  "total_mcap_change_24h": -6.611649014471091,
-  "btc_mcap": 1367685634446.0508,
-  "btc_change_24h": -4.552495817680293,
-  "usdt_usdc": 244585385640.71844,
-  "adjusted_btc_dom": 66.1666551924516,
-  "alt_ex_stables": 699345909566.5876,
-  "alt_change_24h": -12.338105749800931,
-  "fetched_at_utc": "2026-11-13 23:30"
+  "total_mcap": 2269812563269.1963,
+  "total_mcap_change_24h": -7.121144185087175,
+  "btc_mcap": 1352921598326.7651,
+  "btc_change_24h": -4.352206274976108,
+  "usdt_usdc": 244260520687.10678,
+  "adjusted_btc_dom": 66.79273451804858,
+  "alt_ex_stables": 672630444255.3243,
+  "alt_change_24h": -14.32885230751596,
+  "fetched_at_utc": "2026-11-14 02:34"
  },
  "urpd": {
-  "latest_date": "2026-11-13",
+  "latest_date": "2026-11-14",
   "changed": [
-   "2026-11-13"
+   "2026-11-13",
+   "2026-11-14"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
+  "updated": {
+   "realized_profit": 2,
+   "realized_loss": 2,
+   "btc_price": 1
+  },
   "errors": [],
-  "pending": [
-   "realized_profit",
-   "realized_loss"
-  ]
+  "pending": []
  },
  "onchain": {
-  "updated": {},
+  "updated": {
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
+  },
   "errors": [],
-  "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ],
+  "pending": [],
   "mvrv_estimate": {
    "k": 1.0074,
    "calib_days": 30,
-   "bg_last": "2026-11-06",
+   "bg_last": "2026-11-07",
    "est_days": 7
   }
  },
@@ -51,18 +58,11 @@
   "source": "SoSoValue",
   "latest": "2026-11-12",
   "sessions": 28,
-  "notes": [],
-  "alts": {
-   "NEAR": "27 phiên",
-   "LINK": "28 phiên",
-   "ETH": "28 phiên",
-   "SOL": "28 phiên",
-   "XRP": "28 phiên"
-  }
+  "skipped": "SoSoValue chưa có phiên 13/11"
  },
  "market_extra": {
   "done": {
-   "phái sinh": 180,
+   "phái sinh": 181,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
