@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.3"
+NEAR_VERSION = "V5.4"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
@@ -302,7 +302,7 @@ STAKE_EVENT_MIN = 50_000        # ghi sự kiện stake/hủy stake/rút từ 50
 TRANSFER_MIN = 50_000           # chuyển lớn từ 50k NEAR
 CHILD_MIN = 20_000              # cá voi/ví con chuyển ≥ 20k sang ví mới → coi là "ví con" (chia nhỏ để giấu)
 CHILD_KEEP_DAYS = 45            # theo dõi ví con 45 ngày kể từ lần hoạt động cuối
-CHILD_MAX = 30                  # tối đa 30 ví con
+CHILD_MAX = 60                  # tối đa 60 ví con
 CHILD_MAX_DEPTH = 3             # tối đa 3 tầng (cá voi → con → cháu → chắt)
 NB_MAX_CALLS_FREE = 12          # NearBlocks gói miễn phí: 6 lượt/phút, 333 lượt/ngày → tối đa 12 lượt/lần chạy
 NB_MAX_CALLS_KEY = 45
@@ -1108,6 +1108,8 @@ def parse_watchlist(text):
         if not line or line.startswith("#"):
             continue
         parts = [x.strip() for x in line.split("|")]
+        if len(parts) < 2:                       # dòng hợp lệ luôn có "ví | tên | loại"
+            continue
         account = parts[0]
         if not re.match(r"^[a-z0-9._-]{2,64}$", account):
             continue
@@ -1547,9 +1549,20 @@ def run_near_update():
     # 6) Số dư ví theo dõi
     try:
         with open(WATCHLIST_FILE, "r", encoding="utf-8") as f:
-            watch = parse_watchlist(f.read())
+            wl_text = f.read()
+        watch = parse_watchlist(wl_text)
     except FileNotFoundError:
-        watch = []
+        wl_text, watch = "", []
+    # Bảo vệ: file watchlist bị dán nhầm nội dung (vd code .py) → dùng bản watchlist tốt gần nhất
+    looks_code = any(m in wl_text for m in ('"""', "\ndef ", "\nimport ", "streamlit"))
+    if (looks_code or not watch) and data.get("watch_backup"):
+        errors["watchlist"] = ("near_watchlist.txt không hợp lệ (có vẻ bị dán nhầm nội dung) → đang dùng bản watchlist "
+                               f"tốt gần nhất ({len(data['watch_backup'])} ví, lưu {data.get('watch_backup_utc')}). "
+                               "Hãy dán lại đúng file near_watchlist.txt.")
+        watch = [dict(w) for w in data["watch_backup"]]
+    elif watch and not looks_code:
+        data["watch_backup"] = [dict(w) for w in watch]
+        data["watch_backup_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
     # Luôn theo dõi thêm 20 validator pool lớn nhất (dòng ủy thác stake vào/ra)
     listed = {w["account"] for w in watch}
     watch += [{"account": a, "label": f"Validator — {a}", "type": "validator"}
@@ -1559,7 +1572,7 @@ def run_near_update():
     watch += [{"account": a, "label": child_label(data, a) or f"Ví con — {a}", "type": "whale"}
               for a in (data.get("children") or {}) if a not in listed]
     snap, fails = {}, []
-    for w in watch[:90]:
+    for w in watch[:140]:
         try:
             b = fetch_account(w["account"])
             snap[w["account"]] = {**b, "label": w["label"], "type": w["type"]}
