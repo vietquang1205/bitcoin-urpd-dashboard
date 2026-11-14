@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-14 14:01",
+ "last_run_utc": "2026-11-14 19:10",
  "market": {
-  "total_mcap": 2277367037993.007,
-  "total_mcap_change_24h": -5.683580267992384,
-  "btc_mcap": 1342740169844.0127,
-  "btc_change_24h": -3.9086958836437433,
-  "usdt_usdc": 244339171694.8626,
-  "adjusted_btc_dom": 66.04632391433731,
-  "alt_ex_stables": 690287696454.1316,
-  "alt_change_24h": -10.69471938523745,
-  "fetched_at_utc": "2026-11-14 14:01"
+  "total_mcap": 2238481259726.725,
+  "total_mcap_change_24h": -7.239884349632766,
+  "btc_mcap": 1319781930260.2732,
+  "btc_change_24h": -4.817536044325023,
+  "usdt_usdc": 244346566992.11496,
+  "adjusted_btc_dom": 66.1831888823127,
+  "alt_ex_stables": 674352762474.3369,
+  "alt_change_24h": -13.79695274413637,
+  "fetched_at_utc": "2026-11-14 19:09"
  },
  "urpd": {
   "latest_date": "2026-11-14",
@@ -48,11 +48,11 @@
   "source": "SoSoValue",
   "latest": "2026-11-13",
   "sessions": 510,
-  "skipped": "đã lấy 0.4 giờ trước"
+  "skipped": "đã lấy 5.5 giờ trước"
  },
  "market_extra": {
   "done": {
-   "phái sinh": 181,
+   "phái sinh": 180,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
