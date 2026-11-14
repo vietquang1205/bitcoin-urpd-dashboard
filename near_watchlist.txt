@@ -112,3 +112,10 @@ f1bb20659f00960c4a54077f00ad4316b01eddc13d2050f6ebc190bb64492e6a | Ví con nhóm
 25ab96ddd0d9a8e0ab48b45c2ef7473a83c4ff7e49239b46613b3d688e024731 | Ví con nhóm Bitwise/NF (tầng 3) — nhận 522k | whale
 cc2e78b8f149b9689adfe371a2f2d37973023bbd37d107ccb6ffb061fb0d492c | Ví con nhóm Bitwise/NF (tầng 3) — nhận 458k | whale
 3e93b62aec7f1275a2eb6a0145d1d6406fd94f6c44f7fd705711f8139b5d25f9 | Ví con nhóm Bitwise/NF (tầng 3) — nhận 415k | whale
+# Thêm 14/11/2026 — cụm quỹ NEAR "nạp lại đạn":
+# • 3d9ccff5… chuyển 2 triệu cho 55d56981… (10/11 06:23); 55d56981… chia đôi: 1 triệu → f6a3ada5… và 1 triệu → eb3dde4d….
+# • eb3dde4d… chính là ví đã cấp 1 triệu cho 84134c05… ngày 26/09 rồi nạp thẳng Binance → hiện đang giữ 1 triệu NEAR.
+# • 23ced430…: ví gom của nhóm ủy thác bitwise_2 (nhận từ c8afd036…, bc97c260…, 70aba5d2…), chuyển tiếp sang fb79675c….
+eb3dde4d05512f7bf7eddb11ab0a13bfd9d133b8ed7f5bcd34638adad34e9dbc | Cụm quỹ NEAR — ví mồi đường nạp Binance (giữ 1tr) | whale
+3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324 | Cụm quỹ NEAR — nguồn 2tr ngày 10/11 | whale
+23ced4300a4bf282bf94a4fcd2b0af32ad291ef531f544f6d7d283e8ff1e684a | Nhóm bitwise_2 (cùng nhà Bitwise/NF) — ví gom | whale
