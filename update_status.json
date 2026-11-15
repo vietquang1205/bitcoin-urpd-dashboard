@@ -1,45 +1,54 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-14 23:54",
+ "last_run_utc": "2026-11-15 06:25",
  "market": {
-  "total_mcap": 2174704720209.3042,
-  "total_mcap_change_24h": -8.97808914041995,
-  "btc_mcap": 1289594286224.3997,
-  "btc_change_24h": -5.961044784302241,
-  "usdt_usdc": 244397239243.60565,
-  "adjusted_btc_dom": 66.80771322396983,
-  "alt_ex_stables": 640713194741.2988,
-  "alt_change_24h": -17.172508583006252,
-  "fetched_at_utc": "2026-11-14 23:54"
+  "total_mcap": 2199832518248.2534,
+  "total_mcap_change_24h": -6.677589102781961,
+  "btc_mcap": 1296224406708.5645,
+  "btc_change_24h": -4.258785777256371,
+  "usdt_usdc": 244451191599.29843,
+  "adjusted_btc_dom": 66.29010868841505,
+  "alt_ex_stables": 659156919940.3905,
+  "alt_change_24h": -13.152445254265444,
+  "fetched_at_utc": "2026-11-15 06:24"
  },
  "urpd": {
-  "latest_date": "2026-11-14",
+  "latest_date": "2026-11-15",
   "changed": [
-   "2026-11-14"
+   "2026-11-15"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
+  "updated": {
+   "realized_profit": 1,
+   "realized_loss": 1,
+   "btc_price": 1
+  },
   "errors": [],
   "pending": []
  },
  "onchain": {
-  "updated": {},
+  "updated": {
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
+  },
   "errors": [],
-  "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ],
+  "pending": [],
   "mvrv_estimate": {
-   "k": 1.0074,
+   "k": 1.0061,
    "calib_days": 30,
-   "bg_last": "2026-11-07",
+   "bg_last": "2026-11-08",
    "est_days": 7
   }
  },
@@ -47,7 +56,7 @@
   "errors": [],
   "source": "SoSoValue",
   "latest": "2026-11-13",
-  "sessions": 510,
+  "sessions": 509,
   "notes": [],
   "alts": {
    "NEAR": "28 phiên",
@@ -59,7 +68,7 @@
  },
  "market_extra": {
   "done": {
-   "phái sinh": 180,
+   "phái sinh": 181,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
