@@ -119,3 +119,6 @@ cc2e78b8f149b9689adfe371a2f2d37973023bbd37d107ccb6ffb061fb0d492c | Ví con nhóm
 eb3dde4d05512f7bf7eddb11ab0a13bfd9d133b8ed7f5bcd34638adad34e9dbc | Cụm quỹ NEAR — ví mồi đường nạp Binance (giữ 1tr) | whale
 3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324 | Cụm quỹ NEAR — nguồn 2tr ngày 10/11 | whale
 23ced4300a4bf282bf94a4fcd2b0af32ad291ef531f544f6d7d283e8ff1e684a | Nhóm bitwise_2 (cùng nhà Bitwise/NF) — ví gom | whale
+# Thêm 15/11/2026 — đường nạp Binance thứ 2 của cụm quỹ (lịch sử): eb3dde4d… → f34aaa21… (750k, 21/09 13:35)
+# → ví nóng Binance 13 phút sau. Vậy eb3dde4d… đã 2 lần mở đường nạp sàn (21/09 và 26/09); hiện vẫn giữ 1 triệu NEAR.
+f34aaa2171ac403666af912e716dad93d38c08faac26f504d099dafd74f9db84 | Cụm quỹ NEAR — đường nạp Binance #2 (đã nạp 750k) | whale
