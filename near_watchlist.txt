@@ -122,3 +122,9 @@ eb3dde4d05512f7bf7eddb11ab0a13bfd9d133b8ed7f5bcd34638adad34e9dbc | Cụm quỹ N
 # Thêm 15/11/2026 — đường nạp Binance thứ 2 của cụm quỹ (lịch sử): eb3dde4d… → f34aaa21… (750k, 21/09 13:35)
 # → ví nóng Binance 13 phút sau. Vậy eb3dde4d… đã 2 lần mở đường nạp sàn (21/09 và 26/09); hiện vẫn giữ 1 triệu NEAR.
 f34aaa2171ac403666af912e716dad93d38c08faac26f504d099dafd74f9db84 | Cụm quỹ NEAR — đường nạp Binance #2 (đã nạp 750k) | whale
+# Thêm 16/11/2026 — đường "nhỏ giọt" của cụm quỹ vào ví sàn nghi vấn 52435fe9…:
+# • 2874f85c…: nhận 20,5k từ 3d9ccff5… (01:32 UTC 16/11) rồi nạp 4 lần ~20–23k (tổng ~87k) vào 52435fe9… trong 25 phút;
+#   ngày 11/11 ví này cũng nạp ~160k vào 52435fe9…. → đường nạp sàn thứ 3 của cụm quỹ (chia nhỏ ~20k/lệnh).
+# • eb053eee…: hủy stake ở ledgerbyfigment, rút 81,6k → 00586f9c… → 3d9ccff5… (gom về ví nguồn của cụm quỹ).
+2874f85cf17404b4c43ad4e869ff0c7ef16a2b3ddea6c01033fedc55ba6d4eac | Cụm quỹ NEAR — đường nạp nhỏ giọt vào 52435fe9 | whale
+eb053eee2dea5b961395400876257b6a2d4b0e70ec34208efe4b117443c62ef7 | Cụm quỹ NEAR — ví ủy thác ledgerbyfigment | whale
