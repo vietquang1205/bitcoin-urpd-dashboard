@@ -1,52 +1,45 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-16 02:03",
+ "last_run_utc": "2026-11-16 09:37",
  "market": {
-  "total_mcap": 2184680785282.87,
-  "total_mcap_change_24h": -1.8600733235250146,
-  "btc_mcap": 1299426221728.9517,
-  "btc_change_24h": 3.335748132286768,
-  "usdt_usdc": 244395723322.6151,
-  "adjusted_btc_dom": 66.97089243248368,
-  "alt_ex_stables": 640858840231.3033,
-  "alt_change_24h": -11.512997938815273,
-  "fetched_at_utc": "2026-11-16 02:02"
+  "total_mcap": 2175350097025.2695,
+  "total_mcap_change_24h": -4.5817780817162035,
+  "btc_mcap": 1294844465321.2825,
+  "btc_change_24h": -1.5637016103559505,
+  "usdt_usdc": 244324858674.38153,
+  "adjusted_btc_dom": 67.05476653568188,
+  "alt_ex_stables": 636180773029.6056,
+  "alt_change_24h": -11.646797753383053,
+  "fetched_at_utc": "2026-11-16 09:37"
  },
  "urpd": {
   "latest_date": "2026-11-16",
   "changed": [
-   "2026-11-15",
    "2026-11-16"
   ],
   "errors": []
  },
  "research": {
-  "updated": {
-   "supply_in_loss": 1,
-   "supply_in_loss_percent": 1,
-   "sth_realized_price": 1,
-   "lth_realized_price": 1
-  },
+  "updated": {},
   "errors": []
  },
  "realized": {
   "updated": {},
-  "errors": [
-   "btc-price: BGeometrics btc-price HTTP 429: {\"error\":{\"status\":429,\"code\":\"RATE_LIMIT_HOUR_EXCEEDED\",\"message\":\"Too many requests. Hourly limit of 10 requests exceeded. Please try again later or upgrade your plan"
-  ],
+  "errors": [],
   "pending": [
    "realized_profit",
-   "realized_loss"
+   "realized_loss",
+   "btc_price"
   ]
  },
  "onchain": {
   "updated": {},
-  "errors": [
-   "mvrv: BGeometrics mvrv HTTP 429: {\"error\":{\"status\":429,\"code\":\"RATE_LIMIT_HOUR_EXCEEDED\",\"message\":\"Too many requests. Hourly limit of 10 requests exceeded. Please try again later or upgrade your plan. htt",
-   "nupl: BGeometrics nupl HTTP 429: {\"error\":{\"status\":429,\"code\":\"RATE_LIMIT_HOUR_EXCEEDED\",\"message\":\"Too many requests. Hourly limit of 10 requests exceeded. Please try again later or upgrade your plan. htt",
-   "sopr: BGeometrics sopr HTTP 429: {\"error\":{\"status\":429,\"code\":\"RATE_LIMIT_HOUR_EXCEEDED\",\"message\":\"Too many requests. Hourly limit of 10 requests exceeded. Please try again later or upgrade your plan. htt"
+  "errors": [],
+  "pending": [
+   "mvrv",
+   "nupl",
+   "sopr"
   ],
-  "pending": [],
   "mvrv_estimate": {
    "k": 1.0061,
    "calib_days": 30,
@@ -58,8 +51,15 @@
   "errors": [],
   "source": "SoSoValue",
   "latest": "2026-11-13",
-  "sessions": 509,
-  "skipped": "đã lấy 5.0 giờ trước"
+  "sessions": 508,
+  "notes": [],
+  "alts": {
+   "NEAR": "28 phiên",
+   "LINK": "29 phiên",
+   "ETH": "29 phiên",
+   "SOL": "29 phiên",
+   "XRP": "29 phiên"
+  }
  },
  "market_extra": {
   "done": {
