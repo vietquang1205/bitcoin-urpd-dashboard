@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-16 13:25",
+ "last_run_utc": "2026-11-16 20:27",
  "market": {
-  "total_mcap": 2170692887760.8337,
-  "total_mcap_change_24h": -5.541776897256115,
-  "btc_mcap": 1289165473203.2837,
-  "btc_change_24h": -2.3560419011065004,
-  "usdt_usdc": 244269081375.53314,
-  "adjusted_btc_dom": 66.92013818196347,
-  "alt_ex_stables": 637258333182.0168,
-  "alt_change_24h": -13.11525373765664,
-  "fetched_at_utc": "2026-11-16 13:24"
+  "total_mcap": 2222843054448.3975,
+  "total_mcap_change_24h": -1.4112730673394538,
+  "btc_mcap": 1306429102776.6965,
+  "btc_change_24h": 0.1021181636740138,
+  "usdt_usdc": 244306656786.68814,
+  "adjusted_btc_dom": 66.0300767941733,
+  "alt_ex_stables": 672107294885.0127,
+  "alt_change_24h": -4.69758115230322,
+  "fetched_at_utc": "2026-11-16 20:26"
  },
  "urpd": {
   "latest_date": "2026-11-16",
@@ -52,11 +52,18 @@
   "source": "SoSoValue",
   "latest": "2026-11-13",
   "sessions": 508,
-  "skipped": "đã lấy 3.8 giờ trước"
+  "notes": [],
+  "alts": {
+   "NEAR": "28 phiên",
+   "LINK": "29 phiên",
+   "ETH": "29 phiên",
+   "SOL": "29 phiên",
+   "XRP": "29 phiên"
+  }
  },
  "market_extra": {
   "done": {
-   "phái sinh": 181,
+   "phái sinh": 180,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
