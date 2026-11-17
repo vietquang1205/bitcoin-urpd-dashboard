@@ -128,3 +128,12 @@ f34aaa2171ac403666af912e716dad93d38c08faac26f504d099dafd74f9db84 | Cụm quỹ N
 # • eb053eee…: hủy stake ở ledgerbyfigment, rút 81,6k → 00586f9c… → 3d9ccff5… (gom về ví nguồn của cụm quỹ).
 2874f85cf17404b4c43ad4e869ff0c7ef16a2b3ddea6c01033fedc55ba6d4eac | Cụm quỹ NEAR — đường nạp nhỏ giọt vào 52435fe9 | whale
 eb053eee2dea5b961395400876257b6a2d4b0e70ec34208efe4b117443c62ef7 | Cụm quỹ NEAR — ví ủy thác ledgerbyfigment | whale
+
+# ── Thêm 17/11/2026 ──
+# • 3 ví dưới stake GẦN NHƯ CÙNG LÚC (04:29 UTC 17/11) mỗi ví ~1,35 triệu NEAR (tổng ~4,05 triệu) vào cùng pool aca87218…poolv1.near.
+#   Số tiền gần bằng nhau + cùng thời điểm → nhiều khả năng một chủ thể chia ví (hoặc chương trình ủy thác). Nguồn tiền chưa xác định.
+#   Cùng ngày 3d9ccff5… (cụm quỹ) giảm ~2,73 triệu không thấy giao dịch lớn ghi nhận → cần đối chiếu.
+0d436b9d820fec9017d59203c7960035d2694f12df3460cd1a59e8fa5d8b4dfb | Cụm 3 ví stake 1,35tr pool aca87218 (17/11) — A | whale
+1124da93ba480e72b39c20e7914da98986d89ed55da1480ced53a8e0475cc291 | Cụm 3 ví stake 1,35tr pool aca87218 (17/11) — B | whale
+1e9a7740efc1e2f5fac612d71f13ee13965bf718fc63ef988cb42cdc99157654 | Cụm 3 ví stake 1,35tr pool aca87218 (17/11) — C | whale
+# • f593c153… (dòng trên) 17/11 13:32 UTC rút 1,175 triệu từ 52435fe9… (sàn/OTC nghi vấn) về ví → số dư ví 362k → 1,51 triệu.
