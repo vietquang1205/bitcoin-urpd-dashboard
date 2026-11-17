@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.4"
+NEAR_VERSION = "V5.5"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
@@ -123,7 +123,7 @@ def clean_secret(raw):
 
 def redact(msg):
     text = str(msg)
-    for name in ("NEARBLOCKS_API_KEY", "COINGECKO_API_KEY", "GITHUB_TOKEN"):
+    for name in ("NEARBLOCKS_API_KEY", "FASTNEAR_API_KEY", "COINGECKO_API_KEY", "GITHUB_TOKEN"):
         v = clean_secret(os.environ.get(name, ""))
         if v and len(v) >= 6:
             text = text.replace(v, "***")
@@ -310,6 +310,15 @@ NB_PAUSE_FREE = 10.5            # giãn 10,5 giây/lượt để không vượt 
 NB_PAUSE_KEY = 0.5
 FP_RESYNC_DAYS = 3              # ví "đứng im" vẫn quét lại sau 3 ngày cho chắc
 TRANSFER_INTERVAL_H = 2         # nhờ lọc bằng dấu vân tay RPC, quét chuyển lớn mỗi lần chạy (2 giờ)
+# Nguồn thứ 2 (V5.5): FastNear Transfers API — miễn phí, không cần key, lọc sẵn theo số NEAR tối thiểu.
+# Đo thực tế 17/11/2026: ~9–10 lượt/phút không key → giãn 7 giây/lượt. Có FASTNEAR_API_KEY thì nhanh hơn.
+FN_TRANSFERS_URL = "https://transfers.main.fastnear.com/v0/transfers"
+FN_MAX_CALLS_FREE = 18
+FN_MAX_CALLS_KEY = 60
+FN_PAUSE_FREE = 7.0
+FN_PAUSE_KEY = 0.3
+EXCH_MAX_PER_RUN = 3            # ví sàn đổi số dư liên tục → tối đa 3 ví sàn/lần để nhường lượt cho cá voi
+CLUSTER_WORDS = ("cụm quỹ", "quỹ near", "bitwise", "nfendowment", "endowment")
 UNLOCK_EPOCHS = 4               # NEAR: tiền hủy stake rút được sau 4 epoch
 EPOCH_LENGTH_BLOCKS = 43_200
 EVENT_KEEP_DAYS = 90
@@ -429,6 +438,53 @@ def nb_account_txns(account, key="", per_page=25):
     return j.get("txns") or []
 
 
+def nb_rows(account, key=""):
+    """NearBlocks → danh sách chuyển tiền chuẩn hóa (from, to, amount NEAR, ts giây, tx, rid)."""
+    rows = []
+    for t in nb_account_txns(account, key):
+        if not (t.get("outcomes") or {}).get("status", True):
+            continue
+        amt = sum((safe_float(a.get("deposit")) or 0) for a in t.get("actions") or []) / YOCTO
+        rows.append({"rid": t.get("receipt_id") or t.get("id"), "tx": t.get("transaction_hash"),
+                     "from": t.get("predecessor_account_id"), "to": t.get("receiver_account_id"), "amount": amt,
+                     "ts": int(str(t.get("block_timestamp"))[:13]) / 1000,
+                     "method": next((a.get("method") for a in t.get("actions") or [] if a.get("method")), None)})
+    return rows
+
+
+def fn_rows(account, min_near, key="", since_ms=None, limit=40):
+    """FastNear Transfers API → cùng định dạng với nb_rows. Lọc sẵn ≥ min_near NEAR ở phía máy chủ nên ví
+    sàn/ ví bận cũng không bị 'trôi' giao dịch lớn. amount âm = ví gửi đi, dương = ví nhận về."""
+    body = {"account_id": account, "asset_id": "native:near", "desc": True, "limit": limit,
+            "min_amount": str(int(min_near) * 10 ** 24), "ignore_system": True}
+    if since_ms:
+        body["from_timestamp_ms"] = int(since_ms)
+    r = requests.post(FN_TRANSFERS_URL, json=body, params={"apiKey": key} if key else None,
+                      headers=HTTP_HEADERS, timeout=25)
+    if r.status_code == 429:
+        raise RuntimeError("429 Too Many Requests (FastNear)")
+    if r.status_code >= 400:
+        raise RuntimeError(redact(f"FastNear HTTP {r.status_code}: {r.text[:120]}"))
+    rows = []
+    for t in r.json().get("transfers") or []:
+        try:
+            raw = int(str(t.get("amount") or "0"))
+        except ValueError:
+            continue
+        if raw < 0:
+            other = t.get("other_account_id") or t.get("receipt_account_id")
+            frm, to = account, other
+        else:
+            other = t.get("other_account_id") or t.get("predecessor_id")
+            frm, to = other, account
+        if not other or other == account:
+            continue
+        rows.append({"rid": t.get("receipt_id"), "tx": t.get("transaction_id"), "from": frm, "to": to,
+                     "amount": abs(raw) / YOCTO, "ts": int(str(t.get("block_timestamp"))[:13]) / 1000,
+                     "method": t.get("method_name")})
+    return rows
+
+
 def _is_pool(acct):
     return acct.endswith(".poolv1.near") or acct.endswith(".pool.near") or acct.endswith(".pool.f863973.m0")
 
@@ -481,7 +537,7 @@ def _short_acct(a, n=22):
     return a if len(a) <= n else a[:8] + "…" + a[-6:]
 
 
-def update_big_transfers(data, watch, key=""):
+def update_big_transfers(data, watch, key="", fn_key=""):
     """Module 2 — chuyển lớn (≥ TRANSFER_MIN NEAR) của ví sàn, cá voi, ví vừa hủy stake/rút và ví con của cá voi.
     Cá voi (watchlist 'whale', ví vừa hủy stake/rút) và ví con của họ: ngưỡng thấp hơn (CHILD_MIN) để bắt kiểu
     chia nhỏ sang nhiều ví con rồi gom/nạp sàn dần."""
@@ -507,7 +563,7 @@ def update_big_transfers(data, watch, key=""):
     candidates = list(dict.fromkeys(
         [a for a in exch] + [a for a, _ in sorted(movers.items(), key=lambda kv: -kv[1])] + kids_sorted + list(follow)
         + sorted(whales)))
-    # Lọc bằng dấu vân tay RPC (miễn phí): chỉ gọi NearBlocks cho ví có thay đổi → tiết kiệm lượt gọi
+    # Lọc bằng dấu vân tay RPC (miễn phí): chỉ gọi API lịch sử cho ví có thay đổi → tiết kiệm lượt gọi
     scan_fp = data.get("scan_fp") or {}
     resync = (now - timedelta(days=FP_RESYNC_DAYS)).strftime("%Y-%m-%d %H:%M")
     fps, targets, idle = {}, [], 0
@@ -522,49 +578,125 @@ def update_big_transfers(data, watch, key=""):
             continue
         targets.append(a)
         time.sleep(0.05)
-    # Ví sàn đổi số dư quét trước; các ví còn lại xoay vòng: ví lâu chưa quét (hoặc chưa quét lần nào) được ưu tiên
-    ex_t = [a for a in targets if a in exch]
-    rest = sorted((a for a in targets if a not in exch), key=lambda a: (scan_fp.get(a) or {}).get("t", ""))
-    targets = ex_t + rest
-    max_calls = NB_MAX_CALLS_KEY if key else NB_MAX_CALLS_FREE
-    deferred = max(0, len(targets) - max_calls)
-    targets = targets[:max_calls]
+
+    # V5.5 — xếp hạng ưu tiên: ví biến động số dư mạnh trước, cụm quỹ ×2, ví sàn ×0,1 (tối đa 3 ví sàn/lần),
+    # cộng điểm theo số giờ chưa quét để ví bị hoãn không bị bỏ đói.
+    def is_cluster(a):
+        names = [labels.get(a) or "", (children.get(a) or {}).get("root_label") or "",
+                 labels.get((children.get(a) or {}).get("root")) or ""]
+        txt = " ".join(names).lower()
+        return any(w in txt for w in CLUSTER_WORDS)
+
+    def delta_of(a):
+        prev, cur = scan_fp.get(a) or {}, fps.get(a)
+        if not prev.get("fp"):
+            return None                         # chưa quét lần nào
+        if cur is None:
+            return 0
+        return abs(cur[0] - prev["fp"][0])
+
+    def prio(a):
+        prev, d = scan_fp.get(a) or {}, delta_of(a)
+        base = 300_000 if d is None else d
+        cur = fps.get(a)
+        if cur is not None and prev.get("fp") and cur[1] != prev["fp"][1]:
+            base += 20_000                      # ví tự ký giao dịch (ví trung chuyển: số dư có thể không đổi)
+        try:
+            hrs = (now - datetime.strptime(prev["t"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)).total_seconds() / 3600
+        except Exception:
+            hrs = 72
+        base += min(hrs, 72) * 500
+        w = 0.1 if a in exch else (2.0 if is_cluster(a) else 1.0)
+        return base * w
+
+    ranked = sorted(targets, key=lambda a: -prio(a))
+    ex_kept = [a for a in ranked if a in exch][:EXCH_MAX_PER_RUN]
+    ex_skip = len([a for a in ranked if a in exch]) - len(ex_kept)
+    queue = [a for a in ranked if a not in exch or a in ex_kept]
+
+    # Hai nguồn chạy xen kẽ: FastNear (lọc sẵn theo số NEAR) ưu tiên, NearBlocks dự phòng. Nguồn nào bị 429 thì
+    # tạm dừng nguồn đó, ví đang quét chuyển sang nguồn còn lại.
+    sources = [
+        {"name": "fastnear", "max": FN_MAX_CALLS_KEY if fn_key else FN_MAX_CALLS_FREE,
+         "pause": FN_PAUSE_KEY if fn_key else FN_PAUSE_FREE, "used": 0, "next": 0.0, "dead": False, "ok": 0},
+        {"name": "nearblocks", "max": NB_MAX_CALLS_KEY if key else NB_MAX_CALLS_FREE,
+         "pause": NB_PAUSE_KEY if key else NB_PAUSE_FREE, "used": 0, "next": 0.0, "dead": False, "ok": 0},
+    ]
     stats = {"time_utc": now.strftime("%Y-%m-%d %H:%M"), "candidates": len(candidates), "idle_skipped": idle,
-             "to_scan": len(targets) + deferred, "scanned": 0, "deferred": deferred, "rate_limited": False}
+             "to_scan": len(targets), "scanned": 0, "deferred": 0, "exchange_skipped": ex_skip,
+             "rate_limited": False, "by_source": {}, "top": []}
     seen = set(data.get("transfer_seen") or [])
     out = data.get("big_transfers") or []
+    known = {(x.get("tx"), x.get("from"), x.get("to"), x.get("amount")) for x in out}
     errs, n_new = [], 0
 
     def lab(a):
         return labels.get(a) or child_label({"children": children}, a, labels) or KNOWN_CONTRACTS.get(a)
 
-    for i, acct in enumerate(targets):
-        if i:
-            time.sleep(NB_PAUSE_KEY if key else NB_PAUSE_FREE)
-        try:
-            txns = nb_account_txns(acct, key)
-        except Exception as e:
-            msg = str(e)
-            errs.append(f"{acct[:20]}: {msg[:60]}")
-            if "429" in msg or "Too Many" in msg:
-                stats["rate_limited"] = True
-                stats["deferred"] += len(targets) - i - 1
-                break                           # dừng, phần còn lại quét ở lần chạy sau (dấu vân tay chưa cập nhật)
-            continue
+    def fetch_rows(acct, min_amt):
+        prev_t = (scan_fp.get(acct) or {}).get("t")
+        since = now - timedelta(days=7)
+        if prev_t:
+            try:
+                since = max(since, datetime.strptime(prev_t, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+                            - timedelta(hours=6))
+            except Exception:
+                pass
+        tried = set()
+        while True:
+            avail = [s for s in sources if not s["dead"] and s["used"] < s["max"] and s["name"] not in tried]
+            if not avail:
+                return None, None
+            src = min(avail, key=lambda s: s["next"])
+            wait = src["next"] - time.time()
+            if wait > 0:
+                time.sleep(wait)
+            src["used"] += 1
+            tried.add(src["name"])
+            try:
+                if src["name"] == "fastnear":
+                    rows = fn_rows(acct, min_amt, fn_key, since_ms=since.timestamp() * 1000)
+                else:
+                    rows = nb_rows(acct, key)
+                src["next"] = time.time() + src["pause"]
+                src["ok"] += 1
+                return rows, src["name"]
+            except Exception as e:
+                src["next"] = time.time() + src["pause"]
+                msg = str(e)
+                errs.append(f"{src['name']} {acct[:14]}: {msg[:50]}")
+                if "429" in msg or "Too Many" in msg:
+                    src["dead"] = True
+                    stats["rate_limited"] = True
+
+    for i, acct in enumerate(queue):
+        min_amt = CHILD_MIN if acct in family else TRANSFER_MIN
+        rows, src_name = fetch_rows(acct, min_amt)
+        if rows is None:
+            if not any(not s["dead"] and s["used"] < s["max"] for s in sources):
+                stats["deferred"] += len(queue) - i      # hết lượt cả 2 nguồn → phần còn lại để lần sau
+                break
+            continue                                     # lỗi ở cả 2 nguồn cho ví này → để lần sau
         stats["scanned"] += 1
+        stats["by_source"][src_name] = stats["by_source"].get(src_name, 0) + 1
+        if len(stats["top"]) < 6:
+            d = delta_of(acct)
+            stats["top"].append({"acct": _short_acct(acct), "label": (lab(acct) or "")[:40],
+                                 "delta": None if d is None else round(d), "src": src_name})
         if fps.get(acct) is not None:
             scan_fp[acct] = {"fp": fps[acct], "t": now.strftime("%Y-%m-%d %H:%M")}
-        min_amt = CHILD_MIN if acct in family else TRANSFER_MIN
-        for t in txns:
-            rid = t.get("receipt_id") or t.get("id")
-            if not rid or rid in seen or not (t.get("outcomes") or {}).get("status", True):
+        for t in rows:
+            rid, amt = t.get("rid"), t["amount"]
+            if not rid or rid in seen:
                 continue
-            amt = sum((safe_float(a.get("deposit")) or 0) for a in t.get("actions") or []) / YOCTO
             if amt < min_amt:
                 continue
-            frm, to = t.get("predecessor_account_id"), t.get("receiver_account_id")
-            method = next((a.get("method") for a in t.get("actions") or [] if a.get("method")), None)
-            ts = datetime.fromtimestamp(int(str(t.get("block_timestamp"))[:13]) / 1000, tz=timezone.utc)
+            frm, to = t["from"], t["to"]
+            if (t.get("tx"), frm, to, round(amt)) in known:
+                seen.add(rid)                            # đã ghi từ nguồn kia
+                continue
+            method = t.get("method")
+            ts = datetime.fromtimestamp(t["ts"], tz=timezone.utc)
             ts_s = ts.strftime("%Y-%m-%d %H:%M")
             kind = classify_transfer(frm, to, method, exch)
             if acct in children:
@@ -589,10 +721,11 @@ def update_big_transfers(data, watch, key=""):
                 seen.add(rid)
                 continue
             out.append({"time_utc": ts_s, "from": frm, "to": to, "amount": round(amt),
-                        "kind": kind, "method": method, "tx": t.get("transaction_hash"),
+                        "kind": kind, "method": method, "tx": t.get("tx"),
                         "from_label": lab(frm), "to_label": lab(to),
-                        "watched": acct, "after_unstake": acct in movers,
+                        "watched": acct, "after_unstake": acct in movers, "source": src_name,
                         "family": (children.get(frm) or {}).get("root") or (frm if frm in family else None)})
+            known.add((t.get("tx"), frm, to, round(amt)))
             seen.add(rid)
             n_new += 1
             if kind == "wallet" and to not in exch and to != acct and frm not in protocol and to not in protocol:
@@ -1602,7 +1735,8 @@ def run_near_update():
         age = ((utc_now() - datetime.strptime(last, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)).total_seconds() / 3600
                if last else 999)
         if age >= TRANSFER_INTERVAL_H - 0.25 or os.environ.get("NEAR_TRANSFER_FORCE") == "1":
-            n_tr, errs = update_big_transfers(data, watch, key)
+            n_tr, errs = update_big_transfers(data, watch, key,
+                                              clean_secret(os.environ.get("FASTNEAR_API_KEY", "")))
             data["transfers_last_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
             data.setdefault("transfer_tracking_since", data["transfers_last_utc"])
             done["chuyển lớn"] = n_tr
@@ -2421,10 +2555,17 @@ def tab_flows(data):
     }))
     ss = data.get("transfer_scan_stats") or {}
     if ss:
+        src = ss.get("by_source") or {}
+        src_txt = " + ".join(f"{n} {k}" for k, n in src.items()) if src else str(ss.get("scanned", 0))
         cap(f"Lần quét gần nhất: {ss.get('candidates', 0)} ví theo dõi · {ss.get('idle_skipped', 0)} ví đứng im (bỏ qua, "
-            f"kiểm tra miễn phí qua RPC) · quét NearBlocks {ss.get('scanned', 0)} ví"
+            f"kiểm tra miễn phí qua RPC) · đã quét {ss.get('scanned', 0)} ví ({src_txt})"
             + (f" · hoãn {ss['deferred']} ví sang lần sau" if ss.get("deferred") else "")
-            + (" · ⚠️ bị NearBlocks giới hạn lượt gọi" if ss.get("rate_limited") else "") + ".")
+            + (f" · bỏ qua {ss['exchange_skipped']} ví sàn ít ưu tiên" if ss.get("exchange_skipped") else "")
+            + (" · ⚠️ có nguồn bị giới hạn lượt gọi (tự chuyển sang nguồn còn lại)" if ss.get("rate_limited") else "") + ".")
+        if ss.get("top"):
+            cap("Ưu tiên quét trước (biến động số dư lớn nhất): " + " · ".join(
+                f"{x.get('label') or x['acct']} ({'mới' if x.get('delta') is None else fmt_near(x['delta'])})"
+                for x in ss["top"][:4]))
     cap(f"Quét gần nhất {_vn(data.get('transfers_last_utc'))}. 'Sang ví khác' sẽ được theo tiếp ở lần quét sau "
         "(nếu ví đó gom về sàn sẽ hiện 'Nạp lên sàn'). Chuyển lên sàn không chắc chắn là bán; chỉ là tín hiệu.")
     tab_children(data)
