@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-18 07:24",
+ "last_run_utc": "2026-11-18 14:36",
  "market": {
-  "total_mcap": 2219970848435.163,
-  "total_mcap_change_24h": -2.4322834515327223,
-  "btc_mcap": 1301258912010.4026,
-  "btc_change_24h": 0.13108554130497765,
-  "usdt_usdc": 244200103967.32663,
-  "adjusted_btc_dom": 65.86082497951399,
-  "alt_ex_stables": 674511832457.4338,
-  "alt_change_24h": -7.791913833481057,
-  "fetched_at_utc": "2026-11-18 07:23"
+  "total_mcap": 2199774866860.058,
+  "total_mcap_change_24h": -4.011660284969532,
+  "btc_mcap": 1283526534259.6763,
+  "btc_change_24h": -1.932883373853941,
+  "usdt_usdc": 244114068189.3916,
+  "adjusted_btc_dom": 65.63134747764722,
+  "alt_ex_stables": 672134264410.9902,
+  "alt_change_24h": -9.015165375552014,
+  "fetched_at_utc": "2026-11-18 14:35"
  },
  "urpd": {
   "latest_date": "2026-11-18",
