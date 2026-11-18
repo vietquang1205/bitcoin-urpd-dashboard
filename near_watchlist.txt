@@ -146,3 +146,21 @@ d422111c72e98354becc09f6a8ad73a531a60e986fc400eac1ef475f198b77ff | Cụm quỹ N
 bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8 | Cụm quỹ NEAR — ví ~4,1tr nhận 2,05tr qua ví trung chuyển (17/11) | whale
 2a3770a0e2da7a7667eedce7c1a55c3b760f8d9f36ac95a3bfcf71015c5f05fa | Cụm quỹ NEAR — ví trung chuyển 3d9ccff5→bf442596 | whale
 3850ca361c5ab10354158301342040e6c127306ad5ba9f9d3174ad367c249bed | Cụm quỹ NEAR — ví trung chuyển 3d9ccff5→466222f1 | whale
+
+# ── Thêm 18/11/2026 ──
+# • Nguồn tiền của cụm 3 ví stake 1,35tr (0d436b9d/1124da93/1e9a7740): đều do 466222f1… chuyển ngày 16/11 (16:52–17:58 UTC).
+#   466222f1… nhận vào trước đó: 2,38tr từ 2380ee9f…, 801k từ 3850ca36… (gốc 3d9ccff5…), 1,2tr từ 5754ff26…, 473k từ 78f3f913…
+#   → Cụm quỹ NEAR và nhóm Bitwise/NF có liên thông; 4,05 triệu đi vào STAKE (khóa), không lên sàn.
+466222f1d229ca75ae9b4c82202e0e0b2fc3f6bdbdbac3704e8bf1808baa6093 | Nhóm Bitwise/NF — ví gom cấp vốn cho 3 ví stake 1,35tr | whale
+2380ee9f038cbf102ee807ad476700519cdb05cfb5a39b2d628af6ff8bd5dfe0 | Nguồn 2,38tr cấp cho 466222f1 (16/11) | whale
+5754ff26eaa951cd814f657c840059086da32ecd600efc58106028ed6b6b3559 | Nhóm Bitwise/NF — ví xoay vòng với 466222f1 | whale
+78f3f9138e7286bab3e69dbf3f8dd2470d410232073c010cdc9d44882b96f292 | Nguồn 473k cấp cho 466222f1 (16/11) | whale
+# • Cụm bf442596… (~4,16tr): chia sang 4497b3f9… (≈1,05tr qua 4 lần) → 1d0ffef0… (800k, đang giữ).
+4497b3f902a6edea7ea055db8e4fefd2a4e56779b565f4bc3de591de2201efa5 | Cụm quỹ NEAR — ví con của bf442596 (~1tr) | whale
+1d0ffef0299bfd29d5f2615dc9e97fc66e46ffc0a2e98309d33cf9b04ad83f75 | Cụm quỹ NEAR — ví cháu nhận 800k từ 4497b3f9 | whale
+779b27a909780e93c90af084b87e74de84c4a6d4ed3ff3534dcbd64b26279de6 | Nguồn 498k nạp vào bf442596 (17/11) | whale
+# • Ví nạp vào ví gom 3d9ccff5…: 08fea985… gửi 500k + 320k (17/11).
+08fea9859a579a2e1cc6c2619bc10db66e9e4e7673cdc12c575d97b33843801f | Nguồn 820k nạp vào 3d9ccff5 (17/11) | whale
+# • Chuỗi 9730cea7… → 04f265ab… (894k) → b499ffde… → f1bb2065… (Bitwise/NF) → e9e83e96… (17/11 09:27–09:35 UTC).
+9730cea711136c14da0b7bdaed33c9e7ac1e7dc719841285e81de6ea6281dff7 | Nguồn 894k → 04f265ab (17/11) | whale
+04f265abb60b2d57c570b2808632f8913a1cd706b041e51e16c3bf6f566e8ca8 | Ví chia 894k: 400k→b499ffde→f1bb2065, 200k, 257k | whale
