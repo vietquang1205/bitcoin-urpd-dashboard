@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.5"
+NEAR_VERSION = "V5.5.1"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
@@ -302,7 +302,7 @@ STAKE_EVENT_MIN = 50_000        # ghi sự kiện stake/hủy stake/rút từ 50
 TRANSFER_MIN = 50_000           # chuyển lớn từ 50k NEAR
 CHILD_MIN = 20_000              # cá voi/ví con chuyển ≥ 20k sang ví mới → coi là "ví con" (chia nhỏ để giấu)
 CHILD_KEEP_DAYS = 45            # theo dõi ví con 45 ngày kể từ lần hoạt động cuối
-CHILD_MAX = 60                  # tối đa 60 ví con
+CHILD_MAX = 120                 # tối đa 120 ví con (V5.5.1: 60 đã đầy ngày 18/11)
 CHILD_MAX_DEPTH = 3             # tối đa 3 tầng (cá voi → con → cháu → chắt)
 NB_MAX_CALLS_FREE = 12          # NearBlocks gói miễn phí: 6 lượt/phút, 333 lượt/ngày → tối đa 12 lượt/lần chạy
 NB_MAX_CALLS_KEY = 45
@@ -1705,7 +1705,7 @@ def run_near_update():
     watch += [{"account": a, "label": child_label(data, a) or f"Ví con — {a}", "type": "whale"}
               for a in (data.get("children") or {}) if a not in listed]
     snap, fails = {}, []
-    for w in watch[:140]:
+    for w in watch[:200]:
         try:
             b = fetch_account(w["account"])
             snap[w["account"]] = {**b, "label": w["label"], "type": w["type"]}
