@@ -164,3 +164,14 @@ bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8 | Cụm quỹ N
 # • Chuỗi 9730cea7… → 04f265ab… (894k) → b499ffde… → f1bb2065… (Bitwise/NF) → e9e83e96… (17/11 09:27–09:35 UTC).
 9730cea711136c14da0b7bdaed33c9e7ac1e7dc719841285e81de6ea6281dff7 | Nguồn 894k → 04f265ab (17/11) | whale
 04f265abb60b2d57c570b2808632f8913a1cd706b041e51e16c3bf6f566e8ca8 | Ví chia 894k: 400k→b499ffde→f1bb2065, 200k, 257k | whale
+
+# ── Thêm 18/11/2026 tối ──
+# • 53aae097… chuyển 2,80 triệu (270k lúc 02:05 + 2,53tr lúc 14:17 UTC 18/11) vào 498eee3c… (ví con tầng 2 của cụm 3d9ccff5; đang giữ ~2,93tr).
+53aae097294e229eff16b742fd7af62ac6dbae6055fa49a35759c74abb537d0c | Nguồn 2,8tr đổ vào 498eee3c (18/11) | whale
+498eee3c286d618675185ca234c288dce8f30aa39676f38df2f556a0b074cc3d | Cụm quỹ NEAR — ví con giữ ~2,9tr (nhận 2,8tr ngày 18/11) | whale
+# • Cặp ví chuyền qua lại ~1–1,2tr (17–18/11): 5b43682c… ⇄ 30d6205b… (30d6205b là ví con tầng 3 của cụm 3d9ccff5).
+5b43682c64f3dce763b73d5f5d17a98fe9133d5d2a2dd7d6dc33e5d703c90cbe | Cặp chuyền qua lại ~1,2tr với 30d6205b | whale
+30d6205b89e02d2c34ade165ae9705f8d9e80d0e304061cb10b8e56c8e703f62 | Cụm quỹ NEAR — ví con tầng 3, chuyền ~1,2tr | whale
+# • Chuỗi 943ee8c1… → 308ef881… (733k, 16/11) → 9241a07e… (389k + 760k, 16–17/11).
+943ee8c1dd517f34bd8205fc6aecfc1286ee0d11bcd2e473d23f7a4d918748e0 | Nguồn 733k → 308ef881 (16/11) | whale
+9241a07e82f5109db05bb3956b581b9761c9ea89cc640b4528c22b39aa07f434 | Ví cuối chuỗi nhận ~1,15tr (16–17/11) | whale
