@@ -1,6 +1,6 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-19 00:21",
+ "last_run_utc": "2026-11-19 10:18",
  "market": {
   "total_mcap": 2165895309849.508,
   "total_mcap_change_24h": -5.315923166919457,
@@ -15,24 +15,16 @@
  "urpd": {
   "latest_date": "2026-11-19",
   "changed": [
-   "2026-11-18",
    "2026-11-19"
   ],
   "errors": []
  },
  "research": {
-  "updated": {
-   "supply_in_loss": 1,
-   "supply_in_loss_percent": 1,
-   "sth_realized_price": 1,
-   "lth_realized_price": 1
-  },
+  "updated": {},
   "errors": []
  },
  "realized": {
-  "updated": {
-   "btc_price": 1
-  },
+  "updated": {},
   "errors": [],
   "pending": [
    "realized_profit",
@@ -40,13 +32,13 @@
   ]
  },
  "onchain": {
-  "updated": {
-   "mvrv": 1,
-   "nupl": 1,
-   "sopr": 1
-  },
+  "updated": {},
   "errors": [],
-  "pending": [],
+  "pending": [
+   "mvrv",
+   "nupl",
+   "sopr"
+  ],
   "mvrv_estimate": {
    "k": 1.0057,
    "calib_days": 30,
@@ -57,15 +49,15 @@
  "etf": {
   "errors": [],
   "source": "SoSoValue",
-  "latest": "2026-11-17",
-  "sessions": 509,
+  "latest": "2026-11-18",
+  "sessions": 510,
   "notes": [],
   "alts": {
-   "NEAR": "30 phiên",
-   "LINK": "31 phiên",
-   "ETH": "31 phiên",
-   "SOL": "31 phiên",
-   "XRP": "31 phiên"
+   "NEAR": "31 phiên",
+   "LINK": "32 phiên",
+   "ETH": "32 phiên",
+   "SOL": "32 phiên",
+   "XRP": "32 phiên"
   }
  },
  "market_extra": {
