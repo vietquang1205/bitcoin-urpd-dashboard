@@ -1,5 +1,5 @@
 {
- "updated_at_utc": "2026-11-19 10:18",
+ "updated_at_utc": "2026-11-19 20:32",
  "daily": {
   "2025-10-03": {
    "stables_total": 298069179501.0,
@@ -3390,7 +3390,7 @@
    "oi_usd": 3330882020.9391,
    "perp_volume_usd": 3317714504.7317,
    "long_short_ratio": 1.83,
-   "funding_apr": 8.062301796442425,
+   "funding_apr": 10.3780243270497,
    "price": 81489.4,
    "stables_total": 302730585598.0,
    "usdt": 183480118872.0,
@@ -3716,8 +3716,8 @@
    "usdc": 70599046634.0,
    "fng": 25.0,
    "fng_class": "Extreme Fear",
-   "cb_premium_pct": -0.010684044700381515,
-   "cb_premium_hours": 24,
+   "cb_premium_pct": -0.012912847981367825,
+   "cb_premium_hours": 15,
    "long_short_ratio": 2.96,
    "taker_sell": 756470.85,
    "taker_buy": 834189.48,
@@ -3896,27 +3896,32 @@
    "cb_premium_hours": 24,
    "oi_usd": 3112042809.2749,
    "perp_volume_usd": 6838409207.2609,
-   "long_short_ratio": 2.93,
-   "taker_sell": 4816588.79,
-   "taker_buy": 4270615.44
+   "long_short_ratio": 2.92,
+   "taker_sell": 6628370.61,
+   "taker_buy": 5868570.08
   },
   "2026-11-19": {
-   "funding_apr": -0.839317043828475,
-   "price": 63876.4,
+   "funding_apr": -1.2114962464671,
+   "price": 62012.8,
    "fng": 10.0,
    "fng_class": "Extreme Fear",
-   "stables_total": 285224596729.25,
-   "usdt": 175024402576.69,
-   "usdc": 68574815914.18,
-   "cb_premium_pct": -0.006064391503807725,
-   "cb_premium_hours": 11
+   "stables_total": 285230118541.03,
+   "usdt": 175020898268.94,
+   "usdc": 68577555082.25,
+   "cb_premium_pct": -0.004158973482922453,
+   "cb_premium_hours": 21,
+   "oi_usd": 3049630343.6836,
+   "perp_volume_usd": 8314193629.5151,
+   "long_short_ratio": 3.31,
+   "taker_sell": 2306149.63,
+   "taker_buy": 2293667.98
   }
  },
  "now": {
-  "hl_funding_apr": -1.4345376,
-  "hl_oi_usd": 2399429705.8618054,
-  "cb_premium_now": -0.02179251993431608,
-  "cb_premium_hour_utc": "2026-11-19 10:00"
+  "hl_funding_apr": -6.2291484,
+  "hl_oi_usd": 2496868282.88096,
+  "cb_premium_now": -0.01834600965335831,
+  "cb_premium_hour_utc": "2026-11-19 20:00"
  },
  "errors": []
 }
