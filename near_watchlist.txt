@@ -175,3 +175,12 @@ bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8 | Cụm quỹ N
 # • Chuỗi 943ee8c1… → 308ef881… (733k, 16/11) → 9241a07e… (389k + 760k, 16–17/11).
 943ee8c1dd517f34bd8205fc6aecfc1286ee0d11bcd2e473d23f7a4d918748e0 | Nguồn 733k → 308ef881 (16/11) | whale
 9241a07e82f5109db05bb3956b581b9761c9ea89cc640b4528c22b39aa07f434 | Ví cuối chuỗi nhận ~1,15tr (16–17/11) | whale
+
+# ── Thêm 20/11/2026 ──
+# • 3d9ccff5… giảm 9,36tr → 5,38tr (18–19/11): 2,96tr → 222d728f… (ví con mới, đang giữ ~3,09tr); 1,5tr → 55d56981… → 750k f6a3ada5… + 750k eb3dde4d….
+222d728f5436cf3660487cb1889233c622b01ce226fcc0b33e485bb62b8f0239 | Cụm quỹ NEAR — ví con giữ ~3,1tr (nhận 2,96tr ngày 19/11) | whale
+# • ee7541f4… nạp 361.644 (18/11) + 394.814 (19/11) vào 52435fe9… (sàn/OTC nghi vấn) — ví bán mới.
+ee7541f499d4395593eb555e170e756a50d2ebf081d3f3065ab722f5c6838e1c | Ví nạp 756k vào 52435fe9 (18–19/11) | whale
+# • Hủy stake mới: liping.near 500k ở astro-stakers (mở khóa ~20:16 VN 21/11); d835c1c4… 210k ở bitwise_2 (mở khóa ~06:32 VN 21/11).
+liping.near | Cá voi astro-stakers — hủy stake 500k (20/11) | whale
+d835c1c4d20ef0fb06ecb562a0093c64ce752f0573d4c0ec8074ae02f33e149d | Nhóm bitwise_2 — hủy stake 210k (19/11) | whale
