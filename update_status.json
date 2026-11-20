@@ -1,48 +1,55 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-19 23:08",
+ "last_run_utc": "2026-11-20 03:11",
  "market": {
-  "total_mcap": 2149513048489.796,
-  "total_mcap_change_24h": -2.79857966575988,
-  "btc_mcap": 1248181581581.3833,
-  "btc_change_24h": -0.654724984811882,
-  "usdt_usdc": 243698333739.60077,
-  "adjusted_btc_dom": 65.49333321445096,
-  "alt_ex_stables": 657633133168.8118,
-  "alt_change_24h": -7.551171891839992,
-  "fetched_at_utc": "2026-11-19 23:08"
+  "total_mcap": 2143007470380.8376,
+  "total_mcap_change_24h": -3.6401133659928515,
+  "btc_mcap": 1244761668789.0293,
+  "btc_change_24h": -0.8376816001151914,
+  "usdt_usdc": 243648455055.9089,
+  "adjusted_btc_dom": 65.53588124971121,
+  "alt_ex_stables": 654597346535.8994,
+  "alt_change_24h": -9.713363887284853,
+  "fetched_at_utc": "2026-11-20 03:10"
  },
  "urpd": {
-  "latest_date": "2026-11-19",
+  "latest_date": "2026-11-20",
   "changed": [
-   "2026-11-19"
+   "2026-11-19",
+   "2026-11-20"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
+  "updated": {
+   "realized_profit": 2,
+   "realized_loss": 2,
+   "btc_price": 1
+  },
   "errors": [],
-  "pending": [
-   "realized_profit",
-   "realized_loss"
-  ]
+  "pending": []
  },
  "onchain": {
-  "updated": {},
+  "updated": {
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
+  },
   "errors": [],
-  "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ],
+  "pending": [],
   "mvrv_estimate": {
    "k": 1.0057,
    "calib_days": 30,
-   "bg_last": "2026-11-12",
+   "bg_last": "2026-11-13",
    "est_days": 7
   }
  },
@@ -50,12 +57,19 @@
   "errors": [],
   "source": "SoSoValue",
   "latest": "2026-11-18",
-  "sessions": 510,
-  "skipped": "đã lấy 2.6 giờ trước"
+  "sessions": 509,
+  "notes": [],
+  "alts": {
+   "NEAR": "32 phiên",
+   "LINK": "33 phiên",
+   "ETH": "32 phiên",
+   "SOL": "33 phiên",
+   "XRP": "33 phiên"
+  }
  },
  "market_extra": {
   "done": {
-   "phái sinh": 180,
+   "phái sinh": 181,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
