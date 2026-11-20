@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.5.1"
+NEAR_VERSION = "V5.6"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
@@ -301,7 +301,8 @@ STAKE_TRACK_MIN = 20_000        # chỉ lưu người ủy thác có tổng (sta
 STAKE_EVENT_MIN = 50_000        # ghi sự kiện stake/hủy stake/rút từ 50k NEAR
 TRANSFER_MIN = 50_000           # chuyển lớn từ 50k NEAR
 CHILD_MIN = 20_000              # cá voi/ví con chuyển ≥ 20k sang ví mới → coi là "ví con" (chia nhỏ để giấu)
-CHILD_KEEP_DAYS = 45            # theo dõi ví con 45 ngày kể từ lần hoạt động cuối
+CHILD_IDLE_DROP_DAYS = 30       # V5.6: chỉ bỏ ví con khi KHÔNG còn NEAR và đứng im > 30 ngày
+CHILD_EMPTY_NEAR = 1.0          # số dư < 1 NEAR (và không stake / wrap / Intents) = coi là ví rỗng
 CHILD_MAX = 120                 # tối đa 120 ví con (V5.5.1: 60 đã đầy ngày 18/11)
 CHILD_MAX_DEPTH = 3             # tối đa 3 tầng (cá voi → con → cháu → chắt)
 NB_MAX_CALLS_FREE = 12          # NearBlocks gói miễn phí: 6 lượt/phút, 333 lượt/ngày → tối đa 12 lượt/lần chạy
@@ -313,7 +314,7 @@ TRANSFER_INTERVAL_H = 2         # nhờ lọc bằng dấu vân tay RPC, quét c
 # Nguồn thứ 2 (V5.5): FastNear Transfers API — miễn phí, không cần key, lọc sẵn theo số NEAR tối thiểu.
 # Đo thực tế 17/11/2026: ~9–10 lượt/phút không key → giãn 7 giây/lượt. Có FASTNEAR_API_KEY thì nhanh hơn.
 FN_TRANSFERS_URL = "https://transfers.main.fastnear.com/v0/transfers"
-FN_MAX_CALLS_FREE = 18
+FN_MAX_CALLS_FREE = 36          # V5.6: 18 → 36 lượt/lần (~4,2 phút), FastNear chỉ giới hạn theo phút
 FN_MAX_CALLS_KEY = 60
 FN_PAUSE_FREE = 7.0
 FN_PAUSE_KEY = 0.3
@@ -545,7 +546,8 @@ def update_big_transfers(data, watch, key="", fn_key=""):
     labels = {w["account"]: w["label"] for w in watch}
     now = utc_now()
     week = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
-    keep_cut = (now - timedelta(days=CHILD_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
+    idle_cut = (now - timedelta(days=CHILD_IDLE_DROP_DAYS)).strftime("%Y-%m-%d %H:%M")
+    now_s = now.strftime("%Y-%m-%d %H:%M")
     protocol = {w["account"] for w in watch if w["type"] in ("protocol", "validator")} | set(KNOWN_CONTRACTS)
     movers = {}
     for e in data.get("stake_events") or []:
@@ -553,8 +555,8 @@ def update_big_transfers(data, watch, key="", fn_key=""):
                 and e["account"] not in protocol and not _is_pool(e["account"])):
             movers[e["account"]] = movers.get(e["account"], 0) + e["amount"]
     follow = {a: t for a, t in (data.get("follow") or {}).items() if t >= week}   # ví nhận tiền lớn cần theo tiếp
-    children = {a: c for a, c in (data.get("children") or {}).items()
-                if c.get("last", "") >= keep_cut and a not in exch}
+    # V5.6: giữ mọi ví con (kể cả lâu không hoạt động) — chỉ bỏ ví rỗng NEAR và im > 30 ngày (xem cuối hàm)
+    children = {a: c for a, c in (data.get("children") or {}).items() if a not in exch}
     whales = {w["account"] for w in watch if w["type"] == "whale" and w["account"] not in children}
     family = {a for a in (whales | set(children) | set(movers))
               if a not in exch and a not in protocol and a not in KNOWN_CONTRACTS and not _is_pool(a)}
@@ -572,6 +574,12 @@ def update_big_transfers(data, watch, key="", fn_key=""):
             fps[a] = account_fingerprint(a)
         except Exception:
             fps[a] = None                       # RPC lỗi → cứ quét cho chắc
+        c = children.get(a)
+        if c is not None and fps[a] is not None:
+            c["bal"] = fps[a][0]
+            if c.get("fp") != fps[a]:
+                c["active"] = now_s            # số dư hoặc nonce đổi = ví còn hoạt động (kể cả giao dịch nhỏ)
+                c["fp"] = fps[a]
         prev = scan_fp.get(a) or {}
         if fps[a] is not None and prev.get("fp") == fps[a] and prev.get("t", "") >= resync:
             idle += 1
@@ -734,7 +742,29 @@ def update_big_transfers(data, watch, key="", fn_key=""):
     data["big_transfers"] = sorted([x for x in out if x["time_utc"] >= cut], key=lambda x: x["time_utc"])[-2000:]
     data["transfer_seen"] = list(seen)[-6000:]
     data["follow"] = dict(sorted(follow.items(), key=lambda kv: kv[1])[-40:])
-    data["children"] = dict(sorted(children.items(), key=lambda kv: -kv[1].get("received", 0))[:CHILD_MAX])
+    # V5.6 — dọn ví con "chết": số dư < 1 NEAR, không còn stake/wrap/Intents, và im lặng > 30 ngày.
+    # Ví còn NEAR (dù im lâu) luôn được giữ để đề phòng cá mập dùng lại.
+    staked_accts = {a for acc in ((data.get("stakers") or {}).get("pools") or {}).values() for a in acc}
+    parked = {x["from"] for x in out if x.get("kind") in ("stake", "wrap", "intents")}
+
+    def is_dead(a, c):
+        if a in staked_accts or a in parked:
+            return False
+        bal = c.get("bal")
+        if bal is None or bal >= CHILD_EMPTY_NEAR:
+            return False
+        last = max(c.get("last", ""), c.get("active", ""), c.get("first", ""))
+        return last < idle_cut
+
+    dead = [a for a, c in children.items() if is_dead(a, c)]
+    for a in dead:
+        children.pop(a, None)
+    empty_wait = sum(1 for a, c in children.items()
+                     if c.get("bal") is not None and c["bal"] < CHILD_EMPTY_NEAR and a not in staked_accts)
+    stats["children_pruned"], stats["children_empty_waiting"] = len(dead), empty_wait
+    # Nếu vượt trần CHILD_MAX: ưu tiên giữ ví còn NEAR, rồi đến ví nhận nhiều nhất
+    data["children"] = dict(sorted(children.items(), key=lambda kv: (
+        (kv[1].get("bal") is not None and kv[1]["bal"] < CHILD_EMPTY_NEAR), -kv[1].get("received", 0)))[:CHILD_MAX])
     live = set(candidates)
     data["scan_fp"] = {a: v for a, v in scan_fp.items() if a in live}
     data["transfer_scan_stats"] = stats
@@ -2561,6 +2591,7 @@ def tab_flows(data):
             f"kiểm tra miễn phí qua RPC) · đã quét {ss.get('scanned', 0)} ví ({src_txt})"
             + (f" · hoãn {ss['deferred']} ví sang lần sau" if ss.get("deferred") else "")
             + (f" · bỏ qua {ss['exchange_skipped']} ví sàn ít ưu tiên" if ss.get("exchange_skipped") else "")
+            + (f" · dọn {ss['children_pruned']} ví con rỗng NEAR & im > {CHILD_IDLE_DROP_DAYS} ngày" if ss.get("children_pruned") else "")
             + (" · ⚠️ có nguồn bị giới hạn lượt gọi (tự chuyển sang nguồn còn lại)" if ss.get("rate_limited") else "") + ".")
         if ss.get("top"):
             cap("Ưu tiên quét trước (biến động số dư lớn nhất): " + " · ".join(
@@ -2576,7 +2607,8 @@ def tab_children(data):
     st.divider()
     mk("### 🧩 Ví con của cá mập (chia nhỏ để giấu)")
     cap(f"Khi cá voi (ví 'whale' trong watchlist, ví vừa hủy stake/rút) hoặc ví con của họ chuyển ≥ {CHILD_MIN:,} NEAR "
-        f"sang một ví mới, app ghi ví đó là **ví con** và theo dõi {CHILD_KEEP_DAYS} ngày (tối đa {CHILD_MAX_DEPTH} tầng, "
+        f"sang một ví mới, app ghi ví đó là **ví con** và theo dõi lâu dài — chỉ bỏ khi ví không còn NEAR (kể cả stake) và "
+        f"đứng im quá {CHILD_IDLE_DROP_DAYS} ngày (tối đa {CHILD_MAX_DEPTH} tầng, "
         f"{CHILD_MAX} ví). Ví con được chụp số dư hằng ngày cùng nhóm cá voi, nên chuyển qua lại trong 'nhà cá voi' không bị "
         "tính nhầm là mua/bán. Ví con nạp lên sàn → hiện '🔴 Nạp lên sàn' ở bảng trên.")
     if not ch:
