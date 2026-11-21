@@ -184,3 +184,18 @@ ee7541f499d4395593eb555e170e756a50d2ebf081d3f3065ab722f5c6838e1c | Ví nạp 756
 # • Hủy stake mới: liping.near 500k ở astro-stakers (mở khóa ~20:16 VN 21/11); d835c1c4… 210k ở bitwise_2 (mở khóa ~06:32 VN 21/11).
 liping.near | Cá voi astro-stakers — hủy stake 500k (20/11) | whale
 d835c1c4d20ef0fb06ecb562a0093c64ce752f0573d4c0ec8074ae02f33e149d | Nhóm bitwise_2 — hủy stake 210k (19/11) | whale
+
+# ── Thêm 21/11/2026 ──
+# • bf442596… gần như xả hết: 3,99tr → 2b8cc04e… (trung chuyển, 2 phút) → 466222f1… → 6 lệnh × 616.862 sang 5754ff26… (21/11 00:39–01:24 UTC).
+#   2b8cc04e… từng trung chuyển 26,1 triệu từ d2f0f590… (10/09) — ví nguồn rất lớn của cụm.
+2b8cc04e26f38bcbd600a9a1e0991edb7040037eb82f3bf553978284c33f35d3 | Ví trung chuyển lớn (26,1tr ngày 10/09; 3,99tr ngày 21/11) | whale
+d2f0f590b1077d6ea63c37fd5c558bd5d3c455ac78ced8e2a81395a24407c22a | Nguồn 26,1 triệu (10/09) qua 2b8cc04e | whale
+# • Người nhận lớn nhất từ ví sàn/OTC nghi vấn 52435fe9…: 0278f39e… nhận 1,54tr (7 ngày) — có thể là người mua OTC.
+0278f39e76df73371c4ede771a352fd54826fe9184e203e46e458e771aa194bc | Nhận 1,54tr từ 52435fe9 (người mua OTC?) | whale
+# • Ví nạp sàn thêm: 11ccdb68… nạp 410k vào 52435fe9 (5 lệnh, 7 ngày).
+11ccdb6893a91aec3e3adba46fef6b4d1e1c54e5767a0110073eef476872e1ee | Ví nạp 410k vào 52435fe9 (7 ngày) | whale
+# • awe2meteor.near: cấp 500k + 500k + 320k + 600k vào cụm 3d9ccff5 qua 08fea985 (15–20/11).
+awe2meteor.near | Nguồn nạp vào cụm 3d9ccff5 (~1,9tr, 15–20/11) | whale
+# • 3da273af… → bridge-mng.near → wrap.near: đổi 1,15tr NEAR sang wNEAR (20/11) — có thể chuyển sang chuỗi khác.
+3da273afa2a40fe8ca39046d39470fe27d321b505c1c7a2f570d495136d9d45b | Gửi 1,1tr cho bridge-mng để đổi wNEAR (20/11) | whale
+bridge-mng.near | Đổi 1,15tr NEAR → wNEAR (20/11), nghi chuyển chuỗi | whale
