@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-21 12:37",
+ "last_run_utc": "2026-11-21 15:07",
  "market": {
-  "total_mcap": 2038298310603.0608,
-  "total_mcap_change_24h": -7.046408209127521,
-  "btc_mcap": 1179079094722.8833,
-  "btc_change_24h": -4.771927524179701,
-  "usdt_usdc": 242929637871.61176,
-  "adjusted_btc_dom": 65.67336907628274,
-  "alt_ex_stables": 616289578008.5657,
-  "alt_change_24h": -13.399091521074268,
-  "fetched_at_utc": "2026-11-21 12:36"
+  "total_mcap": 2088294266383.9106,
+  "total_mcap_change_24h": -4.599425658797427,
+  "btc_mcap": 1212857860967.214,
+  "btc_change_24h": -1.7064678042002206,
+  "usdt_usdc": 242968757278.8879,
+  "adjusted_btc_dom": 65.72595756048733,
+  "alt_ex_stables": 632467648137.8086,
+  "alt_change_24h": -11.169995417649092,
+  "fetched_at_utc": "2026-11-21 15:07"
  },
  "urpd": {
   "latest_date": "2026-11-21",
@@ -48,14 +48,7 @@
   "source": "SoSoValue",
   "latest": "2026-11-19",
   "sessions": 509,
-  "notes": [],
-  "alts": {
-   "NEAR": "33 phiên",
-   "LINK": "34 phiên",
-   "ETH": "33 phiên",
-   "SOL": "34 phiên",
-   "XRP": "34 phiên"
-  }
+  "skipped": "SoSoValue chưa có phiên 20/11"
  },
  "market_extra": {
   "done": {
