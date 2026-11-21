@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.6"
+NEAR_VERSION = "V5.7"
 UPDATE_MODE = "--update-data" in sys.argv
 
 NEAR_FILE = "near_history.json"
@@ -1775,6 +1775,14 @@ def run_near_update():
     except Exception as e:
         errors["chuyển lớn"] = str(e)[:200]
 
+    # 6d) V5.7 — cảnh báo ví lớn đưa NEAR lên sàn (dựa trên chuyển lớn + hủy stake vừa quét)
+    new_alerts = []
+    try:
+        new_alerts = build_sell_alerts(data, watch)
+        done["cảnh báo bán"] = len(new_alerts)
+    except Exception as e:
+        errors["cảnh báo bán"] = str(e)[:200]
+
     # 7) Tin tức NEAR (dịch sẵn tiêu đề sang tiếng Việt cho dashboard + Telegram)
     try:
         news = fetch_near_news()
@@ -1804,6 +1812,12 @@ def run_near_update():
                 json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     except Exception as e:
         _log(f"  ⚠️ Telegram: {e}")
+    try:
+        send_sell_alerts(data, new_alerts)          # gửi ngay, không đợi báo cáo ngày
+        with open(NEAR_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    except Exception as e:
+        _log(f"  ⚠️ Cảnh báo bán: {redact(e)}")
 
 
 def write_near_report(data):
@@ -1885,6 +1899,142 @@ def write_near_report(data):
     out["near_generated_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
     with open("daily_report.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1, default=str)
+
+
+# =============================================================================
+# V5.7 — CẢNH BÁO VÍ LỚN ĐƯA NEAR LÊN SÀN (có thể có ý định bán)
+# =============================================================================
+ALERT_BIG = 300_000             # 🔴 1 lệnh nạp sàn ≥ 300k NEAR
+ALERT_WHALE = 100_000           # 🟠 cá voi / ví con / ví watchlist nạp sàn ≥ 100k
+ALERT_AFTER_UNSTAKE = 50_000    # 🔴 vừa hủy stake/rút rồi nạp sàn ≥ 50k
+ALERT_DRIP_24H = 200_000        # 🟠 1 ví nạp sàn cộng dồn ≥ 200k trong 24h (bán nhỏ giọt, ≥ 3 lệnh)
+ALERT_TOTAL_24H = 1_500_000     # 🟠 tổng nạp sàn (ví theo dõi) ≥ 1,5 triệu trong 24h
+ALERT_UNSTAKE = 300_000         # 🟡 báo trước: hủy stake ≥ 300k (có thể bán khi mở khóa)
+ALERT_KEEP = 60                 # lưu 60 cảnh báo gần nhất để hiện trên dashboard
+
+
+def _ts(s):
+    return datetime.strptime(s, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+
+
+def build_sell_alerts(data, watch, now=None):
+    """Quét chuyển lớn + hủy stake mới, trả danh sách cảnh báo CHƯA gửi (đã chống trùng)."""
+    now = now or utc_now()
+    labels = {w["account"]: w["label"] for w in watch}
+    whales = {w["account"] for w in watch if w["type"] == "whale"}
+    children = data.get("children") or {}
+    sent = set(data.get("alerts_sent") or [])
+    since = (now - timedelta(hours=26)).strftime("%Y-%m-%d %H:%M")   # chỉ xét sự kiện 26 giờ gần nhất
+    day_cut = (now - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M")
+    recent_unstakers = {e["account"] for e in data.get("stake_events") or []
+                        if e.get("kind") in ("unstake", "withdraw") and e.get("time_utc", "") >= (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M")}
+    tr = [t for t in data.get("big_transfers") or [] if t.get("time_utc", "") >= since]
+    dep = [t for t in tr if t.get("kind") == "to_exchange"]
+    out = []
+
+    def who(a):
+        return (labels.get(a) or child_label(data, a, labels) or KNOWN_CONTRACTS.get(a) or _short_acct(a))
+
+    def add(key, level, title, t=None, amount=0, extra=""):
+        if key in sent:
+            return
+        sent.add(key)
+        out.append({"key": key, "level": level, "title": title, "time_utc": (t or {}).get("time_utc") or now.strftime("%Y-%m-%d %H:%M"),
+                    "amount": round(amount), "from": (t or {}).get("from"), "to": (t or {}).get("to"),
+                    "from_label": who((t or {}).get("from")) if t else None, "to_label": who((t or {}).get("to")) if t else None,
+                    "tx": (t or {}).get("tx"), "extra": extra})
+
+    for t in dep:
+        a, amt = t.get("from"), t.get("amount", 0)
+        k = f"dep|{t.get('tx')}|{a}|{amt}"
+        is_family = a in whales or a in children or t.get("family")
+        if (t.get("after_unstake") or a in recent_unstakers) and amt >= ALERT_AFTER_UNSTAKE:
+            add(k, "🔴", "Vừa hủy stake/rút rồi NẠP LÊN SÀN", t, amt)
+        elif amt >= ALERT_BIG:
+            add(k, "🔴", "Nạp lên sàn LỚN", t, amt)
+        elif is_family and amt >= ALERT_WHALE:
+            add(k, "🟠", "Cá voi / ví con nạp lên sàn", t, amt)
+
+    # Bán nhỏ giọt: 1 ví nạp nhiều lần, cộng dồn ≥ ALERT_DRIP_24H trong 24h
+    per = {}
+    for t in dep:
+        if t["time_utc"] >= day_cut:
+            p = per.setdefault(t["from"], {"sum": 0, "n": 0, "last": t})
+            p["sum"] += t.get("amount", 0)
+            p["n"] += 1
+            p["last"] = t
+    for a, p in per.items():
+        if p["sum"] >= ALERT_DRIP_24H and p["n"] >= 3:
+            add(f"drip|{a}|{now.strftime('%Y-%m-%d')}", "🟠", f"Bán nhỏ giọt: {p['n']} lệnh nạp sàn trong 24h",
+                p["last"], p["sum"])
+    total = sum(t.get("amount", 0) for t in dep if t["time_utc"] >= day_cut)
+    if total >= ALERT_TOTAL_24H:
+        top = sorted(per.items(), key=lambda kv: -kv[1]["sum"])[:3]
+        add(f"total|{now.strftime('%Y-%m-%d')}", "🟠", "Tổng NẠP SÀN 24h của các ví theo dõi rất lớn", None, total,
+            "Nạp nhiều nhất: " + ", ".join(f"{who(a)} {fmt_near(p['sum'])}" for a, p in top))
+
+    # Báo trước: hủy stake lớn (chưa bán, nhưng có thể bán khi mở khóa ~4 epoch)
+    protocol = {w["account"] for w in watch if w["type"] in ("protocol", "validator")} | set(KNOWN_CONTRACTS)
+    for e in data.get("stake_events") or []:
+        if (e.get("kind") == "unstake" and e.get("time_utc", "") >= since and e.get("amount", 0) >= ALERT_UNSTAKE
+                and e["account"] not in protocol):
+            eta = e.get("unlock_eta_utc")
+            add(f"unstake|{e['account']}|{e['amount']}|{e['time_utc']}", "🟡", "Báo trước: hủy stake lớn",
+                {"time_utc": e["time_utc"], "from": e["account"], "to": e.get("pool")}, e["amount"],
+                f"Mở khóa dự kiến {_vn(eta)} (giờ VN)" if eta else "")
+
+    data["alerts_sent"] = list(sent)[-800:]
+    hist = (data.get("sell_alerts") or []) + out
+    data["sell_alerts"] = hist[-ALERT_KEEP:]
+    order = {"🔴": 0, "🟠": 1, "🟡": 2}
+    out.sort(key=lambda x: (order.get(x["level"], 3), -x["amount"]))
+    return out
+
+
+def send_sell_alerts(data, alerts):
+    """Gửi cảnh báo qua Telegram ngay trong lần chạy. Gửi lỗi → giữ lại để gửi lần sau."""
+    pending = (data.get("alerts_pending") or []) + list(alerts)
+    if not pending:
+        return False
+    bot = clean_secret(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+    chat = clean_secret(os.environ.get("TELEGRAM_CHAT_ID", ""))
+    if not bot or not chat:
+        data["alerts_pending"] = []
+        return False
+    price = None
+    try:
+        price = fetch_coingecko_now().get("price")
+    except Exception:
+        pass
+    lines = ["<b>🚨 NEAR — CẢNH BÁO VÍ LỚN ĐƯA LÊN SÀN</b>"]
+    if price:
+        lines.append(_tg_html(f"Giá hiện tại **{fmt_price(price)}**"))
+    for a in pending[:12]:
+        usd = f" (~{fmt_big_usd(a['amount'] * price)})" if price and a.get("amount") else ""
+        lines.append("")
+        lines.append(_tg_html(f"{a['level']} **{a['title']}** — {fmt_near(a['amount'])}{usd}"))
+        if a.get("from_label") or a.get("to_label"):
+            lines.append(_tg_html(f"   {a.get('from_label') or '?'} → {a.get('to_label') or '?'} · {_vn(a['time_utc'])}"))
+        if a.get("extra"):
+            lines.append(_tg_html(f"   {a['extra']}"))
+        if a.get("tx"):
+            lines.append(f'   <a href="https://nearblocks.io/txns/{a["tx"]}">Xem giao dịch</a>')
+    if len(pending) > 12:
+        lines.append(_tg_html(f"… và {len(pending) - 12} cảnh báo khác (xem dashboard)."))
+    lines.append("")
+    lines.append("<i>Nạp lên sàn là tín hiệu có thể bán, không chắc chắn là bán. Không phải khuyến nghị đầu tư.</i>")
+    try:
+        r = requests.post(f"https://api.telegram.org/bot{bot}/sendMessage",
+                          json={"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML",
+                                "disable_web_page_preview": True}, timeout=20)
+        r.raise_for_status()
+        data["alerts_pending"] = []
+        _log(f"Telegram cảnh báo bán: đã gửi {len(pending)} mục")
+        return True
+    except Exception as e:
+        data["alerts_pending"] = pending[-30:]
+        _log(f"  ⚠️ Telegram cảnh báo bán: {redact(e)}")
+        return False
 
 
 def _tg_html(text):
@@ -2599,7 +2749,29 @@ def tab_flows(data):
                 for x in ss["top"][:4]))
     cap(f"Quét gần nhất {_vn(data.get('transfers_last_utc'))}. 'Sang ví khác' sẽ được theo tiếp ở lần quét sau "
         "(nếu ví đó gom về sàn sẽ hiện 'Nạp lên sàn'). Chuyển lên sàn không chắc chắn là bán; chỉ là tín hiệu.")
+    tab_sell_alerts(data)
     tab_children(data)
+
+
+def tab_sell_alerts(data):
+    al = list(reversed(data.get("sell_alerts") or []))
+    st.divider()
+    mk("### 🚨 Cảnh báo ví lớn đưa NEAR lên sàn")
+    cap(f"🔴 nạp sàn ≥ {ALERT_BIG:,} NEAR, hoặc vừa hủy stake rồi nạp ≥ {ALERT_AFTER_UNSTAKE:,} · 🟠 cá voi/ví con nạp ≥ "
+        f"{ALERT_WHALE:,}, 1 ví nạp nhỏ giọt ≥ {ALERT_DRIP_24H:,}/24h, tổng nạp ≥ {ALERT_TOTAL_24H:,}/24h · 🟡 hủy stake ≥ "
+        f"{ALERT_UNSTAKE:,} (báo trước). Có TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID thì gửi Telegram ngay mỗi lần app chạy.")
+    if not al:
+        st.info("Chưa có cảnh báo nào.")
+        return
+    show_df(pd.DataFrame({
+        "Thời gian": [_vn(a.get("time_utc")) for a in al],
+        "Mức": [a.get("level") for a in al],
+        "Cảnh báo": [a.get("title") for a in al],
+        "Số NEAR": [f"{a.get('amount', 0):,.0f}" for a in al],
+        "Từ": [a.get("from_label") or "" for a in al],
+        "Đến": [a.get("to_label") or "" for a in al],
+        "Ghi chú": [a.get("extra") or "" for a in al],
+    }))
 
 
 def tab_children(data):
