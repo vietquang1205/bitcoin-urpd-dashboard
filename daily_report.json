@@ -1,22 +1,22 @@
 {
- "generated_utc": "2026-11-21 03:12",
+ "generated_utc": "2026-11-21 12:37",
  "btc": {
-  "price_live": 58253,
+  "price_live": 58925,
   "urpd_latest_date": "2026-11-21",
-  "urpd_close": 58702,
+  "urpd_close": 58178,
   "history_days": 365,
   "supply_in_loss_pct": 56.54,
   "supply_in_loss_date": "2026-11-20",
   "supply_in_loss_pct_chg_1d": 2.03,
   "sth_cost_basis": 73009,
   "lth_cost_basis": 48436,
-  "mvrv": 1.107,
-  "nupl": 0.096,
+  "mvrv": 1.098,
+  "nupl": 0.089,
   "mvrv_date": "2026-11-21",
   "mvrv_is_estimate": true,
   "sopr_date": "2026-11-14",
-  "overhead_to_ath_btc": 11467221,
-  "overhead_struct_chg_1d": -3351,
+  "overhead_to_ath_btc": 11208249,
+  "overhead_struct_chg_1d": -129296,
   "realized_last": {
    "date": "2026-11-20",
    "profit": 139587351,
@@ -26,48 +26,48 @@
   "realized_net_7d": -9857335840,
   "supports": [
    {
+    "range": "55000-58000",
+    "btc": 299216,
+    "dist_pct": -4.1
+   },
+   {
     "range": "47000-50000",
-    "btc": 195640,
-    "dist_pct": -16.7
+    "btc": 195620,
+    "dist_pct": -17.7
    },
    {
-    "range": "41000-44000",
-    "btc": 195803,
-    "dist_pct": -27.0
-   },
-   {
-    "range": "38000-41000",
-    "btc": 350853,
-    "dist_pct": -32.2
+    "range": "39000-42000",
+    "btc": 217643,
+    "dist_pct": -31.3
    }
   ],
   "resistances": [
    {
     "range": "62000-65000",
-    "btc": 1469088,
-    "dist_pct": 9.0
+    "btc": 1406531,
+    "dist_pct": 7.8
    },
    {
     "range": "66000-69000",
-    "btc": 682427,
-    "dist_pct": 15.9
+    "btc": 676396,
+    "dist_pct": 14.6
    },
    {
-    "range": "75000-78000",
-    "btc": 876238,
-    "dist_pct": 31.3
+    "range": "76000-79000",
+    "btc": 898746,
+    "dist_pct": 31.5
    }
   ],
   "signals": [
    {
     "name": "Giá so với giá vốn STH (holder < 155 ngày)",
     "light": "🔴",
-    "value": "-20.2% (STH $73,009)"
+    "value": "-19.3% (STH $73,009)"
    },
    {
     "name": "Giá so với giá vốn LTH (holder ≥ 155 ngày)",
     "light": "🟢",
-    "value": "+20.3% (LTH $48,436)"
+    "value": "+21.7% (LTH $48,436)"
    },
    {
     "name": "% cung đang lỗ — thay đổi 7 ngày",
@@ -76,13 +76,13 @@
    },
    {
     "name": "Cung giá hiện tại → ATH (cấu trúc 7 ngày, cùng mốc giá)",
-    "light": "🟡",
-    "value": "-16,628 BTC (-0.14%)"
+    "light": "🟢",
+    "value": "-226,660 BTC (-1.98%)"
    },
    {
     "name": "Cán cân hỗ trợ / cản trong ±10% quanh giá",
     "light": "🔴",
-    "value": "-69.1% (hỗ trợ 326,912 BTC · cản 1,786,741 BTC)"
+    "value": "-53.2% (hỗ trợ 578,046 BTC · cản 1,893,665 BTC)"
    },
    {
     "name": "Net Realized P/L 7 ngày",
@@ -101,7 +101,7 @@
    }
   ],
   "verdict": "🔴 Nghiêng tiêu cực",
-  "greens": 1,
+  "greens": 2,
   "reds": 6,
   "flow_1d": {
    "from": "2026-11-20",
@@ -110,87 +110,87 @@
     57000.0,
     61000.0
    ],
-   "moved_btc": 12226,
-   "arrivals_in_zone_btc": 12769,
-   "profit_btc": 117,
-   "profit_usd_est": 5978834,
-   "loss_btc": 12110,
-   "loss_usd_est": 156317925,
-   "lth_spent_btc_min": 2006,
+   "moved_btc": 115317,
+   "arrivals_in_zone_btc": 75652,
+   "profit_btc": 638,
+   "profit_usd_est": 24389375,
+   "loss_btc": 114679,
+   "loss_usd_est": 1079328347,
+   "lth_spent_btc_min": 19427,
    "top_departures": [
     {
-     "range": "61000-62000",
-     "delta": -2357,
-     "lth": -77,
-     "state": "lỗ"
-    },
-    {
      "range": "63000-64000",
-     "delta": -2331,
-     "lth": -4,
+     "delta": -49985,
+     "lth": -479,
      "state": "lỗ"
     },
     {
-     "range": "81000-82000",
-     "delta": -2020,
-     "lth": 0,
-     "state": "lỗ"
-    },
-    {
-     "range": "84000-85000",
-     "delta": -1666,
-     "lth": -1653,
-     "state": "lỗ"
-    },
-    {
-     "range": "76000-77000",
-     "delta": -1260,
-     "lth": -3,
-     "state": "lỗ"
-    },
-    {
-     "range": "75000-76000",
-     "delta": -514,
-     "lth": -1,
+     "range": "61000-62000",
+     "delta": -9759,
+     "lth": -213,
      "state": "lỗ"
     },
     {
      "range": "62000-63000",
-     "delta": -443,
-     "lth": 253,
+     "delta": -8256,
+     "lth": 1835,
      "state": "lỗ"
     },
     {
-     "range": "67000-68000",
-     "delta": -411,
-     "lth": -3,
+     "range": "64000-65000",
+     "delta": -7229,
+     "lth": -621,
+     "state": "lỗ"
+    },
+    {
+     "range": "84000-85000",
+     "delta": -5326,
+     "lth": -4963,
+     "state": "lỗ"
+    },
+    {
+     "range": "68000-69000",
+     "delta": -4883,
+     "lth": -979,
+     "state": "lỗ"
+    },
+    {
+     "range": "81000-82000",
+     "delta": -3963,
+     "lth": -416,
+     "state": "lỗ"
+    },
+    {
+     "range": "73000-74000",
+     "delta": -2640,
+     "lth": -2272,
      "state": "lỗ"
     }
    ],
    "biggest_bucket_changes": [
     {
-     "range": "58000-59000",
-     "delta": 14562
-    },
-    {
-     "range": "61000-62000",
-     "delta": -2357
+     "range": "57000-58000",
+     "delta": 97470
     },
     {
      "range": "63000-64000",
-     "delta": -2331
+     "delta": -49985
     },
     {
-     "range": "81000-82000",
-     "delta": -2020
+     "range": "55000-56000",
+     "delta": 24286
+    },
+    {
+     "range": "56000-57000",
+     "delta": 16756
     },
     {
      "range": "59000-60000",
-     "delta": -1692
+     "delta": -13047
     },
     {
-     "range": "84000-85000",
-     "delta": -1666
+     "range": "61000-62000",
+     "delta": -9759
     }
    ]
   },
@@ -201,112 +201,112 @@
     57000.0,
     67000.0
    ],
-   "moved_btc": 641770,
-   "arrivals_in_zone_btc": 598127,
-   "profit_btc": 20684,
-   "profit_usd_est": 788156521,
-   "loss_btc": 621086,
-   "loss_usd_est": 11789814662,
-   "lth_spent_btc_min": 189297,
+   "moved_btc": 671596,
+   "arrivals_in_zone_btc": 588214,
+   "profit_btc": 20795,
+   "profit_usd_est": 818657061,
+   "loss_btc": 650801,
+   "loss_usd_est": 12281728317,
+   "lth_spent_btc_min": 203395,
    "top_departures": [
     {
      "range": "73000-74000",
-     "delta": -70318,
-     "lth": -568,
+     "delta": -72897,
+     "lth": -2839,
      "state": "lỗ"
     },
     {
      "range": "68000-69000",
-     "delta": -56647,
-     "lth": -3254,
+     "delta": -61494,
+     "lth": -4231,
      "state": "lỗ"
     },
     {
      "range": "74000-75000",
-     "delta": -46709,
-     "lth": -2237,
+     "delta": -48113,
+     "lth": -2834,
      "state": "lỗ"
     },
     {
      "range": "71000-72000",
-     "delta": -36772,
-     "lth": -1078,
+     "delta": -38831,
+     "lth": -1953,
      "state": "lỗ"
     },
     {
      "range": "75000-76000",
-     "delta": -33407,
-     "lth": -1246,
+     "delta": -33807,
+     "lth": -1296,
      "state": "lỗ"
     },
     {
      "range": "111000-112000",
-     "delta": -32108,
-     "lth": -32108,
+     "delta": -32113,
+     "lth": -32113,
      "state": "lỗ"
     },
     {
      "range": "69000-70000",
-     "delta": -28009,
-     "lth": -8628,
+     "delta": -29149,
+     "lth": -8772,
      "state": "lỗ"
     },
     {
-     "range": "76000-77000",
-     "delta": -27463,
-     "lth": -1934,
+     "range": "84000-85000",
+     "delta": -28971,
+     "lth": -13769,
      "state": "lỗ"
     }
    ],
    "biggest_bucket_changes": [
     {
-     "range": "58000-59000",
-     "delta": 139664
+     "range": "64000-65000",
+     "delta": 126471
     },
     {
-     "range": "64000-65000",
-     "delta": 133561
+     "range": "58000-59000",
+     "delta": 116891
+    },
+    {
+     "range": "57000-58000",
+     "delta": 97179
     },
     {
      "range": "62000-63000",
-     "delta": 89746
+     "delta": 81933
     },
     {
      "range": "61000-62000",
-     "delta": 87935
-    },
-    {
-     "range": "63000-64000",
-     "delta": 86025
+     "delta": 80533
     },
     {
      "range": "73000-74000",
-     "delta": -70318
+     "delta": -72897
     }
    ]
   },
   "watch_zone": {
    "lo": 57800.0,
    "hi": 67300.0,
-   "btc": 2779372,
-   "pct_supply": 13.82,
-   "chg_1d": 7019,
-   "chg_7d": 595006,
-   "chg_30d": 341548,
+   "btc": 2691434,
+   "pct_supply": 13.38,
+   "chg_1d": -80919,
+   "chg_7d": 507068,
+   "chg_30d": 253609,
    "peak_date": "2026-08-18",
    "peak_btc": 3603818,
-   "vs_peak": -824446
+   "vs_peak": -912385
   },
   "market": {
-   "total_mcap": 2015668172304.45,
-   "total_mcap_change_24h": -8.3,
-   "btc_mcap": 1170696544772.82,
-   "btc_change_24h": -5.79,
-   "usdt_usdc": 242991689242.26,
-   "adjusted_btc_dom": 66.04,
-   "alt_ex_stables": 601979938289.36,
-   "alt_change_24h": -15.5,
-   "fetched_at_utc": "2026-11-21 03:12"
+   "total_mcap": 2038298310603.06,
+   "total_mcap_change_24h": -7.05,
+   "btc_mcap": 1179079094722.88,
+   "btc_change_24h": -4.77,
+   "usdt_usdc": 242929637871.61,
+   "adjusted_btc_dom": 65.67,
+   "alt_ex_stables": 616289578008.57,
+   "alt_change_24h": -13.4,
+   "fetched_at_utc": "2026-11-21 12:36"
   },
   "etf": {
    "source": "SoSoValue",
@@ -318,7 +318,7 @@
    "streak": -3,
    "aum_usd": 76549156272,
    "cum_usd": 53512537247,
-   "sessions": 510,
+   "sessions": 509,
    "funds_latest": {
     "IBIT": -541079000,
     "FBTC": -45872236,
@@ -413,30 +413,26 @@
   "etf_alts": {
    "NEAR": {
     "source": "SoSoValue",
-    "latest_date": "2026-11-19",
-    "latest_usd": -680301,
-    "funds_date": "2026-11-19",
-    "sum_5d_usd": -1343596,
-    "sum_20d_usd": -9521877,
-    "streak": -1,
-    "aum_usd": 48471446,
-    "cum_usd": 77748294,
-    "sessions": 32,
+    "latest_date": "2026-11-20",
+    "latest_usd": -732590,
+    "funds_date": "2026-11-20",
+    "sum_5d_usd": -2076186,
+    "sum_20d_usd": -11247156,
+    "streak": -2,
+    "aum_usd": 41025060,
+    "cum_usd": 77015704,
+    "sessions": 33,
     "funds_latest": {
-     "NRR": -680301
+     "NRR": -732590
     },
     "top_in_5d": [],
     "top_out_5d": [
      {
       "fund": "NRR",
-      "usd": -1343596
+      "usd": -2076186
      }
     ],
     "last_5": [
-     {
-      "date": "2026-11-13",
-      "usd": 0
-     },
      {
       "date": "2026-11-16",
       "usd": -663295
@@ -452,23 +448,27 @@
      {
       "date": "2026-11-19",
       "usd": -680301
+     },
+     {
+      "date": "2026-11-20",
+      "usd": -732590
      }
     ]
    },
    "LINK": {
     "source": "SoSoValue",
-    "latest_date": "2026-11-19",
-    "latest_usd": -396953,
-    "funds_date": "2026-11-19",
-    "sum_5d_usd": -3759028,
-    "sum_20d_usd": -6587002,
-    "streak": -1,
-    "aum_usd": 153055630,
-    "cum_usd": 172640901,
-    "sessions": 33,
+    "latest_date": "2026-11-20",
+    "latest_usd": -294371,
+    "funds_date": "2026-11-20",
+    "sum_5d_usd": -3347808,
+    "sum_20d_usd": -6881373,
+    "streak": -2,
+    "aum_usd": 141647077,
+    "cum_usd": 172346530,
+    "sessions": 34,
     "funds_latest": {
      "CLNK": 0,
-     "GLNK": -396953
+     "GLNK": -294371
     },
     "top_in_5d": [],
     "top_out_5d": [
@@ -478,14 +478,10 @@
      },
      {
       "fund": "GLNK",
-      "usd": -1102544
+      "usd": -691324
      }
     ],
     "last_5": [
-     {
-      "date": "2026-11-13",
-      "usd": -705591
-     },
      {
       "date": "2026-11-16",
       "usd": -1330620
@@ -501,6 +497,10 @@
      {
       "date": "2026-11-19",
       "usd": -396953
+     },
+     {
+      "date": "2026-11-20",
+      "usd": -294371
      }
     ]
    },
@@ -543,23 +543,19 @@
    },
    "SOL": {
     "source": "SoSoValue",
-    "latest_date": "2026-11-19",
-    "latest_usd": -1398737,
-    "funds_date": "2026-11-19",
-    "sum_5d_usd": 7198502,
-    "sum_20d_usd": -119495347,
-    "streak": -1,
-    "aum_usd": 1046740520,
-    "cum_usd": 1420646673,
-    "sessions": 33,
+    "latest_date": "2026-11-20",
+    "latest_usd": -5904203,
+    "funds_date": "2026-11-20",
+    "sum_5d_usd": 4381070,
+    "sum_20d_usd": -125399550,
+    "streak": -2,
+    "aum_usd": 965429801,
+    "cum_usd": 1414742470,
+    "sessions": 34,
     "funds_latest": {},
     "top_in_5d": [],
     "top_out_5d": [],
     "last_5": [
-     {
-      "date": "2026-11-13",
-      "usd": -3086771
-     },
      {
       "date": "2026-11-16",
       "usd": 11684010
@@ -575,28 +571,28 @@
      {
       "date": "2026-11-19",
       "usd": -1398737
+     },
+     {
+      "date": "2026-11-20",
+      "usd": -5904203
      }
     ]
    },
    "XRP": {
     "source": "SoSoValue",
-    "latest_date": "2026-11-19",
-    "latest_usd": 0,
-    "funds_date": "2026-11-19",
-    "sum_5d_usd": -7226750,
-    "sum_20d_usd": -21469260,
-    "streak": 0,
-    "aum_usd": 1075081219,
-    "cum_usd": 1782965041,
-    "sessions": 33,
+    "latest_date": "2026-11-20",
+    "latest_usd": -4968636,
+    "funds_date": "2026-11-20",
+    "sum_5d_usd": -11105962,
+    "sum_20d_usd": -26437896,
+    "streak": -1,
+    "aum_usd": 989614841,
+    "cum_usd": 1777996405,
+    "sessions": 34,
     "funds_latest": {},
     "top_in_5d": [],
     "top_out_5d": [],
     "last_5": [
-     {
-      "date": "2026-11-13",
-      "usd": -1089424
-     },
      {
       "date": "2026-11-16",
       "usd": 0
@@ -612,46 +608,50 @@
      {
       "date": "2026-11-19",
       "usd": 0
+     },
+     {
+      "date": "2026-11-20",
+      "usd": -4968636
      }
     ]
    }
   },
   "market_extra": {
-   "funding_apr_pct": -6.51,
-   "hl_funding_apr_pct": 2.4,
+   "funding_apr_pct": -5.8,
+   "hl_funding_apr_pct": 10.95,
    "oi_usd": 2923530285.0,
    "oi_btc_chg_7d_pct": -2.06,
-   "long_short_ratio": 3.02,
-   "taker_buy_sell_7d": 0.965,
-   "stables_total_usd": 282534764135.0,
-   "stables_chg_7d_usd": -4516985884.0,
-   "stables_chg_30d_usd": -19018580122.0,
-   "usdt_usd": 174463835608.0,
-   "usdc_usd": 68690126893.0,
-   "cb_premium_7d_pct": -0.0043,
-   "cb_premium_now_pct": -0.1317,
+   "long_short_ratio": 2.3,
+   "taker_buy_sell_7d": 0.969,
+   "stables_total_usd": 282561507431.0,
+   "stables_chg_7d_usd": -4490242588.0,
+   "stables_chg_30d_usd": -18991836826.0,
+   "usdt_usd": 174486556122.0,
+   "usdc_usd": 68694970043.0,
+   "cb_premium_7d_pct": -0.004,
+   "cb_premium_now_pct": -0.0188,
    "fear_greed": 12.0,
    "fear_greed_7d_ago": 13.0,
    "fear_greed_class": "Sợ hãi cực độ",
    "errors": []
   },
   "composite": {
-   "score": 31,
-   "verdict": "🔴 Tiêu cực",
+   "score": 36,
+   "verdict": "🟠 Hơi tiêu cực",
    "outlook": "Dữ liệu tổng hợp đang **nghiêng về phía tiêu cực** cho 1–2 tuần tới.",
-   "conditions": "Áp lực còn nếu giá không lấy lại được $62,000–$65,000; vùng cần chú ý phía dưới $47,000–$50,000. Mất hiệu lực nếu giá vượt và giữ trên $62,000–$65,000.",
+   "conditions": "Áp lực còn nếu giá không lấy lại được $62,000–$65,000; vùng cần chú ý phía dưới $55,000–$58,000. Mất hiệu lực nếu giá vượt và giữ trên $62,000–$65,000.",
    "agree": "4/5 nhóm cùng chiều với kết luận chung.",
    "categories": [
     {
      "name": "On-chain (URPD · giá vốn · lãi/lỗ)",
      "weight": 0.3,
-     "score": -0.57,
+     "score": -0.43,
      "signals": [
-      "🔴 Giá so với giá vốn STH (holder < 155 ngày): -20.2% (STH $73,009)",
-      "🟢 Giá so với giá vốn LTH (holder ≥ 155 ngày): +20.3% (LTH $48,436)",
+      "🔴 Giá so với giá vốn STH (holder < 155 ngày): -19.3% (STH $73,009)",
+      "🟢 Giá so với giá vốn LTH (holder ≥ 155 ngày): +21.7% (LTH $48,436)",
       "🔴 % cung đang lỗ — thay đổi 7 ngày: 56.5% (+10.6 điểm %)",
-      "🟡 Cung giá hiện tại → ATH (cấu trúc 7 ngày, cùng mốc giá): -16,628 BTC (-0.14%)",
-      "🔴 Cán cân hỗ trợ / cản trong ±10% quanh giá: -69.1% (hỗ trợ 326,912 BTC · cản 1,786,741 BTC)",
+      "🟢 Cung giá hiện tại → ATH (cấu trúc 7 ngày, cùng mốc giá): -226,660 BTC (-1.98%)",
+      "🔴 Cán cân hỗ trợ / cản trong ±10% quanh giá: -53.2% (hỗ trợ 578,046 BTC · cản 1,893,665 BTC)",
       "🔴 Net Realized P/L 7 ngày: −$9.86B",
       "🔴 SOPR trung bình 7 ngày: 0.993 (đến 14/11)"
      ]
@@ -668,12 +668,12 @@
     {
      "name": "Phái sinh (đòn bẩy)",
      "weight": 0.2,
-     "score": -0.5,
+     "score": -0.25,
      "signals": [
-      "🟡 Funding perp BTC (TB 3 ngày, năm hóa): -2.7%/năm — bình thường",
-      "🟡 Open interest 7 ngày (tính bằng BTC): -2.1% · giá 7 ngày -9.0% · đòn bẩy không tăng rõ",
-      "🔴 Tỷ lệ tài khoản long/short (OKX): 3.02 — đám đông nghiêng long",
-      "🔴 Lực mua chủ động / bán chủ động 7 ngày: 0.965"
+      "🟡 Funding perp BTC (TB 3 ngày, năm hóa): -2.5%/năm — bình thường",
+      "🟡 Open interest 7 ngày (tính bằng BTC): -2.1% · giá 7 ngày -8.1% · đòn bẩy không tăng rõ",
+      "🟡 Tỷ lệ tài khoản long/short (OKX): 2.30",
+      "🔴 Lực mua chủ động / bán chủ động 7 ngày: 0.969"
      ]
     },
     {
@@ -681,8 +681,8 @@
      "weight": 0.15,
      "score": -1.0,
      "signals": [
-      "🔴 Tổng cung stablecoin — 7 ngày: −$4.52B (-1.57%) · tổng $282.53B",
-      "🔴 Tổng cung stablecoin — 30 ngày: −$19.02B (-6.31%)"
+      "🔴 Tổng cung stablecoin — 7 ngày: −$4.49B (-1.56%) · tổng $282.56B",
+      "🔴 Tổng cung stablecoin — 30 ngày: −$18.99B (-6.30%)"
      ]
     },
     {
@@ -698,96 +698,92 @@
   "events_7d": [],
   "news_48h": [
    {
-    "title": "250M: USDC Treasury Mints New Supply to Strengthen Liquidity - Coinfomania",
-    "title_vi": "250 triệu: Kho bạc USDC cung cấp nguồn cung mới để tăng cường thanh khoản - Coinfomania",
-    "source": "Coinfomania",
-    "category": "Thanh khoản / trái phiếu",
-    "time_utc": "2026-11-21 02:57"
+    "title": "Bitcoin Price Returns to 2021 Levels, but Inflation Reveals a Hidden 19% Loss - Coinpaper",
+    "title_vi": "Giá bitcoin quay trở lại mức năm 2021, nhưng lạm phát cho thấy mức lỗ tiềm ẩn 19%",
+    "source": "Coinpaper",
+    "category": "Lạm phát Mỹ",
+    "time_utc": "2026-11-21 12:17"
    },
    {
-    "title": "Crypto Treasury Management After the Bitcoin Crash - OneSafe",
-    "title_vi": "Quản lý kho bạc tiền điện tử sau sự cố Bitcoin - OneSafe",
-    "source": "OneSafe",
-    "category": "Thanh khoản / trái phiếu",
-    "time_utc": "2026-11-21 01:46"
+    "title": "Why Is Bitcoin Down Today? BTC Slides 5.57% to $58,072, Below $60,000, as Record ETF Outflows Pile On - Around Prague",
+    "title_vi": "Tại sao Bitcoin hôm nay giảm giá? BTC trượt 5,57% xuống còn 58.072 USD, dưới 60.000 USD, khi dòng vốn ETF kỷ lục tăng lên - Xung quanh Praha",
+    "source": "Around Prague",
+    "category": "Bitcoin",
+    "time_utc": "2026-11-21 12:13"
    },
    {
-    "title": "BTC price at 8 PM CST on Nov 20, 2026 - Robinhood",
-    "title_vi": "Giá BTC lúc 8 giờ tối giờ CST ngày 20 tháng 11 năm 2026 - Robinhood",
+    "title": "BTC price range on Nov 21, 2026 at 8am EST Crypto Prediction Market - Robinhood",
+    "title_vi": "Phạm vi giá BTC vào ngày 21 tháng 11 năm 2026 lúc 8 giờ sáng theo giờ EST Thị trường dự đoán tiền điện tử - Robinhood",
     "source": "Robinhood",
     "category": "Bitcoin",
-    "time_utc": "2026-11-21 01:05"
+    "time_utc": "2026-11-21 12:03"
    },
    {
-    "title": "3 signals the biggest Bitcoin treasury company checks before its next move - Yahoo Finance Australia",
-    "title_vi": "3 tín hiệu cho công ty kho bạc Bitcoin lớn nhất kiểm tra trước động thái tiếp theo - Yahoo Finance Australia",
-    "source": "Yahoo Finance Australia",
+    "title": "Why Is Bitcoin Crashing Today? BTC Hits $55K as $2.5B Wiped Out - Coinpaper",
+    "title_vi": "Tại sao Bitcoin lại sụp đổ ngày hôm nay? BTC đạt 55 nghìn đô la khi bị xóa sổ 2,5 tỷ đô la - Coinpaper",
+    "source": "Coinpaper",
     "category": "Bitcoin",
-    "time_utc": "2026-11-21 00:30"
+    "time_utc": "2026-11-21 11:47"
    },
    {
-    "title": "Belgian Researchers Put Historic Bitcoin (BTC) Exposure at $106 Million - Cryptonews.net",
-    "title_vi": "Các nhà nghiên cứu Bỉ đưa ra mức phơi nhiễm Bitcoin (BTC) lịch sử ở mức 106 triệu USD - Cryptonews.net",
-    "source": "Cryptonews.net",
-    "category": "Bitcoin",
-    "time_utc": "2026-11-21 00:20"
-   },
-   {
-    "title": "BTC price on Nov 20, 2026 at 8pm EST Crypto Prediction Market - Robinhood",
-    "title_vi": "Giá BTC vào ngày 20 tháng 11 năm 2026 lúc 8 giờ tối theo giờ EST Thị trường dự đoán tiền điện tử - Robinhood",
-    "source": "Robinhood",
-    "category": "Bitcoin",
-    "time_utc": "2026-11-21 00:07"
-   },
-   {
-    "title": "Bitcoin Holds Steady as VIX Surges and Crypto ETF Outflows Mount - Cryptonews.net",
-    "title_vi": "Bitcoin giữ ổn định khi VIX tăng và dòng tiền điện tử ETF tăng vọt - Cryptonews.net",
-    "source": "Cryptonews.net",
+    "title": "JPMorgan Warns Bitcoin Mining Costs Hit $86K as XRP Joins Wider Crypto Crash - Coinpaper",
+    "title_vi": "JPMorgan cảnh báo chi phí khai thác Bitcoin đạt 86 nghìn đô la khi XRP tham gia vào vụ tai nạn tiền điện tử rộng hơn",
+    "source": "Coinpaper",
     "category": "ETF / dòng vốn",
-    "time_utc": "2026-11-20 23:36"
+    "time_utc": "2026-11-21 11:42"
    },
    {
-    "title": "Rony Vogel Puts Most Family Wealth in Bitcoin (BTC), 89% of Peers Hold None - Cryptonews.net",
-    "title_vi": "Rony Vogel đầu tư phần lớn tài sản gia đình vào Bitcoin (BTC), 89% đồng nghiệp không nắm giữ gì - Cryptonews.net",
-    "source": "Cryptonews.net",
+    "title": "Bitcoin Needs Support From Tech Calm, Liquidity Cool Off, And Recovery ETF Money - Coinpedia",
+    "title_vi": "Bitcoin cần sự hỗ trợ từ sự bình tĩnh của công nghệ, thanh khoản ổn định và tiền ETF phục hồi - Coinpedia",
+    "source": "Coinpedia",
+    "category": "ETF / dòng vốn",
+    "time_utc": "2026-11-21 11:25"
+   },
+   {
+    "title": "How Low Will Bitcoin Price Drop? Analysts Predict - BeInCrypto",
+    "title_vi": "Giá Bitcoin sẽ giảm thấp đến mức nào? Dự đoán của các nhà phân tích - BeInCrypto",
+    "source": "BeInCrypto",
     "category": "Bitcoin",
-    "time_utc": "2026-11-20 23:36"
+    "time_utc": "2026-11-21 11:04"
+   },
+   {
+    "title": "Robert Kiyosaki Cheers the Bitcoin, Gold, and Silver Crash. Here is Why - BeInCrypto",
+    "title_vi": "Robert Kiyosaki cổ vũ sự sụp đổ của Bitcoin, vàng và bạc. Đây là lý do - BeInCrypto",
+    "source": "BeInCrypto",
+    "category": "Bitcoin",
+    "time_utc": "2026-11-21 11:04"
    }
   ],
   "data_errors": {}
  },
  "near": {
-  "price_live": 2.72,
-  "change_24h": -11.12211,
+  "price_live": 2.81,
+  "change_24h": -4.59913,
   "holdings": 5000.0,
-  "holdings_value_usd": 13600.0,
+  "holdings_value_usd": 14050.0,
   "cost_basis_est": 3.9686,
-  "supply_in_loss_est_pct": 87.4,
-  "tvl": 129501189.0,
-  "tvl_chg_30d_pct": -47.285827325611216,
-  "stables": 131803306.95,
-  "staking_ratio": 45.4469,
-  "funding_apr": -1.34,
+  "supply_in_loss_est_pct": 87.3,
+  "tvl": 127304243.0,
+  "tvl_chg_30d_pct": -48.18010630246531,
+  "stables": 131814998.93,
+  "staking_ratio": 45.441,
+  "funding_apr": 3.9603,
   "oi_usd": 40078310.262,
-  "long_short_ratio": 1.94,
-  "whale_flow_7d": -2217442.374924853,
-  "exchange_flow_7d": 528169.6549560833,
+  "long_short_ratio": 1.45,
+  "whale_flow_7d": -3207565.4582938924,
+  "exchange_flow_7d": 427494.6526089874,
   "etf": {
-   "latest_date": "2026-11-19",
-   "latest_usd": -680301,
-   "sum_5d_usd": -1343596,
-   "sum_20d_usd": -9521877,
-   "streak": -1,
-   "aum_usd": 48471446,
-   "cum_usd": 77748294,
+   "latest_date": "2026-11-20",
+   "latest_usd": -732590,
+   "sum_5d_usd": -2076186,
+   "sum_20d_usd": -11247156,
+   "streak": -2,
+   "aum_usd": 41025060,
+   "cum_usd": 77015704,
    "funds_latest": {
-    "NRR": -680301
+    "NRR": -732590
    },
    "last_5": [
-    {
-     "date": "2026-11-13",
-     "usd": 0
-    },
     {
      "date": "2026-11-16",
      "usd": -663295
@@ -803,53 +799,48 @@
     {
      "date": "2026-11-19",
      "usd": -680301
+    },
+    {
+     "date": "2026-11-20",
+     "usd": -732590
     }
    ]
   },
   "stake_flows_7d": {
    "days": 7,
    "events": 42,
-   "unstake": 2997199,
+   "unstake": 3293437,
    "withdraw": 1060859,
    "stake": 5775136,
-   "restake": 841137,
-   "pending_unlock": 3961502,
-   "ready_to_withdraw": 1592848,
-   "tracked_stake": 328330543,
+   "restake": 706471,
+   "pending_unlock": 1108524,
+   "ready_to_withdraw": 4778769,
+   "tracked_stake": 328059166,
    "epoch": {
-    "epoch": 4992,
-    "epoch_hours": 6.91,
-    "epoch_start_utc": "2026-11-20 23:45"
+    "epoch": 4993,
+    "epoch_hours": 6.86,
+    "epoch_start_utc": "2026-11-21 06:39"
    },
-   "snapshot_utc": "2026-11-21 03:14"
+   "snapshot_utc": "2026-11-21 12:38"
   },
   "stake_flows_1d": {
    "days": 1,
-   "events": 10,
-   "unstake": 1257659,
+   "events": 8,
+   "unstake": 953414,
    "withdraw": 209992,
-   "stake": 831118,
+   "stake": 394100,
    "restake": 0,
-   "pending_unlock": 3961502,
-   "ready_to_withdraw": 1592848,
-   "tracked_stake": 328330543,
+   "pending_unlock": 1108524,
+   "ready_to_withdraw": 4778769,
+   "tracked_stake": 328059166,
    "epoch": {
-    "epoch": 4992,
-    "epoch_hours": 6.91,
-    "epoch_start_utc": "2026-11-20 23:45"
+    "epoch": 4993,
+    "epoch_hours": 6.86,
+    "epoch_start_utc": "2026-11-21 06:39"
    },
-   "snapshot_utc": "2026-11-21 03:14"
+   "snapshot_utc": "2026-11-21 12:38"
   },
   "stake_events_recent": [
-   {
-    "time_utc": "2026-11-19 20:34",
-    "pool": "bitwise_2.poolv1.near",
-    "account": "d835c1c4d20ef0fb06ecb562a0093c64ce752f0573d4c0ec8074ae02f33e149d",
-    "epoch": 4988,
-    "kind": "unstake",
-    "amount": 209992,
-    "unlock_eta_utc": "2026-11-20 23:32"
-   },
    {
     "time_utc": "2026-11-20 10:42",
     "pool": "astro-stakers.poolv1.near",
@@ -911,167 +902,176 @@
     "kind": "unstake",
     "amount": 262272,
     "unlock_eta_utc": "2026-11-21 20:51"
+   },
+   {
+    "time_utc": "2026-11-21 12:38",
+    "pool": "bitwise_1.poolv1.near",
+    "account": "7c2752c54b540cd8d73eacb4467af42da222838b1fc9d463e7748366ed140ca5",
+    "epoch": 4993,
+    "kind": "unstake",
+    "amount": 296238,
+    "unlock_eta_utc": "2026-11-22 10:05"
    }
   ],
   "big_transfers_7d": {
    "days": 7,
-   "count": 575,
+   "count": 591,
    "to_exchange": 6988931,
    "from_exchange": 3466910,
    "intents": 0,
    "wrap": 1249380,
-   "stake": 7090618,
-   "unstake_withdraw": 1934521,
-   "wallet": 91961268,
-   "to_child": 13907610,
+   "stake": 6955952,
+   "unstake_withdraw": 1799839,
+   "wallet": 93796926,
+   "to_child": 18189309,
    "net_to_exchange": 3522021
   },
   "big_transfers_recent": [
    {
-    "time_utc": "2026-11-21 01:23",
-    "from": "466222f1d229ca75ae9b4c82202e0e0b2fc3f6bdbdbac3704e8bf1808baa6093",
-    "to": "5754ff26eaa951cd814f657c840059086da32ecd600efc58106028ed6b6b3559",
-    "amount": 616862,
-    "kind": "wallet",
+    "time_utc": "2026-11-21 07:28",
+    "from": "498eee3c286d618675185ca234c288dce8f30aa39676f38df2f556a0b074cc3d",
+    "to": "2874f85cf17404b4c43ad4e869ff0c7ef16a2b3ddea6c01033fedc55ba6d4eac",
+    "amount": 24671,
+    "kind": "to_child",
     "method": null,
-    "tx": "EieEsHN1hnYXD4CKWrcboyBAhUSZUagczPx8upJfqSu7",
-    "from_label": "Nhóm Bitwise/NF — ví gom cấp vốn cho 3 ví stake 1,35tr",
-    "to_label": "Nhóm Bitwise/NF — ví xoay vòng với 466222f1",
-    "watched": "5754ff26eaa951cd814f657c840059086da32ecd600efc58106028ed6b6b3559",
+    "tx": "4sNNShrqR8qTRdTKhfyW4sdok2fYVwsWLj7HZm96fCAq",
+    "from_label": "Cụm quỹ NEAR — ví con giữ ~2,9tr (nhận 2,8tr ngày 18/11)",
+    "to_label": "Cụm quỹ NEAR — đường nạp nhỏ giọt vào 52435fe9",
+    "watched": "498eee3c286d618675185ca234c288dce8f30aa39676f38df2f556a0b074cc3d",
     "after_unstake": false,
-    "source": "fastnear",
-    "family": "1e74ab0a225c87cf49c5b031f29208195ba5b284fd0fefceaa9e283455686c02"
+    "source": "nearblocks",
+    "family": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324"
    },
    {
-    "time_utc": "2026-11-21 01:23",
-    "from": "466222f1d229ca75ae9b4c82202e0e0b2fc3f6bdbdbac3704e8bf1808baa6093",
-    "to": "5754ff26eaa951cd814f657c840059086da32ecd600efc58106028ed6b6b3559",
-    "amount": 616862,
-    "kind": "wallet",
-    "method": null,
-    "tx": "59Z1atvTUBczdrrhrNhDeJD6JpdZxKSK1Gt641rfdyAz",
-    "from_label": "Nhóm Bitwise/NF — ví gom cấp vốn cho 3 ví stake 1,35tr",
-    "to_label": "Nhóm Bitwise/NF — ví xoay vòng với 466222f1",
-    "watched": "5754ff26eaa951cd814f657c840059086da32ecd600efc58106028ed6b6b3559",
-    "after_unstake": false,
-    "source": "fastnear",
-    "family": "1e74ab0a225c87cf49c5b031f29208195ba5b284fd0fefceaa9e283455686c02"
-   },
-   {
-    "time_utc": "2026-11-21 01:24",
-    "from": "466222f1d229ca75ae9b4c82202e0e0b2fc3f6bdbdbac3704e8bf1808baa6093",
-    "to": "5754ff26eaa951cd814f657c840059086da32ecd600efc58106028ed6b6b3559",
-    "amount": 616862,
-    "kind": "wallet",
-    "method": null,
-    "tx": "25g3JMNsHuQXcuUeQvBRNBorte9Y8YvDdV3da9UtQtsp",
-    "from_label": "Nhóm Bitwise/NF — ví gom cấp vốn cho 3 ví stake 1,35tr",
-    "to_label": "Nhóm Bitwise/NF — ví xoay vòng với 466222f1",
-    "watched": "5754ff26eaa951cd814f657c840059086da32ecd600efc58106028ed6b6b3559",
-    "after_unstake": false,
-    "source": "fastnear",
-    "family": "1e74ab0a225c87cf49c5b031f29208195ba5b284fd0fefceaa9e283455686c02"
-   },
-   {
-    "time_utc": "2026-11-21 01:39",
+    "time_utc": "2026-11-21 07:40",
     "from": "5b43682c64f3dce763b73d5f5d17a98fe9133d5d2a2dd7d6dc33e5d703c90cbe",
     "to": "30d6205b89e02d2c34ade165ae9705f8d9e80d0e304061cb10b8e56c8e703f62",
-    "amount": 985147,
+    "amount": 310709,
     "kind": "wallet",
     "method": null,
-    "tx": "3r7R92F9jocUXaCptgf966kQChZEk8w2pE5zYXwNmGx7",
+    "tx": "4yb8vfxcvWG1mPpwK22Lep5Jt1rkj4kNEuN8Knzu46p",
     "from_label": "Cặp chuyền qua lại ~1,2tr với 30d6205b",
     "to_label": "Cụm quỹ NEAR — ví con tầng 3, chuyền ~1,2tr",
-    "watched": "30d6205b89e02d2c34ade165ae9705f8d9e80d0e304061cb10b8e56c8e703f62",
+    "watched": "5b43682c64f3dce763b73d5f5d17a98fe9133d5d2a2dd7d6dc33e5d703c90cbe",
     "after_unstake": false,
     "source": "fastnear",
     "family": "5b43682c64f3dce763b73d5f5d17a98fe9133d5d2a2dd7d6dc33e5d703c90cbe"
    },
    {
-    "time_utc": "2026-11-21 02:36",
-    "from": "2874f85cf17404b4c43ad4e869ff0c7ef16a2b3ddea6c01033fedc55ba6d4eac",
-    "to": "52435fe912307fb3a088b8b8f3882781762fc1f0a404e8579c7fb1a964362c8d",
-    "amount": 26361,
-    "kind": "to_exchange",
-    "method": null,
-    "tx": "C17Z2e5D5MST5V9tMyBGwqTHgxDXNq6k9RM2YqJj1CG5",
-    "from_label": "Cụm quỹ NEAR — đường nạp nhỏ giọt vào 52435fe9",
-    "to_label": "Sàn chưa rõ tên — ví nóng (nghi)",
-    "watched": "2874f85cf17404b4c43ad4e869ff0c7ef16a2b3ddea6c01033fedc55ba6d4eac",
-    "after_unstake": false,
-    "source": "fastnear",
-    "family": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324"
-   },
-   {
-    "time_utc": "2026-11-21 02:40",
-    "from": "498eee3c286d618675185ca234c288dce8f30aa39676f38df2f556a0b074cc3d",
-    "to": "53aae097294e229eff16b742fd7af62ac6dbae6055fa49a35759c74abb537d0c",
-    "amount": 122493,
+    "time_utc": "2026-11-21 07:41",
+    "from": "30d6205b89e02d2c34ade165ae9705f8d9e80d0e304061cb10b8e56c8e703f62",
+    "to": "498eee3c286d618675185ca234c288dce8f30aa39676f38df2f556a0b074cc3d",
+    "amount": 291342,
     "kind": "wallet",
     "method": null,
-    "tx": "BP92KJn31WAiVYLGfT8DSsk5KEjwDQ7w597zQQqe8368",
-    "from_label": "Cụm quỹ NEAR — ví con giữ ~2,9tr (nhận 2,8tr ngày 18/11)",
-    "to_label": "Nguồn 2,8tr đổ vào 498eee3c (18/11)",
+    "tx": "5H1LbfGseEXFYzPBHRZaDGSea6yxaXH84D7re8SRMkaH",
+    "from_label": "Cụm quỹ NEAR — ví con tầng 3, chuyền ~1,2tr",
+    "to_label": "Cụm quỹ NEAR — ví con giữ ~2,9tr (nhận 2,8tr ngày 18/11)",
     "watched": "498eee3c286d618675185ca234c288dce8f30aa39676f38df2f556a0b074cc3d",
     "after_unstake": false,
-    "source": "fastnear",
+    "source": "nearblocks",
     "family": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324"
    },
    {
-    "time_utc": "2026-11-21 02:54",
+    "time_utc": "2026-11-21 07:52",
     "from": "30d6205b89e02d2c34ade165ae9705f8d9e80d0e304061cb10b8e56c8e703f62",
-    "to": "5b43682c64f3dce763b73d5f5d17a98fe9133d5d2a2dd7d6dc33e5d703c90cbe",
-    "amount": 1252618,
+    "to": "aaf3694459b51df4359a96e29ef9f7777c6c44a3f3dcfa434d0e3adb007f2fa7",
+    "amount": 68006,
     "kind": "wallet",
     "method": null,
-    "tx": "7faGMfFfCQgxMvsjcnQC3tTv7ry9g1uMjUfV7enm9Zqe",
+    "tx": "H5CPNUaMcFKohLuFDyZNJw9BqRU72NPY48NHAPd9Saea",
     "from_label": "Cụm quỹ NEAR — ví con tầng 3, chuyền ~1,2tr",
-    "to_label": "Cặp chuyền qua lại ~1,2tr với 30d6205b",
+    "to_label": null,
     "watched": "30d6205b89e02d2c34ade165ae9705f8d9e80d0e304061cb10b8e56c8e703f62",
     "after_unstake": false,
     "source": "fastnear",
     "family": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324"
    },
    {
-    "time_utc": "2026-11-21 02:54",
-    "from": "2874f85cf17404b4c43ad4e869ff0c7ef16a2b3ddea6c01033fedc55ba6d4eac",
-    "to": "52435fe912307fb3a088b8b8f3882781762fc1f0a404e8579c7fb1a964362c8d",
-    "amount": 29818,
-    "kind": "to_exchange",
+    "time_utc": "2026-11-21 08:01",
+    "from": "423df0a6640e9467769c55a573f15b9ee999dc8970048959c72890abf5cc3a8e",
+    "to": "a7753172106847a3e578c581259a580b13aa02ff51f84e3e94c333dd29e1a31a",
+    "amount": 74037,
+    "kind": "wallet",
     "method": null,
-    "tx": "HEo6YNJt2PCr8zyQKvaiE8G9ihUiumo4bbnTEqbqyFYM",
-    "from_label": "Cụm quỹ NEAR — đường nạp nhỏ giọt vào 52435fe9",
-    "to_label": "Sàn chưa rõ tên — ví nóng (nghi)",
-    "watched": "2874f85cf17404b4c43ad4e869ff0c7ef16a2b3ddea6c01033fedc55ba6d4eac",
+    "tx": "4hPXhUGuyKimKkbaNLpzSQxtrjaPBHywNf1ZGJLWBF3t",
+    "from_label": null,
+    "to_label": null,
+    "watched": "423df0a6640e9467769c55a573f15b9ee999dc8970048959c72890abf5cc3a8e",
+    "after_unstake": false,
+    "source": "fastnear",
+    "family": null
+   },
+   {
+    "time_utc": "2026-11-21 10:53",
+    "from": "241754260760e04e3a90acf27b1c54296b81e52a3b21fab8347ae88066946092",
+    "to": "454e9a19b4552d08132efb9db354f8cdb1ceb155d8c2c9806f6cb15d947187cf",
+    "amount": 200000,
+    "kind": "wallet",
+    "method": null,
+    "tx": "6j94HMNHL8AH1AoTNWubNjWHN7GMgrz3uQZduj5RQndd",
+    "from_label": "Ví con của Cụm quỹ NEAR — nguồn 2tr ngày 10/11 (tầng 3)",
+    "to_label": "Ví con của Cụm quỹ NEAR — nguồn 2tr ngày 10/11 (tầng 2)",
+    "watched": "241754260760e04e3a90acf27b1c54296b81e52a3b21fab8347ae88066946092",
     "after_unstake": false,
     "source": "fastnear",
     "family": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324"
+   },
+   {
+    "time_utc": "2026-11-21 12:17",
+    "from": "bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8",
+    "to": "1ee16314cf1b81c6415701fd7d76eef6ba3085fad07dce40d126cfb4619bbd7e",
+    "amount": 67241,
+    "kind": "to_child",
+    "method": null,
+    "tx": "3TfjguwLxqMKhBzpM7ppHXBXGLSF4G4E83mpQQZAjGm8",
+    "from_label": "Cụm quỹ NEAR — ví ~4,1tr nhận 2,05tr qua ví trung chuyển (17/11)",
+    "to_label": "Ví con của Cụm quỹ NEAR — ví ~4,1tr nhận 2,05tr qua ví trung chuyển (17/11)",
+    "watched": "bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8",
+    "after_unstake": false,
+    "source": "fastnear",
+    "family": "bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8"
+   },
+   {
+    "time_utc": "2026-11-21 12:24",
+    "from": "1ee16314cf1b81c6415701fd7d76eef6ba3085fad07dce40d126cfb4619bbd7e",
+    "to": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324",
+    "amount": 67241,
+    "kind": "wallet",
+    "method": null,
+    "tx": "6YFWEHr3tR5X2QNdtnLfGgbiQsxc3A4HNsya3gxUa53y",
+    "from_label": "Ví con của Cụm quỹ NEAR — ví ~4,1tr nhận 2,05tr qua ví trung chuyển (17/11)",
+    "to_label": "Cụm quỹ NEAR — nguồn 2tr ngày 10/11",
+    "watched": "1ee16314cf1b81c6415701fd7d76eef6ba3085fad07dce40d126cfb4619bbd7e",
+    "after_unstake": false,
+    "source": "fastnear",
+    "family": "bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8"
    }
   ],
   "whale_children_7d": {
    "days": 7,
-   "tracked": 102,
-   "new": 61,
-   "new_near": 14492814,
+   "tracked": 104,
+   "new": 63,
+   "new_near": 18774513,
    "children_to_exchange": 1690788,
    "splitters": [
     {
      "root": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324",
      "root_label": "Cụm quỹ NEAR — nguồn 2tr ngày 10/11",
      "n": 34,
-     "near": 7723276
+     "near": 7747947
     },
     {
      "root": "04f265abb60b2d57c570b2808632f8913a1cd706b041e51e16c3bf6f566e8ca8",
      "root_label": "Ví chia 894k: 400k→b499ffde→f1bb2065, 200k, 257k",
-     "n": 12,
-     "near": 2168243
+     "n": 13,
+     "near": 2365359
     },
     {
      "root": "bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8",
      "root_label": "Cụm quỹ NEAR — ví ~4,1tr nhận 2,05tr qua ví trung chuyển (17/11)",
-     "n": 6,
-     "near": 3408111
+     "n": 7,
+     "near": 7468023
     },
     {
      "root": "1e74ab0a225c87cf49c5b031f29208195ba5b284fd0fefceaa9e283455686c02",
@@ -1088,6 +1088,17 @@
    ]
   },
   "whale_children": [
+   {
+    "account": "2b8cc04e26f38bcbd600a9a1e0991edb7040037eb82f3bf553978284c33f35d3",
+    "root": "bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8",
+    "root_label": "Cụm quỹ NEAR — ví ~4,1tr nhận 2,05tr qua ví trung chuyển (17/11)",
+    "parent": "bf44259660eb5dd66a0a39b0addf94c5724359a38e5caa4acf7be7a832a1f8b8",
+    "depth": 1,
+    "first": "2026-11-21 00:39",
+    "last": "2026-11-21 00:39",
+    "received": 3992671,
+    "n": 1
+   },
    {
     "account": "222d728f5436cf3660487cb1889233c622b01ce226fcc0b33e485bb62b8f0239",
     "root": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324",
@@ -1150,7 +1161,7 @@
     "parent": "de8f3d88834da0427e0a86bf0bc141c37273bc281b3d41d5dd59decf367e98ac",
     "depth": 2,
     "first": "2026-11-18 09:42",
-    "last": "2026-11-21 02:55",
+    "last": "2026-11-21 12:26",
     "received": 656334,
     "n": 5
    },
@@ -1161,7 +1172,7 @@
     "parent": "498eee3c286d618675185ca234c288dce8f30aa39676f38df2f556a0b074cc3d",
     "depth": 3,
     "first": "2026-11-18 02:08",
-    "last": "2026-11-21 03:14",
+    "last": "2026-11-21 08:48",
     "received": 639356,
     "n": 6
    },
@@ -1172,7 +1183,7 @@
     "parent": "ee3a632c0ed81612e57651f87e1f3299b07298a3622272c6a9e8388043ae7dcf",
     "depth": 3,
     "first": "2026-11-13 13:29",
-    "last": "2026-11-21 02:46",
+    "last": "2026-11-21 12:36",
     "received": 593366,
     "n": 4
    },
@@ -1183,9 +1194,9 @@
     "parent": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324",
     "depth": 1,
     "first": "2026-11-16 01:32",
-    "last": "2026-11-21 02:54",
-    "received": 561162,
-    "n": 24
+    "last": "2026-11-21 07:28",
+    "received": 585833,
+    "n": 25
    },
    {
     "account": "d80db0c74b9a74b2bc457f13d397140538df069fca27129fec9544e397d872ae",
@@ -1205,7 +1216,7 @@
     "parent": "fb79675c31abbbb3cc52c47007378305ca2be8a5e2fb68ac1e54fb696ebdcb91",
     "depth": 3,
     "first": "2026-10-22 14:47",
-    "last": "2026-10-22 14:47",
+    "last": "2026-11-21 08:44",
     "received": 522411,
     "n": 1
    },
@@ -1216,7 +1227,7 @@
     "parent": "03793fb37ffb46533e9b8ab6b9c7a1ebdd6d84f6ebc151b8f60ec1754bbcada6",
     "depth": 3,
     "first": "2026-11-16 05:36",
-    "last": "2026-11-21 02:37",
+    "last": "2026-11-21 07:24",
     "received": 480000,
     "n": 1
    },
@@ -1296,17 +1307,6 @@
     "last": "2026-11-19 03:29",
     "received": 289332,
     "n": 1
-   },
-   {
-    "account": "bridge-mng.near",
-    "root": "3d9ccff55cef5a3efd1fe14b14509b726123910845243ef1671b45e46f214324",
-    "root_label": "Cụm quỹ NEAR — nguồn 2tr ngày 10/11",
-    "parent": "1244d552459d7230bdaf267c1d09a296282dc85251958434e670d9b9d561fac7",
-    "depth": 2,
-    "first": "2026-11-19 19:39",
-    "last": "2026-11-20 21:15",
-    "received": 276252,
-    "n": 5
    }
   ],
   "flow_tracking_since": {
@@ -1319,16 +1319,16 @@
    "1.862-1.989"
   ],
   "resistances": [
-   "3.089-3.216",
-   "3.385-3.512",
-   "3.512-3.639"
+   "3.131-3.258",
+   "3.343-3.470",
+   "3.555-3.682"
   ],
   "report": {
-   "score": 37,
+   "score": 42,
    "verdict": "🟠 Hơi tiêu cực",
-   "agree": "3/6 nhóm dữ liệu cùng chiều với đánh giá chung.",
+   "agree": "2/6 nhóm dữ liệu cùng chiều với đánh giá chung.",
    "outlook": "Các nhóm dữ liệu đang nghiêng về **khả năng giảm/yếu** trong 1–2 tuần tới.",
-   "conditions": "Áp lực còn nếu giá không lấy lại được $3.0891–$3.2161; vùng cần chú ý phía dưới là $2.3697–$2.4967. Đánh giá này **mất hiệu lực** nếu giá vượt và giữ trên $3.0891–$3.2161.",
+   "conditions": "Áp lực còn nếu giá không lấy lại được $3.1315–$3.2584; vùng cần chú ý phía dưới là $2.3697–$2.4967. Đánh giá này **mất hiệu lực** nếu giá vượt và giữ trên $3.1315–$3.2584.",
    "data_date": "2026-11-20",
    "categories": [
     {
@@ -1347,7 +1347,7 @@
      "score": 0.0,
      "signals": [
       "Khối lượng giao ngay 7N so với 30N: -8% · vol không tăng rõ",
-      "Khối lượng DEX 7N so với 30N: -9%"
+      "Khối lượng DEX 7N so với 30N: +10%"
      ]
     },
     {
@@ -1365,68 +1365,68 @@
      "signals": [
       "Funding (năm hóa): -0.2%",
       "Open interest 7 ngày (tính bằng NEAR): -17% · không tăng rõ",
-      "Tỷ lệ tài khoản long/short: 1.94",
-      "Lực mua chủ động / bán chủ động 7 ngày: 0.97"
+      "Tỷ lệ tài khoản long/short: 1.45",
+      "Lực mua chủ động / bán chủ động 7 ngày: 0.98"
      ]
     },
     {
      "name": "Dòng tiền (ETF · cá voi · sàn)",
      "score": -0.4,
      "signals": [
-      "ETF NEAR giao ngay (Mỹ) — 5 phiên: -$1.34M (-2.8% tổng tài sản) · phiên 19/11: -$680.30K",
-      "Hủy stake ròng 7 ngày (người ủy thác lớn): -2.78M Ⓝ (-0.85% lượng stake theo dõi) · đang chờ mở khóa 3.96M Ⓝ",
-      "Chuyển lớn lên sàn ròng 7 ngày: +3.52M Ⓝ · đổi qua Intents 0 Ⓝ · 575 lệnh ≥50k",
-      "Ví cá voi — dòng ròng 7 ngày: -2.22M Ⓝ (-1.82%) — giảm",
-      "Ví sàn — nạp/rút ròng 7 ngày: +528,170 Ⓝ (+0.44%) — nạp lên sàn"
+      "ETF NEAR giao ngay (Mỹ) — 5 phiên: -$2.08M (-5.1% tổng tài sản) · phiên 20/11: -$732.59K",
+      "Hủy stake ròng 7 ngày (người ủy thác lớn): -2.48M Ⓝ (-0.76% lượng stake theo dõi) · đang chờ mở khóa 1.11M Ⓝ",
+      "Chuyển lớn lên sàn ròng 7 ngày: +3.52M Ⓝ · đổi qua Intents 0 Ⓝ · 591 lệnh ≥50k",
+      "Ví cá voi — dòng ròng 7 ngày: -3.21M Ⓝ (-2.64%) — giảm",
+      "Ví sàn — nạp/rút ròng 7 ngày: +427,495 Ⓝ (+0.35%) — nạp lên sàn"
      ]
     },
     {
      "name": "Tin tức",
-     "score": -1.0,
+     "score": 0.0,
      "signals": [
-      "Tin 3 ngày gần nhất (gắn nhãn theo từ khóa): 2 tích cực · 5 tiêu cực · 18 trung tính"
+      "Tin 3 ngày gần nhất (gắn nhãn theo từ khóa): 4 tích cực · 4 tiêu cực · 17 trung tính"
      ]
     }
    ]
   },
   "news": [
    {
-    "title": "Near Protocol (NEAR), ChainLink (LINK) and Litecoin (LTC) Price Analysis For November 21: Market Gaining Strengh - U.Today",
-    "title_vi": "Phân tích giá Giao thức gần (NEAR), ChainLink (LINK) và Litecoin (LTC) cho ngày 21 tháng 11: Sức mạnh tăng trưởng của thị trường - U.Today",
+    "title": "NEAR Protocol price weighs issuance cut against resilient Intents activity - ad-hoc-news.de",
+    "title_vi": "Giá giao thức NEAR cân nhắc việc cắt giảm phát hành so với hoạt động Ý định linh hoạt - ad-hoc-news.de",
     "tag": 0,
-    "time_utc": "2026-11-21 00:14"
+    "time_utc": "2026-11-21 12:07"
    },
    {
-    "title": "Near Protocol (NEAR) rises 3.1% to $2.86 despite 24-hour decline of 10%. - Pluang",
-    "title_vi": "Near Protocol (NEAR) tăng 3,1% lên 2,86 USD mặc dù mức giảm 10% trong 24 giờ. - Pluang",
+    "title": "Bitdeer sells 281.1 BTC as its Bitcoin holdings stay at zero - Crypto News",
+    "title_vi": "Bitdeer bán 281,1 BTC khi lượng Bitcoin nắm giữ của nó ở mức 0 - Tin tức tiền điện tử",
     "tag": 0,
-    "time_utc": "2026-11-20 22:27"
+    "time_utc": "2026-11-21 08:55"
    },
    {
-    "title": "Near Protocol Rises 3.10% in an Hour to $2.86 on Binance - www.tokenpost.com",
-    "title_vi": "Near Protocol tăng 3,10% trong một giờ lên 2,86 USD trên Binance - www.tokenpost.com",
+    "title": "Zcash, NEAR Slide as Anthropic's Nasdaq Debut Fails to Ignite Risk Appetite - BigGo Finance",
+    "title_vi": "Zcash, NEAR trượt dốc khi màn ra mắt Nasdaq của Anthropic không thể khơi dậy khẩu vị rủi ro - BigGo Finance",
     "tag": 0,
-    "time_utc": "2026-11-20 22:09"
+    "time_utc": "2026-11-21 08:05"
    },
    {
-    "title": "Nearly two-thirds of Square Bitcoin payments were under $20 - Crypto News",
-    "title_vi": "Gần 2/3 số thanh toán Square Bitcoin có giá trị dưới 20 USD - Crypto News",
-    "tag": 0,
-    "time_utc": "2026-11-20 18:41"
+    "title": "NFT sales rise to $33M as Ethereum trading jumps 33% - Crypto News",
+    "title_vi": "Doanh số NFT tăng lên 33 triệu USD khi giao dịch Ethereum tăng 33% - Tin tức tiền điện tử",
+    "tag": 1,
+    "time_utc": "2026-11-21 08:05"
    },
    {
-    "title": "NEAR Protocol price faces tokenomics shift as Intents activity holds up - ad-hoc-news.de",
-    "title_vi": "Giá giao thức NEAR phải đối mặt với sự thay đổi kinh tế học mã thông báo khi hoạt động Ý định tiếp tục - ad-hoc-news.de",
-    "tag": 0,
-    "time_utc": "2026-11-20 17:33"
+    "title": "Zcash, NEAR Lead Crypto Losses As Anthropic's Market Debut Fails To Spark Risk-On Rally - TradingView",
+    "title_vi": "Zcash, GẦN dẫn đầu về tổn thất tiền điện tử khi sự ra mắt thị trường của Anthropic không thể khơi dậy cuộc biểu tình chấp nhận rủi ro - TradingView",
+    "tag": 1,
+    "time_utc": "2026-11-21 07:38"
    },
    {
-    "title": "NEAR Holds 200 EMA Near $3.03 as Thin Volume Stalls Recovery - BigGo Finance",
-    "title_vi": "NEAR giữ 200 EMA Gần 3,03 USD khi phục hồi khối lượng nhỏ - BigGo Finance",
+    "title": "Peter Schiff Warns ETH Could Hit $1,000 by Monday After Ether Breaks Key Support - CryptoDaily",
+    "title_vi": "Peter Schiff cảnh báo ETH có thể đạt 1.000 USD vào thứ Hai sau khi Ether phá vỡ mức hỗ trợ chính - CryptoDaily",
     "tag": 0,
-    "time_utc": "2026-11-20 17:25"
+    "time_utc": "2026-11-21 07:00"
    }
   ]
  },
- "near_generated_utc": "2026-11-21 03:23"
+ "near_generated_utc": "2026-11-21 12:48"
 }
