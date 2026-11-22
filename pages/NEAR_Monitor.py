@@ -30,8 +30,9 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.7"
+NEAR_VERSION = "V5.8"
 UPDATE_MODE = "--update-data" in sys.argv
+FAST_MODE = "--fast" in sys.argv or os.environ.get("NEAR_FAST") == "1"   # V5.8: lần chạy nhanh mỗi giờ — chỉ quét chuyển lớn + cảnh báo
 
 NEAR_FILE = "near_history.json"
 WATCHLIST_FILE = "near_watchlist.txt"
@@ -303,10 +304,11 @@ TRANSFER_MIN = 50_000           # chuyển lớn từ 50k NEAR
 CHILD_MIN = 20_000              # cá voi/ví con chuyển ≥ 20k sang ví mới → coi là "ví con" (chia nhỏ để giấu)
 CHILD_IDLE_DROP_DAYS = 30       # V5.6: chỉ bỏ ví con khi KHÔNG còn NEAR và đứng im > 30 ngày
 CHILD_EMPTY_NEAR = 1.0          # số dư < 1 NEAR (và không stake / wrap / Intents) = coi là ví rỗng
-CHILD_MAX = 120                 # tối đa 120 ví con (V5.5.1: 60 đã đầy ngày 18/11)
+CHILD_MAX = 200                 # V5.8: tối đa 200 ví con (120 đã đầy ngày 22/11)
 CHILD_MAX_DEPTH = 3             # tối đa 3 tầng (cá voi → con → cháu → chắt)
 NB_MAX_CALLS_FREE = 12          # NearBlocks gói miễn phí: 6 lượt/phút, 333 lượt/ngày → tối đa 12 lượt/lần chạy
 NB_MAX_CALLS_KEY = 45
+NB_DAILY_CAP_FREE = 300        # V5.8: NearBlocks miễn phí 333 lượt/ngày → tự dừng ở 300 (chạy mỗi giờ vẫn an toàn)
 NB_PAUSE_FREE = 10.5            # giãn 10,5 giây/lượt để không vượt 6 lượt/phút
 NB_PAUSE_KEY = 0.5
 FP_RESYNC_DAYS = 3              # ví "đứng im" vẫn quét lại sau 3 ngày cho chắc
@@ -314,7 +316,7 @@ TRANSFER_INTERVAL_H = 2         # nhờ lọc bằng dấu vân tay RPC, quét c
 # Nguồn thứ 2 (V5.5): FastNear Transfers API — miễn phí, không cần key, lọc sẵn theo số NEAR tối thiểu.
 # Đo thực tế 17/11/2026: ~9–10 lượt/phút không key → giãn 7 giây/lượt. Có FASTNEAR_API_KEY thì nhanh hơn.
 FN_TRANSFERS_URL = "https://transfers.main.fastnear.com/v0/transfers"
-FN_MAX_CALLS_FREE = 36          # V5.6: 18 → 36 lượt/lần (~4,2 phút), FastNear chỉ giới hạn theo phút
+FN_MAX_CALLS_FREE = 54          # V5.8: 36 → 54 lượt/lần (~6,3 phút), FastNear chỉ giới hạn theo phút
 FN_MAX_CALLS_KEY = 60
 FN_PAUSE_FREE = 7.0
 FN_PAUSE_KEY = 0.3
@@ -624,10 +626,14 @@ def update_big_transfers(data, watch, key="", fn_key=""):
 
     # Hai nguồn chạy xen kẽ: FastNear (lọc sẵn theo số NEAR) ưu tiên, NearBlocks dự phòng. Nguồn nào bị 429 thì
     # tạm dừng nguồn đó, ví đang quét chuyển sang nguồn còn lại.
+    nb_day = data.get("nb_day") or {}
+    if nb_day.get("d") != now.strftime("%Y-%m-%d"):
+        nb_day = {"d": now.strftime("%Y-%m-%d"), "n": 0}
+    nb_left = max(0, NB_DAILY_CAP_FREE - nb_day.get("n", 0))
     sources = [
         {"name": "fastnear", "max": FN_MAX_CALLS_KEY if fn_key else FN_MAX_CALLS_FREE,
          "pause": FN_PAUSE_KEY if fn_key else FN_PAUSE_FREE, "used": 0, "next": 0.0, "dead": False, "ok": 0},
-        {"name": "nearblocks", "max": NB_MAX_CALLS_KEY if key else NB_MAX_CALLS_FREE,
+        {"name": "nearblocks", "max": NB_MAX_CALLS_KEY if key else min(NB_MAX_CALLS_FREE, nb_left),
          "pause": NB_PAUSE_KEY if key else NB_PAUSE_FREE, "used": 0, "next": 0.0, "dead": False, "ok": 0},
     ]
     stats = {"time_utc": now.strftime("%Y-%m-%d %H:%M"), "candidates": len(candidates), "idle_skipped": idle,
@@ -767,6 +773,10 @@ def update_big_transfers(data, watch, key="", fn_key=""):
         (kv[1].get("bal") is not None and kv[1]["bal"] < CHILD_EMPTY_NEAR), -kv[1].get("received", 0)))[:CHILD_MAX])
     live = set(candidates)
     data["scan_fp"] = {a: v for a, v in scan_fp.items() if a in live}
+    nb_day["n"] = nb_day.get("n", 0) + next(s_["used"] for s_ in sources if s_["name"] == "nearblocks")
+    data["nb_day"] = nb_day
+    stats["nb_calls_today"] = nb_day["n"]
+    stats["fast"] = FAST_MODE
     data["transfer_scan_stats"] = stats
     return n_new, errs
 
@@ -1666,21 +1676,27 @@ def run_near_update():
     errors, done = {}, {}
     today = utc_today()
 
+    fast = FAST_MODE
+    if fast:
+        _log("Chế độ nhanh: chỉ quét hủy stake + chuyển lớn + cảnh báo bán")
+
     # 1) Giá / vốn hóa / khối lượng — CoinGecko (lần đầu 365 ngày, sau đó 30 ngày gần nhất)
     have_price = sorted(k for k, v in daily.items() if isinstance(v, dict) and v.get("price"))
     days = 365 if len(have_price) < 300 else 30
     try:
-        rows = fetch_coingecko_history(days)
-        rows.pop(today, None)                     # điểm hôm nay chưa chốt ngày
-        done["giá"] = _merge(daily, rows)
+        if not fast:
+            rows = fetch_coingecko_history(days)
+            rows.pop(today, None)                     # điểm hôm nay chưa chốt ngày
+            done["giá"] = _merge(daily, rows)
     except Exception as e:
         errors["coingecko"] = str(e)[:200]
 
     # 2) DeFiLlama: TVL, stablecoin, DEX
-    rows, errs = fetch_defillama()
-    done["defillama"] = _merge(daily, {d: r for d, r in rows.items() if d >= today - timedelta(days=HISTORY_DAYS)})
-    if errs:
-        errors["defillama"] = " | ".join(errs)[:300]
+    if not fast:
+        rows, errs = fetch_defillama()
+        done["defillama"] = _merge(daily, {d: r for d, r in rows.items() if d >= today - timedelta(days=HISTORY_DAYS)})
+        if errs:
+            errors["defillama"] = " | ".join(errs)[:300]
 
     # 3) Staking & tổng cung — RPC (ảnh chụp hôm nay)
     top_validators = []
@@ -1693,17 +1709,18 @@ def run_near_update():
         errors["rpc"] = str(e)[:200]
 
     # 4) Phái sinh
-    rows, now, errs = fetch_derivatives()
-    done["phái sinh"] = _merge(daily, rows)
-    if now:
-        daily.setdefault(day_str(today), {}).update({k: v for k, v in now.items() if v is not None and k.startswith("hl_")})
-        data["derivatives_meta"] = {k: v for k, v in now.items() if not k.startswith("hl_")}
-    if errs:
-        errors["phái sinh"] = " | ".join(errs)[:300]
+    if not fast:
+        rows, now, errs = fetch_derivatives()
+        done["phái sinh"] = _merge(daily, rows)
+        if now:
+            daily.setdefault(day_str(today), {}).update({k: v for k, v in now.items() if v is not None and k.startswith("hl_")})
+            data["derivatives_meta"] = {k: v for k, v in now.items() if not k.startswith("hl_")}
+        if errs:
+            errors["phái sinh"] = " | ".join(errs)[:300]
 
     # 5) NearBlocks (tùy chọn)
     key = clean_secret(os.environ.get("NEARBLOCKS_API_KEY", ""))
-    if key:
+    if key and not fast:
         rows, errs = fetch_nearblocks(key)
         done["nearblocks"] = _merge(daily, rows)
         if errs:
@@ -1735,7 +1752,7 @@ def run_near_update():
     watch += [{"account": a, "label": child_label(data, a) or f"Ví con — {a}", "type": "whale"}
               for a in (data.get("children") or {}) if a not in listed]
     snap, fails = {}, []
-    for w in watch[:200]:
+    for w in ([] if fast else watch[:320]):
         try:
             b = fetch_account(w["account"])
             snap[w["account"]] = {**b, "label": w["label"], "type": w["type"]}
@@ -1764,7 +1781,7 @@ def run_near_update():
         last = data.get("transfers_last_utc")
         age = ((utc_now() - datetime.strptime(last, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)).total_seconds() / 3600
                if last else 999)
-        if age >= TRANSFER_INTERVAL_H - 0.25 or os.environ.get("NEAR_TRANSFER_FORCE") == "1":
+        if fast or age >= TRANSFER_INTERVAL_H - 0.25 or os.environ.get("NEAR_TRANSFER_FORCE") == "1":
             n_tr, errs = update_big_transfers(data, watch, key,
                                               clean_secret(os.environ.get("FASTNEAR_API_KEY", "")))
             data["transfers_last_utc"] = utc_now().strftime("%Y-%m-%d %H:%M")
@@ -1785,7 +1802,7 @@ def run_near_update():
 
     # 7) Tin tức NEAR (dịch sẵn tiêu đề sang tiếng Việt cho dashboard + Telegram)
     try:
-        news = fetch_near_news()
+        news = None if fast else fetch_near_news()
         if news:
             data["news"] = news
             done["tin"] = len(news)
@@ -1795,19 +1812,24 @@ def run_near_update():
     # Dọn & lưu
     data["daily"] = dict(sorted((k, v) for k, v in daily.items() if is_day_key(k))[-HISTORY_DAYS:])
     data["whales"] = dict(sorted((k, v) for k, v in whales.items() if is_day_key(k))[-400:])
-    data["status"] = {"last_run_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "updated": done,
-                      "errors": {k: redact(v) for k, v in errors.items()}}
+    if fast:
+        data["fast_status"] = {"last_run_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "updated": done,
+                               "errors": {k: redact(v) for k, v in errors.items()}}
+    else:
+        data["status"] = {"last_run_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "updated": done,
+                          "errors": {k: redact(v) for k, v in errors.items()}}
     with open(NEAR_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     _log(f"cập nhật {done}")
     for k, v in errors.items():
         _log(f"  ⚠️ {k}: {v}")
     try:
-        write_near_report(data)
+        if not fast:
+            write_near_report(data)
     except Exception as e:
         _log(f"  ⚠️ daily_report.json: {e}")
     try:
-        if send_near_telegram(data):
+        if not fast and send_near_telegram(data):
             with open(NEAR_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     except Exception as e:
