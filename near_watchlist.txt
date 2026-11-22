@@ -199,3 +199,12 @@ awe2meteor.near | Nguồn nạp vào cụm 3d9ccff5 (~1,9tr, 15–20/11) | whale
 # • 3da273af… → bridge-mng.near → wrap.near: đổi 1,15tr NEAR sang wNEAR (20/11) — có thể chuyển sang chuỗi khác.
 3da273afa2a40fe8ca39046d39470fe27d321b505c1c7a2f570d495136d9d45b | Gửi 1,1tr cho bridge-mng để đổi wNEAR (20/11) | whale
 bridge-mng.near | Đổi 1,15tr NEAR → wNEAR (20/11), nghi chuyển chuỗi | whale
+
+# ── Thêm 22/11/2026 ──
+# • d7be837b… hủy stake 890.344 NEAR ở astro-stakers (21/11 20:32 UTC), mở khóa ~07:04 VN 23/11.
+d7be837bddae208a781674f201b9553a6fd939c76f9734444b634cdccb9498ad | Hủy stake 890k astro-stakers (mở khóa 23/11) | whale
+# • a75c6420… nhận 714.680 qua 27d041b2… (cụm 3d9ccff5, 21/11) — đang giữ.
+a75c64207dc2597221c0e00c2b4cb06aa5770cee50f8a1e071f7e056deb8286b | Cụm quỹ NEAR — ví cháu giữ ~715k (21/11) | whale
+# • Ví trung chuyển/giữ lớn từ tháng 9–11: 20b1fb46… (nhận-chuyển 400k–1,4tr), 0d584a4c… (nhận 400k/500k/468k/500k).
+20b1fb46146c6aa1101cc968dbe19ddfb3d6bf084f5e7155116a8577a6f30905 | Ví trung chuyển 0,4–1,4tr (09–10/2026) | whale
+0d584a4cbbfd9a4878d816512894e65918e54fae13df39a6f520fc90caea2fb0 | Ví nhận nhiều lần 400–500k (09–11/2026) | whale
