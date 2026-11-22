@@ -1,0 +1,71 @@
+# Đặt file này tại: .github/workflows/near-fast.yml   (file MỚI, để cạnh update-data.yml)
+# V5.8 — Lần chạy NHANH mỗi giờ chỉ cho NEAR: quét hủy stake + chuyển lớn của ví cá mập + gửi cảnh báo bán Telegram.
+# Không lấy giá/TVL/phái sinh/tin (lần chạy chính 2 giờ/lần vẫn làm việc đó), nên chạy nhanh (~8–10 phút).
+name: NEAR fast scan
+
+on:
+  schedule:
+    # Phút 47 mỗi giờ — lệch 30 phút so với lần chạy chính (phút 17) để quét đều mỗi ~1 giờ.
+    - cron: "47 * * * *"
+  workflow_dispatch:             # cho phép bấm "Run workflow" chạy tay
+
+permissions:
+  contents: write
+
+# Dùng CHUNG nhóm với update-data.yml → hai workflow không bao giờ chạy cùng lúc (không ghi đè dữ liệu của nhau)
+concurrency:
+  group: update-btc-data
+  cancel-in-progress: false
+
+jobs:
+  near-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Cài thư viện
+        run: pip install requests pandas numpy plotly streamlit
+
+      - name: Quét nhanh ví cá mập NEAR
+        env:
+          NEARBLOCKS_API_KEY: ${{ secrets.NEARBLOCKS_API_KEY }}
+          FASTNEAR_API_KEY: ${{ secrets.FASTNEAR_API_KEY }}      # tùy chọn
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python pages/NEAR_Monitor.py --update-data --fast
+
+      - name: Commit dữ liệu NEAR
+        run: |
+          FILES="near_history.json"
+          BRANCH="${{ github.event.repository.default_branch }}"
+          mkdir -p "$RUNNER_TEMP/data"
+          for f in $FILES; do
+            if [ -f "$f" ]; then cp "$f" "$RUNNER_TEMP/data/"; fi
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            for f in $FILES; do
+              if [ -f "$RUNNER_TEMP/data/$f" ]; then cp "$RUNNER_TEMP/data/$f" "$f"; git add "$f"; fi
+            done
+            if git diff --cached --quiet; then
+              echo "Không có dữ liệu mới."
+              exit 0
+            fi
+            git commit -m "NEAR fast scan $(date -u +'%Y-%m-%d %H:%M') UTC"
+            if git push origin "HEAD:$BRANCH"; then
+              exit 0
+            fi
+            echo "Push lỗi, thử lại ($attempt)..."
+            sleep 5
+          done
+          exit 1
