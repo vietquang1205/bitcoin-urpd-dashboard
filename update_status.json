@@ -1,66 +1,80 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-22 23:35",
+ "last_run_utc": "2026-11-23 07:33",
  "market": {
-  "total_mcap": 2077937319006.5427,
-  "total_mcap_change_24h": -2.7477787693814597,
-  "btc_mcap": 1228908776926.2603,
-  "btc_change_24h": 1.4801044743454905,
-  "usdt_usdc": 242963722534.5844,
-  "adjusted_btc_dom": 66.97146919656183,
-  "alt_ex_stables": 606064819545.698,
-  "alt_change_24h": -11.222914512141656,
-  "fetched_at_utc": "2026-11-22 23:35"
+  "total_mcap": 2092667717724.407,
+  "total_mcap_change_24h": -0.8942269438182278,
+  "btc_mcap": 1235462771753.2612,
+  "btc_change_24h": 4.004374291190205,
+  "usdt_usdc": 243030171055.27518,
+  "adjusted_btc_dom": 66.7948579427418,
+  "alt_ex_stables": 614174774915.8706,
+  "alt_change_24h": -9.77237538933008,
+  "fetched_at_utc": "2026-11-23 07:32"
  },
  "telegram": {
   "sth_state": "below",
   "loss_state": "above",
-  "last_daily": "2026-11-22"
+  "last_daily": "2026-11-23"
  },
  "urpd": {
-  "latest_date": "2026-11-22",
+  "latest_date": "2026-11-23",
   "changed": [
-   "2026-11-22"
+   "2026-11-22",
+   "2026-11-23"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
+  "updated": {
+   "realized_profit": 2,
+   "realized_loss": 2,
+   "btc_price": 1
+  },
   "errors": [],
-  "pending": [
-   "realized_profit",
-   "realized_loss"
-  ]
+  "pending": []
  },
  "onchain": {
-  "updated": {},
+  "updated": {
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
+  },
   "errors": [],
-  "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ],
+  "pending": [],
   "mvrv_estimate": {
-   "k": 1.0057,
+   "k": 1.0051,
    "calib_days": 30,
-   "bg_last": "2026-11-15",
+   "bg_last": "2026-11-16",
    "est_days": 7
   }
  },
  "etf": {
   "errors": [],
   "source": "SoSoValue",
-  "latest": "2026-11-19",
+  "latest": "2026-11-20",
   "sessions": 508,
-  "skipped": "SoSoValue chưa có phiên 20/11"
+  "notes": [],
+  "alts": {
+   "NEAR": "33 phiên",
+   "LINK": "34 phiên",
+   "ETH": "34 phiên",
+   "SOL": "34 phiên",
+   "XRP": "34 phiên"
+  }
  },
  "market_extra": {
   "done": {
-   "phái sinh": 180,
+   "phái sinh": 181,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
