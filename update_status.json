@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-24 04:47",
+ "last_run_utc": "2026-11-24 17:10",
  "market": {
-  "total_mcap": 2104845085503.4163,
-  "total_mcap_change_24h": -1.9376919947019573,
-  "btc_mcap": 1216712414155.8684,
-  "btc_change_24h": -1.0018921837844617,
-  "usdt_usdc": 243867084127.3329,
-  "adjusted_btc_dom": 65.38026850699909,
-  "alt_ex_stables": 644265587220.2148,
-  "alt_change_24h": -4.358198211253594,
-  "fetched_at_utc": "2026-11-24 04:47"
+  "total_mcap": 2063665838598.0364,
+  "total_mcap_change_24h": -6.719158897887592,
+  "btc_mcap": 1197018763892.294,
+  "btc_change_24h": -3.679367255365446,
+  "usdt_usdc": 243765538806.74496,
+  "adjusted_btc_dom": 65.77386486663966,
+  "alt_ex_stables": 622881535898.9976,
+  "alt_change_24h": -14.17729303963834,
+  "fetched_at_utc": "2026-11-24 17:09"
  },
  "telegram": {
   "sth_state": "below",
@@ -20,37 +20,27 @@
  "urpd": {
   "latest_date": "2026-11-24",
   "changed": [
-   "2026-11-23",
    "2026-11-24"
   ],
   "errors": []
  },
  "research": {
-  "updated": {
-   "supply_in_loss": 1,
-   "supply_in_loss_percent": 1,
-   "sth_realized_price": 1,
-   "lth_realized_price": 1
-  },
+  "updated": {},
   "errors": []
  },
  "realized": {
-  "updated": {
-   "realized_profit": 1,
-   "realized_loss": 1,
-   "btc_price": 1
-  },
+  "updated": {},
   "errors": [],
   "pending": []
  },
  "onchain": {
-  "updated": {
-   "mvrv": 1,
-   "nupl": 1,
-   "sopr": 1
-  },
+  "updated": {},
   "errors": [],
-  "pending": [],
+  "pending": [
+   "mvrv",
+   "nupl",
+   "sopr"
+  ],
   "mvrv_estimate": {
    "k": 1.0051,
    "calib_days": 30,
@@ -61,20 +51,20 @@
  "etf": {
   "errors": [],
   "source": "SoSoValue",
-  "latest": "2026-11-20",
-  "sessions": 508,
+  "latest": "2026-11-23",
+  "sessions": 509,
   "notes": [],
   "alts": {
    "NEAR": "34 phiên",
    "LINK": "35 phiên",
-   "ETH": "34 phiên",
+   "ETH": "35 phiên",
    "SOL": "35 phiên",
    "XRP": "35 phiên"
   }
  },
  "market_extra": {
   "done": {
-   "phái sinh": 181,
+   "phái sinh": 180,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
