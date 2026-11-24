@@ -208,3 +208,16 @@ a75c64207dc2597221c0e00c2b4cb06aa5770cee50f8a1e071f7e056deb8286b | Cụm quỹ N
 # • Ví trung chuyển/giữ lớn từ tháng 9–11: 20b1fb46… (nhận-chuyển 400k–1,4tr), 0d584a4c… (nhận 400k/500k/468k/500k).
 20b1fb46146c6aa1101cc968dbe19ddfb3d6bf084f5e7155116a8577a6f30905 | Ví trung chuyển 0,4–1,4tr (09–10/2026) | whale
 0d584a4cbbfd9a4878d816512894e65918e54fae13df39a6f520fc90caea2fb0 | Ví nhận nhiều lần 400–500k (09–11/2026) | whale
+
+# ── Thêm 25/11/2026 ──
+# • 1fc0d96b… ví con cụm 3d9ccff5 — nhận 1,27tr + 171k + 81k (23–24/11), số dư ~5,15tr.
+1fc0d96bc0304bfaa1672d2ee84bfeed86ed2db1bdccedab95fa9792a4438a24 | Cụm quỹ NEAR — ví con giữ ~5,15tr (23–24/11) | whale
+# • hshshshhssi.near nhận 891k từ d7be837b (vừa rút stake) rồi CHIA 7 ví × 100k + 291k (23/11) — kiểu chia nhỏ để giấu.
+hshshshhssi.near | Chia 891k (từ d7be837b) thành 7×100k + 291k (23/11) | whale
+# • Hủy stake mới: c8adff80… 500k (liver.pool), ce8b9ff3… 210k (bitwise_2).
+c8adff801690ccf63682ed2fe3d637afecd9980502e4ad123c34c0a553842eeb | Hủy stake 500k liver.pool (23/11) | whale
+ce8b9ff34bfba8179225c7c923f03d8068b5d0e90eeb3014fc5c81cc27d312c7 | Nhóm bitwise_2 — hủy stake 210k (23/11) | whale
+# • houseofstake.sputnik-dao.near stake 3,0tr vào zavodil (24/11) — quỹ quản trị House of Stake.
+houseofstake.sputnik-dao.near | Quỹ House of Stake — stake 3tr (24/11) | whale
+# • 8347f7bd… → 9797b6e8… → 3d9ccff5… 783k (23/11) — nguồn nạp vào ví gom.
+8347f7bd316503ec6dcb3b72589e884a50c457ec02dd0ae7461b04f8b056c482 | Nguồn 783k nạp vào 3d9ccff5 (23/11) | whale
