@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.8"
+NEAR_VERSION = "V5.9"
 UPDATE_MODE = "--update-data" in sys.argv
 FAST_MODE = "--fast" in sys.argv or os.environ.get("NEAR_FAST") == "1"   # V5.8: lần chạy nhanh mỗi giờ — chỉ quét chuyển lớn + cảnh báo
 
@@ -321,6 +321,12 @@ FN_MAX_CALLS_KEY = 60
 FN_PAUSE_FREE = 7.0
 FN_PAUSE_KEY = 0.3
 EXCH_MAX_PER_RUN = 3            # ví sàn đổi số dư liên tục → tối đa 3 ví sàn/lần để nhường lượt cho cá voi
+# V5.9 — ví "trung tâm" (sàn/OTC chưa rõ tên mà cá mập nạp/rút qua): LUÔN quét mỗi lần chạy, xem NEAR đi đâu tiếp.
+# Tự nhận: ví loại exchange có nhãn chứa "nghi" hoặc "hub"; cộng thêm danh sách cố định dưới đây.
+HUB_ACCOUNTS = {"52435fe912307fb3a088b8b8f3882781762fc1f0a404e8579c7fb1a964362c8d"}
+HUB_LIMIT = 100                 # FastNear trả tối đa 100 dòng/lượt cho ví trung tâm
+LOOP_HOURS = 24                 # vòng tròn: tiền rút từ sàn rồi nạp lại (trực tiếp hoặc qua 1 ví) trong 24 giờ
+LOOP_TOL = 0.05                 # số tiền lệch ≤ 5%
 CLUSTER_WORDS = ("cụm quỹ", "quỹ near", "bitwise", "nfendowment", "endowment")
 UNLOCK_EPOCHS = 4               # NEAR: tiền hủy stake rút được sau 4 epoch
 EPOCH_LENGTH_BLOCKS = 43_200
@@ -455,7 +461,7 @@ def nb_rows(account, key=""):
     return rows
 
 
-def fn_rows(account, min_near, key="", since_ms=None, limit=40):
+def fn_rows(account, min_near, key="", since_ms=None, limit=40):  # noqa: C901
     """FastNear Transfers API → cùng định dạng với nb_rows. Lọc sẵn ≥ min_near NEAR ở phía máy chủ nên ví
     sàn/ ví bận cũng không bị 'trôi' giao dịch lớn. amount âm = ví gửi đi, dương = ví nhận về."""
     body = {"account_id": account, "asset_id": "native:near", "desc": True, "limit": limit,
@@ -619,10 +625,15 @@ def update_big_transfers(data, watch, key="", fn_key=""):
         w = 0.1 if a in exch else (2.0 if is_cluster(a) else 1.0)
         return base * w
 
+    hubs = ({a for a in exch if any(m in (labels.get(a) or "").lower() for m in ("nghi", "hub"))}
+            | (HUB_ACCOUNTS & exch))
     ranked = sorted(targets, key=lambda a: -prio(a))
-    ex_kept = [a for a in ranked if a in exch][:EXCH_MAX_PER_RUN]
-    ex_skip = len([a for a in ranked if a in exch]) - len(ex_kept)
-    queue = [a for a in ranked if a not in exch or a in ex_kept]
+    hub_t = [a for a in ranked if a in hubs]
+    if not hub_t:                               # ví trung tâm luôn quét, kể cả khi dấu vân tay không đổi
+        hub_t = [a for a in hubs if a in candidates]
+    ex_kept = [a for a in ranked if a in exch and a not in hubs][:EXCH_MAX_PER_RUN]
+    ex_skip = len([a for a in ranked if a in exch and a not in hubs]) - len(ex_kept)
+    queue = hub_t + [a for a in ranked if a not in hub_t and (a not in exch or a in ex_kept)]
 
     # Hai nguồn chạy xen kẽ: FastNear (lọc sẵn theo số NEAR) ưu tiên, NearBlocks dự phòng. Nguồn nào bị 429 thì
     # tạm dừng nguồn đó, ví đang quét chuyển sang nguồn còn lại.
@@ -669,7 +680,8 @@ def update_big_transfers(data, watch, key="", fn_key=""):
             tried.add(src["name"])
             try:
                 if src["name"] == "fastnear":
-                    rows = fn_rows(acct, min_amt, fn_key, since_ms=since.timestamp() * 1000)
+                    rows = fn_rows(acct, min_amt, fn_key, since_ms=since.timestamp() * 1000,
+                                   limit=HUB_LIMIT if acct in hubs else 40)
                 else:
                     rows = nb_rows(acct, key)
                 src["next"] = time.time() + src["pause"]
@@ -744,6 +756,8 @@ def update_big_transfers(data, watch, key="", fn_key=""):
             n_new += 1
             if kind == "wallet" and to not in exch and to != acct and frm not in protocol and to not in protocol:
                 follow[to] = ts_s            # đi theo ví nhận ở các lần chạy sau
+            if kind == "from_exchange" and acct in hubs and to not in exch and to not in protocol:
+                follow[to] = ts_s            # V5.9: người nhận NEAR từ ví trung tâm (người mua OTC?) → theo tiếp
     cut = (now - timedelta(days=EVENT_KEEP_DAYS)).strftime("%Y-%m-%d %H:%M")
     data["big_transfers"] = sorted([x for x in out if x["time_utc"] >= cut], key=lambda x: x["time_utc"])[-2000:]
     data["transfer_seen"] = list(seen)[-6000:]
@@ -777,6 +791,7 @@ def update_big_transfers(data, watch, key="", fn_key=""):
     data["nb_day"] = nb_day
     stats["nb_calls_today"] = nb_day["n"]
     stats["fast"] = FAST_MODE
+    stats["hubs_scanned"] = [ _short_acct(a) for a in hub_t ]
     data["transfer_scan_stats"] = stats
     return n_new, errs
 
@@ -819,13 +834,68 @@ def stake_flow_summary(data, days=7, now=None):
             "snapshot_utc": (data.get("stakers") or {}).get("time_utc")}
 
 
+def mark_loops(data, exch, now=None):
+    """V5.9 — đánh dấu 'vòng tròn': cùng một chủ nạp X NEAR lên sàn rồi rút lại ~X (hoặc rút trước rồi nạp lại)
+    trong vòng LOOP_HOURS giờ. Chủ có thể nạp thẳng hoặc qua 1 ví trung chuyển (ví nhận rồi chuyển hết đi trong
+    1 giờ, kiểu địa chỉ nạp của sàn). Đây là luân chuyển nội bộ / xoay vòng, KHÔNG tính là bán/mua thật."""
+    now = now or utc_now()
+    cut = (now - timedelta(days=9)).strftime("%Y-%m-%d %H:%M")
+    tr = [t for t in data.get("big_transfers") or [] if t.get("time_utc", "") >= cut]
+    inbound, wds = {}, {}
+    for t in tr:
+        inbound.setdefault(t["to"], []).append(t)
+        if t.get("kind") == "from_exchange":
+            wds.setdefault(t["to"], []).append(t)
+    win = timedelta(hours=LOOP_HOURS)
+
+    def near(x, amt):
+        return abs(x - amt) <= max(LOOP_TOL * amt, 1000)
+
+    for t in tr:                                 # tính lại từ đầu mỗi lần chạy
+        if t.get("kind") in ("to_exchange", "from_exchange"):
+            t.pop("loop", None)
+            t.pop("loop_via", None)
+    used, n = set(), 0
+    for t in sorted(tr, key=lambda x: x["time_utc"]):
+        if t.get("kind") != "to_exchange":
+            continue
+        a, amt, T = t["from"], t["amount"], _ts(t["time_utc"])
+        owners = [a]
+        for u in inbound.get(a, []):             # ví trung chuyển: A vừa nhận ~X từ O trong 1 giờ trước
+            tu = _ts(u["time_utc"])
+            if T - timedelta(hours=1) <= tu <= T and u.get("from") not in exch and near(u["amount"], amt):
+                owners.append(u["from"])
+        hit = None
+        for o in owners:
+            for v in wds.get(o, []):
+                tv = _ts(v["time_utc"])
+                if id(v) not in used and abs((tv - T).total_seconds()) <= win.total_seconds() and near(v["amount"], amt):
+                    hit = (o, v)
+                    break
+            if hit:
+                break
+        if hit:
+            o, v = hit
+            used.add(id(v))
+            t["loop"], v["loop"] = True, True
+            t["loop_via"] = o if o != a else None
+            n += 1
+    return n
+
+
 def transfer_summary(data, days=7, now=None):
     now = now or utc_now()
     cut = (now - timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
     tr = [x for x in data.get("big_transfers") or [] if x["time_utc"] >= cut]
     s = {k: sum(x["amount"] for x in tr if x["kind"] == k) for k in
          ("to_exchange", "from_exchange", "intents", "wrap", "stake", "unstake_withdraw", "wallet", "to_child")}
-    return {"days": days, "count": len(tr), **s, "net_to_exchange": s["to_exchange"] - s["from_exchange"]}
+    loop_in = sum(x["amount"] for x in tr if x["kind"] == "to_exchange" and x.get("loop"))
+    loop_out = sum(x["amount"] for x in tr if x["kind"] == "from_exchange" and x.get("loop"))
+    raw = s["to_exchange"] - s["from_exchange"]
+    real = (s["to_exchange"] - loop_in) - (s["from_exchange"] - loop_out)
+    # net_to_exchange = ròng THẬT (đã loại vòng tròn) — dùng cho điểm số và báo cáo
+    return {"days": days, "count": len(tr), **s, "loop_in": loop_in, "loop_out": loop_out,
+            "net_to_exchange_raw": raw, "net_to_exchange": real}
 
 
 def fetch_defillama():
@@ -1370,7 +1440,8 @@ def flow_line(data):
              f"chờ mở khóa {fmt_near(d7['pending_unlock'])}", f"đã rút 7 ngày {fmt_near(d7['withdraw'])}"]
     if data.get("transfers_last_utc"):
         t7 = transfer_summary(data, 7)
-        parts.append(f"lên sàn ròng 7 ngày {fmt_near(t7['net_to_exchange'], signed=True)}")
+        parts.append(f"lên sàn ròng 7 ngày {fmt_near(t7['net_to_exchange'], signed=True)}"
+                     + (f" (đã loại {fmt_near(t7['loop_in'])} vòng tròn)" if t7.get("loop_in") else ""))
         cs = children_summary(data, 7)
         if cs["new"]:
             parts.append(f"🧩 {cs['new']} ví con mới ({fmt_near(cs['new_near'])})")
@@ -1946,12 +2017,17 @@ def build_sell_alerts(data, watch, now=None):
     whales = {w["account"] for w in watch if w["type"] == "whale"}
     children = data.get("children") or {}
     sent = set(data.get("alerts_sent") or [])
+    exch = {w["account"] for w in watch if w["type"] == "exchange"}
+    try:
+        data["loops_7d"] = mark_loops(data, exch, now)   # V5.9: vòng tròn sàn → ví → sàn không tính là bán
+    except Exception:
+        pass
     since = (now - timedelta(hours=26)).strftime("%Y-%m-%d %H:%M")   # chỉ xét sự kiện 26 giờ gần nhất
     day_cut = (now - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M")
     recent_unstakers = {e["account"] for e in data.get("stake_events") or []
                         if e.get("kind") in ("unstake", "withdraw") and e.get("time_utc", "") >= (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M")}
     tr = [t for t in data.get("big_transfers") or [] if t.get("time_utc", "") >= since]
-    dep = [t for t in tr if t.get("kind") == "to_exchange"]
+    dep = [t for t in tr if t.get("kind") == "to_exchange" and not t.get("loop")]
     out = []
 
     def who(a):
@@ -2739,17 +2815,23 @@ def tab_flows(data):
     c = st.columns(4)
     c[0].metric("Nạp lên sàn 7 ngày", fmt_near(t7["to_exchange"]))
     c[1].metric("Rút khỏi sàn 7 ngày", fmt_near(t7["from_exchange"]))
-    c[2].metric("Ròng lên sàn", fmt_near(t7["net_to_exchange"], signed=True),
+    c[2].metric("Ròng lên sàn (thật)", fmt_near(t7["net_to_exchange"], signed=True),
                 "áp lực bán" if t7["net_to_exchange"] > 0 else "rút về giữ" if t7["net_to_exchange"] < 0 else None,
                 delta_color="inverse")
     c[3].metric("Qua Intents / wNEAR", fmt_near(t7["intents"] + t7["wrap"]), f"{t7['count']} lệnh", delta_color="off")
+    if t7.get("loop_in"):
+        cap(f"🔁 Đã loại **{fmt_near(t7['loop_in'])}** nạp sàn dạng vòng tròn (rút từ sàn rồi nạp lại trong {LOOP_HOURS} giờ, "
+            f"trực tiếp hoặc qua 1 ví) — luân chuyển nội bộ, không tính là bán. Ròng chưa loại: "
+            f"{fmt_near(t7['net_to_exchange_raw'], signed=True)}.")
     tr = pd.DataFrame(data.get("big_transfers") or [])
     if tr.empty:
         cap(f"Chưa có chuyển ≥ 50.000 NEAR · quét gần nhất {_vn(data.get('transfers_last_utc'))}.")
         return
     tr = tr.sort_values("time_utc", ascending=False).head(50)
     show_df(pd.DataFrame({
-        "Thời gian": tr.time_utc.map(_vn), "Loại": tr.kind.map(lambda k: KIND_VI.get(k, k)),
+        "Thời gian": tr.time_utc.map(_vn),
+        "Loại": [("🔁 Vòng tròn (sàn→ví→sàn)" if lp is True else KIND_VI.get(k, k))
+                 for k, lp in zip(tr.kind, tr["loop"] if "loop" in tr.columns else [None] * len(tr))],
         "Số NEAR": tr.amount.map(lambda x: f"{x:,.0f}"),
         "Từ": [lb if isinstance(lb, str) and lb else _short(a) for a, lb in zip(tr["from"], tr.get("from_label", [None] * len(tr)))],
         "Đến": [lb if isinstance(lb, str) and lb else _short(a) for a, lb in zip(tr["to"], tr.get("to_label", [None] * len(tr)))],
