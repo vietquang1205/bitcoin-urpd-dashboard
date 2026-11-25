@@ -41,7 +41,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-APP_VERSION = "V75"
+APP_VERSION = "V76"
 UPDATE_MODE = "--update-data" in sys.argv
 
 URPD_FILE = "urpd_history.json"
@@ -2214,6 +2214,14 @@ def market_extra_report(mdf, mdata):
     }
 
 
+def _hodl_report():
+    try:
+        sm = hodl_summary(hodl_frame(_daily_file_frame(HODL_FILE)))
+        return {k: (round(v, 2) if isinstance(v, float) else v) for k, v in sm.items()} if sm else None
+    except Exception as e:
+        return {"error": str(e)[:200]}
+
+
 def build_daily_report(status):
     """Tóm tắt gọn mọi chỉ số chính vào daily_report.json — để báo cáo nhanh theo yêu cầu."""
     hist = _load_json(URPD_FILE)
@@ -2333,6 +2341,7 @@ def build_daily_report(status):
                                        "signals": [f"{'🟢' if s['val'] > 0 else '🔴' if s['val'] < 0 else '🟡'} "
                                                    f"{s['label']}: {s['detail']}" for s in c["signals"]]}
                                       for c in comp["categories"]]} if comp else None),
+        "hodl_1y2y": _hodl_report(),
         "events_7d": events, "news_48h": news,
         "data_errors": {k: (status.get(k) or {}).get("errors") for k in ("urpd", "research", "realized", "onchain", "etf",
                                                                           "market_extra")
@@ -2354,7 +2363,7 @@ def run_update():
         status["telegram"].pop("error", None)
     status["fatal"] = []
     for step in (update_urpd, update_research, update_realized, update_onchain, update_market, update_etf,
-                 update_market_extra, send_telegram_report,
+                 update_market_extra, update_hodl, send_telegram_report,
                  build_daily_report):
         try:
             step(status)
@@ -4029,6 +4038,266 @@ def page_etf():
 
 
 # =============================================================================
+# V76 — HOLDER 1–2 NĂM (Realized Cap HODL Waves 1y–2y) — nguồn Bitview / Bitcoin Research Kit (miễn phí)
+# =============================================================================
+HODL_FILE = "hodl_1y2y_history.json"
+BITVIEW_SERIES_API = "https://bitview.space/api/series"
+HODL_FIRST_IDX = 700            # chỉ số ngày 700 = 02/12/2010 (trước đó cohort 1–2 năm chưa có ý nghĩa)
+HODL_SERIES = {                 # khóa ngắn → series Bitview (1y–2y = gộp 2 nhóm 1y–18m và 18m–2y)
+    "date": "date", "price": "price_close",
+    "sup_a": "age_1y_to_18m_supply", "sup_b": "age_18m_to_2y_supply",
+    "ss_a": "age_1y_to_18m_supply_share", "ss_b": "age_18m_to_2y_supply_share",
+    "cs_a": "age_1y_to_18m_capital_share", "cs_b": "age_18m_to_2y_capital_share",
+    "rc_a": "age_1y_to_18m_realized_cap", "rc_b": "age_18m_to_2y_realized_cap",
+    "tv_a": "age_1y_to_18m_transfer_volume_sum_24h", "tv_b": "age_18m_to_2y_transfer_volume_sum_24h",
+    "pnl_a": "age_1y_to_18m_net_realized_pnl_sum_24h", "pnl_b": "age_18m_to_2y_net_realized_pnl_sum_24h",
+}
+HODL_PEAK_MIN = 40.0            # đỉnh chu kỳ của sóng 1–2 năm (Realized Cap) thường > 40%
+
+
+def bitview_series(series, start, end=None):
+    """1 series theo ngày (index day1) từ Bitview. start/end là chỉ số ngày (âm = tính từ cuối)."""
+    params = {"start": start}
+    if end is not None:
+        params["end"] = end
+    r = requests.get(f"{BITVIEW_SERIES_API}/{series}/day1", params=params, headers=HTTP_HEADERS, timeout=40)
+    if r.status_code >= 400:
+        raise RuntimeError(f"Bitview {series} HTTP {r.status_code}: {r.text[:160]}")
+    j = r.json()
+    return int(j.get("start", 0)), list(j.get("data") or [])
+
+
+def fetch_hodl_1y2y(start):
+    """Lấy các series của nhóm 1–2 năm từ chỉ số ngày `start`. Trả {ngày: {khóa: giá trị}}."""
+    cols, start_idx = {}, None
+    for key, series in HODL_SERIES.items():
+        s0, data = bitview_series(series, start)
+        if start_idx is None:
+            start_idx = s0
+        cols[key] = (s0, data)
+        time.sleep(0.3)
+    s0, dates = cols.pop("date")
+    out = {}
+    for i, d in enumerate(dates):
+        if not (isinstance(d, str) and is_day_key(d)):
+            continue
+        rec = {}
+        for key, (sk, data) in cols.items():
+            j = i + s0 - sk
+            if 0 <= j < len(data):
+                v = safe_float(data[j])
+                if v is not None:
+                    rec[key] = round(v, 6) if abs(v) < 1e6 else round(v, 2)
+        if rec:
+            out[d] = rec
+    return out
+
+
+def update_hodl(status):
+    """Bước cập nhật (GitHub Actions): lần đầu lấy toàn bộ lịch sử từ 2010, sau đó chỉ 45 ngày gần nhất."""
+    data = _load_json(HODL_FILE)
+    daily = data.get("daily", {}) if isinstance(data.get("daily"), dict) else {}
+    errors = []
+    try:
+        rows = fetch_hodl_1y2y(-45 if len(daily) > 3000 else HODL_FIRST_IDX)
+        for d, rec in rows.items():
+            daily.setdefault(d, {}).update(rec)
+    except Exception as e:
+        errors.append(redact(e)[:200])
+    daily = {d: daily[d] for d in sorted(daily)}
+    _save_json(HODL_FILE, {"updated_at_utc": utc_now().strftime("%Y-%m-%d %H:%M"), "source": "Bitview (BRK)",
+                           "daily": daily, "errors": errors}, compact=True)
+    status["hodl"] = {"days": len(daily), "last": max(daily) if daily else None, "errors": errors}
+    _log(f"HODL 1–2 năm: {len(daily)} ngày" + (f" · lỗi: {errors}" if errors else ""))
+
+
+def hodl_frame(df):
+    """Thêm cột tổng hợp cho nhóm 1–2 năm."""
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df = df.copy()
+    df["date"] = pd.to_datetime(df["date"])
+    for c in HODL_SERIES:
+        if c != "date" and c not in df.columns:
+            df[c] = np.nan
+    f = lambda a, b: df[a].fillna(0) + df[b].fillna(0)
+    df["cs"] = f("cs_a", "cs_b")                     # Realized Cap HODL wave 1–2 năm (%)
+    df["ss"] = f("ss_a", "ss_b")                     # HODL wave theo lượng coin (%)
+    df["sup"] = f("sup_a", "sup_b")                  # BTC nhóm 1–2 năm đang giữ
+    df["rc"] = f("rc_a", "rc_b")
+    df["rp"] = np.where(df["sup"] > 0, df["rc"] / df["sup"].replace(0, np.nan), np.nan)   # giá vốn nhóm
+    df["spent"] = f("tv_a", "tv_b")                  # BTC của nhóm bị tiêu (bán/chuyển) mỗi ngày
+    df["pnl"] = f("pnl_a", "pnl_b")                  # lãi/lỗ đã chốt của nhóm mỗi ngày (USD)
+    df = df[df.date >= pd.Timestamp("2010-12-01")].reset_index(drop=True)
+    return df
+
+
+def hodl_peaks(df):
+    """Đỉnh chu kỳ của sóng 1–2 năm (Realized Cap): cực đại trong cửa sổ ±2 năm và > HODL_PEAK_MIN."""
+    if df.empty:
+        return pd.DataFrame(columns=["date", "cs"])
+    d = df[["date", "cs"]].dropna().sort_values("date").reset_index(drop=True)
+    t = d.date.values.astype("datetime64[D]").astype(np.int64)
+    v = d.cs.values.astype(float)
+    lo = np.searchsorted(t, t - 730, side="left")
+    hi = np.searchsorted(t, t + 730, side="right")
+    keep = [i for i in range(len(v)) if v[i] >= HODL_PEAK_MIN and v[i] >= v[lo[i]:hi[i]].max()
+            and t[i] <= t[-1] - 180]                                  # đỉnh "đã xác nhận" (qua ≥ 6 tháng)
+    out = d.iloc[keep]
+    out = out[~out.date.dt.year.duplicated(keep="first")]               # mỗi năm 1 đỉnh
+    return out.reset_index(drop=True)
+
+
+def hodl_trend_now(peaks, when):
+    """Đường xu hướng nối các đỉnh (hồi quy tuyến tính) → giá trị ước tính tại thời điểm `when`."""
+    if peaks is None or len(peaks) < 2:
+        return None
+    x = peaks.date.map(pd.Timestamp.toordinal).astype(float).values
+    a, b = np.polyfit(x, peaks.cs.values.astype(float), 1)
+    return float(a * pd.Timestamp(when).toordinal() + b)
+
+
+def hodl_summary(df):
+    """Các con số & kết luận: holder 1–2 năm đang GIỮ/GOM hay XẢ."""
+    if df is None or df.empty or len(df) < 120:
+        return None
+    last = df.iloc[-1]
+
+    def back(col, days):
+        old = df[df.date <= last.date - pd.Timedelta(days=days)]
+        return float(old.iloc[-1][col]) if not old.empty else None
+
+    spent7, spent90 = df.spent.tail(7).mean(), df.spent.tail(90).mean()
+    ratio = spent7 / spent90 if spent90 else None
+    pnl7 = float(df.pnl.tail(7).sum())
+    sup30 = back("sup", 30)
+    profit = (float(last.price) / float(last.rp) - 1) * 100 if last.rp and last.price else None
+    peaks = hodl_peaks(df)
+    trend = hodl_trend_now(peaks, last.date)
+    # Kết luận
+    if ratio is not None and ratio >= 1.5:
+        verdict = ("🔴 Đang XẢ — bán LỖ (đầu hàng)" if pnl7 < 0 else "🟠 Đang XẢ — chốt LỜI")
+    elif ratio is not None and ratio <= 0.8:
+        verdict = "🟢 Đang GIỮ chặt (ít bán)"
+    else:
+        verdict = "🟡 Bán ở mức bình thường"
+    return {
+        "date": day_str(last.date), "price": float(last.price),
+        "cs": float(last.cs), "cs_chg_30d": float(last.cs) - (back("cs", 30) or float(last.cs)),
+        "cs_chg_90d": float(last.cs) - (back("cs", 90) or float(last.cs)),
+        "ss": float(last.ss), "ss_chg_30d": float(last.ss) - (back("ss", 30) or float(last.ss)),
+        "supply_btc": float(last.sup), "supply_chg_30d": (float(last.sup) - sup30) if sup30 else None,
+        "realized_price": float(last.rp) if last.rp else None, "profit_pct": profit,
+        "spent_1d": float(last.spent), "spent_7d_avg": float(spent7), "spent_90d_avg": float(spent90),
+        "spent_ratio": ratio, "pnl_1d": float(last.pnl), "pnl_7d": pnl7,
+        "peaks": [{"date": day_str(r.date), "cs": round(float(r.cs), 1)} for r in peaks.itertuples()],
+        "trend_now": trend, "verdict": verdict,
+    }
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_hodl():
+    df, source, upd = load_daily_file(HODL_FILE)
+    return hodl_frame(df), source, upd
+
+
+def page_hodl():
+    st.title("⏳ Holder 1–2 năm — gom hay xả?")
+    df, source, upd = load_hodl()
+    if df.empty:
+        st.info("Chưa có dữ liệu. Chạy workflow **Update BTC data** (lần đầu lấy toàn bộ lịch sử từ Bitview).")
+        return
+    sm = hodl_summary(df)
+    if not sm:
+        st.info("Dữ liệu còn quá ngắn.")
+        return
+    mk(f"### {sm['verdict']}")
+    if sm.get("supply_chg_30d") and sm["supply_chg_30d"] > 0 and sm["verdict"].startswith(("🔴", "🟠")):
+        cap(f"Lưu ý: lượng coin nhóm 1–2 năm vẫn **tăng {fmt_btc(sm['supply_chg_30d'])}** trong 30 ngày vì coin mua cách "
+            "đây đúng 1 năm (gần đỉnh) đang 'già' vào nhóm và phần lớn vẫn giữ — nhưng phần bị bán ra mỗi ngày cao bất "
+            "thường, nên kết luận theo **lượng bán**.")
+    cap(f"Dữ liệu ngày {sm['date']} · nguồn Bitview (Bitcoin Research Kit) · cập nhật {upd or 'N/A'} UTC · {source}. "
+        "Nhóm 1–2 năm = coin nằm im 1 năm → 2 năm (thường là người mua ở gần đỉnh chu kỳ trước).")
+    m = st.columns(5)
+    m[0].metric("Sóng 1–2 năm (Realized Cap)", f"{sm['cs']:.1f}%", f"{sm['cs_chg_30d']:+.1f} điểm / 30 ngày")
+    m[1].metric("Theo lượng coin", f"{sm['ss']:.1f}% · {sm['supply_btc'] / 1e6:.2f}tr BTC",
+                (fmt_btc(sm["supply_chg_30d"], signed=True) + " / 30 ngày") if sm["supply_chg_30d"] is not None else None)
+    m[2].metric("Giá vốn nhóm 1–2 năm", fmt_usd(sm["realized_price"]),
+                f"giá {sm['profit_pct']:+.1f}% so với giá vốn" if sm["profit_pct"] is not None else None,
+                delta_color="normal")
+    m[3].metric("BTC bị bán/chuyển (TB 7 ngày)", fmt_btc(sm["spent_7d_avg"]),
+                f"×{sm['spent_ratio']:.2f} so với TB 90 ngày" if sm["spent_ratio"] else None, delta_color="inverse")
+    m[4].metric("Lãi/lỗ đã chốt 7 ngày", fmt_big_usd(sm["pnl_7d"], signed=True),
+                "bán lỗ" if sm["pnl_7d"] < 0 else "chốt lời", delta_color="normal" if sm["pnl_7d"] >= 0 else "inverse")
+
+    # ---- Biểu đồ 1: Realized Cap HODL wave 1–2 năm + giá BTC (giống Glassnode)
+    st.subheader("🌊 Realized Cap HODL Wave 1–2 năm & giá BTC")
+    pk = hodl_peaks(df)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_scatter(x=df.date, y=df.cs, name="Realized Cap 1–2 năm (%)", mode="lines", fill="tozeroy",
+                    line=dict(color="#d9e08f", width=1.2), fillcolor="rgba(217,224,143,0.55)", secondary_y=False,
+                    hovertemplate="%{x|%d/%m/%Y}<br>Realized Cap 1–2 năm: %{y:.1f}%<extra></extra>")
+    fig.add_scatter(x=df.date, y=df.ss, name="Theo lượng coin (%)", mode="lines", visible="legendonly",
+                    line=dict(color=CYAN, width=1.4), secondary_y=False,
+                    hovertemplate="%{x|%d/%m/%Y}<br>Theo lượng coin: %{y:.1f}%<extra></extra>")
+    if len(pk) >= 2:
+        x0, x1 = pk.date.iloc[0], df.date.iloc[-1]
+        line_x, line_y = [x0, x1], [hodl_trend_now(pk, x0), hodl_trend_now(pk, x1)]
+        fig.add_scatter(x=line_x, y=line_y, name="Đường nối các đỉnh", mode="lines",
+                        line=dict(color=RED, width=2, dash="dash"), secondary_y=False, hoverinfo="skip")
+        fig.add_scatter(x=pk.date, y=pk.cs, name="Đỉnh chu kỳ", mode="markers+text",
+                        text=[f"{v:.0f}%<br>{d:%m/%Y}" for d, v in zip(pk.date, pk.cs)], textposition="top center",
+                        marker=dict(color=RED, size=8), secondary_y=False, hoverinfo="skip")
+    fig.add_scatter(x=df.date, y=df.price, name="Giá BTC", mode="lines", line=dict(color="#f8fafc", width=1.6),
+                    secondary_y=True, hovertemplate="%{x|%d/%m/%Y}<br>Giá: $%{y:,.0f}<extra></extra>")
+    style_fig(fig, 560)
+    fig.update_yaxes(title_text="% Realized Cap", ticksuffix="%", rangemode="tozero", secondary_y=False)
+    fig.update_yaxes(title_text="Giá BTC (log)", type="log", tickprefix="$", showgrid=False, secondary_y=True)
+    show_fig(fig, "hodl_wave")
+    if sm["peaks"]:
+        txt = " · ".join(f"{p['cs']:.0f}% ({p['date'][:7]})" for p in sm["peaks"])
+        cap(f"Các đỉnh trước: {txt}. Đỉnh sóng 1–2 năm thường trùng **vùng đáy của thị trường gấu** (người mua ở đỉnh "
+            "đã ôm đủ 1 năm, người mới mua rẻ hơn nhiều). "
+            + (f"Đường nối các đỉnh hiện ở khoảng **{sm['trend_now']:.0f}%**, sóng hiện tại **{sm['cs']:.1f}%** "
+               f"({'đã chạm' if sm['cs'] >= sm['trend_now'] else 'còn cách ' + format(sm['trend_now'] - sm['cs'], '.1f') + ' điểm'})."
+               if sm["trend_now"] else ""))
+
+    # ---- Biểu đồ 2: nhóm 1–2 năm bán bao nhiêu mỗi ngày (xả hay giữ)
+    st.subheader("📤 Nhóm 1–2 năm bán/chuyển bao nhiêu mỗi ngày")
+    days = st.radio("Khoảng thời gian", [90, 180, 365, 730], index=2, horizontal=True,
+                    format_func=lambda x: f"{x} ngày", key="hodl_days")
+    w = df[df.date >= df.date.max() - pd.Timedelta(days=days)].copy()
+    w["spent_ma30"] = df.spent.rolling(30, min_periods=5).mean().loc[w.index]
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_bar(x=w.date, y=w.spent, name="BTC bị tiêu/ngày", width=0.78 * 86400000,
+                marker_color=[RED if p < 0 else GREEN for p in w.pnl], customdata=w.pnl / 1e6,
+                hovertemplate="%{x|%d/%m/%Y}<br>BTC bị tiêu: %{y:,.0f}<br>Lãi/lỗ chốt: $%{customdata:,.0f}M<extra></extra>",
+                secondary_y=False)
+    fig.add_scatter(x=w.date, y=w.spent_ma30, name="TB 30 ngày", mode="lines", line=dict(color=AMBER, width=2),
+                    secondary_y=False)
+    fig.add_scatter(x=w.date, y=w.price, name="Giá BTC", mode="lines", line=dict(color="#f8fafc", width=1.6),
+                    secondary_y=True)
+    fig.add_scatter(x=w.date, y=w.rp, name="Giá vốn nhóm 1–2 năm", mode="lines",
+                    line=dict(color=CYAN, width=2, dash="dot"), secondary_y=True)
+    style_fig(fig, 480)
+    fig.update_yaxes(title_text="BTC/ngày", secondary_y=False)
+    fig.update_yaxes(title_text="USD", tickprefix="$", showgrid=False, secondary_y=True)
+    show_fig(fig, "hodl_spent")
+    cap("Cột **đỏ** = ngày đó nhóm 1–2 năm bán **lỗ** (ròng); **xanh** = bán **lãi**. Cột cao vượt đường TB 30 ngày = đang xả mạnh.")
+
+    with st.expander("📖 Cách đọc"):
+        mk("- **Sóng 1–2 năm tăng** = coin của người mua cách đây 1–2 năm vẫn nằm im (họ đang **giữ**), "
+           "đồng thời người mới mua ít/ rẻ hơn. **Giảm** = nhóm này bán ra/chuyển đi, hoặc coin già quá 2 năm.\n"
+           "- Muốn biết **gom hay xả**, xem biểu đồ 2: lượng BTC nhóm này bị tiêu mỗi ngày so với trung bình, và "
+           "bán lãi hay lỗ. Bán gấp ≥1,5 lần bình thường + bán lỗ = **đầu hàng**; dưới 0,8 lần = **giữ chặt**.\n"
+           "- **Giá vốn nhóm 1–2 năm**: giá đang dưới giá vốn → nhóm này đang lỗ, dễ bán khi giá hồi về gần giá vốn "
+           "(kháng cự) hoặc đầu hàng khi giảm sâu.\n"
+           "- Lịch sử: đỉnh sóng Realized Cap 1–2 năm (58% 10/2015, ~50% 04/2019, ~48% 12/2022) trùng vùng đáy chu kỳ, "
+           "các đỉnh thấp dần theo một đường thẳng. Chỉ là mẫu lịch sử, không chắc lặp lại.\n"
+           "- 1–2 năm = gộp 2 nhóm 1 năm–18 tháng và 18 tháng–2 năm của Bitview (định nghĩa tuổi coin giống Glassnode).")
+
+
+# =============================================================================
 # ĐIỂM VÀO
 # =============================================================================
 BTC_PAGES = [
@@ -4037,6 +4306,7 @@ BTC_PAGES = [
     (page_market, "Phái sinh & thanh khoản", "📈", "phai-sinh"),
     (page_urpd, "URPD", "🧱", "urpd"),
     (page_onchain, "On-chain", "⛓️", "on-chain"),
+    (page_hodl, "Holder 1–2 năm", "⏳", "holder-1-2-nam"),
     (page_history, "Lịch sử", "🗓️", "lich-su"),
     (page_news, "Tin tức", "📰", "tin-tuc"),
 ]
