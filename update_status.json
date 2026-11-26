@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-26 00:20",
+ "last_run_utc": "2026-11-26 10:51",
  "market": {
-  "total_mcap": 2125155872222.2476,
-  "total_mcap_change_24h": -0.7996057076227766,
-  "btc_mcap": 1233697814541.744,
-  "btc_change_24h": 3.031376518425066,
-  "usdt_usdc": 242962083512.2171,
-  "adjusted_btc_dom": 65.54573827317026,
-  "alt_ex_stables": 648495974168.2866,
-  "alt_change_24h": -7.614957996577354,
-  "fetched_at_utc": "2026-11-26 00:19"
+  "total_mcap": 2067092953940.1934,
+  "total_mcap_change_24h": -0.45907235770671856,
+  "btc_mcap": 1215649080661.2214,
+  "btc_change_24h": 2.6854252340458977,
+  "usdt_usdc": 243135818017.5983,
+  "adjusted_btc_dom": 66.64899392201568,
+  "alt_ex_stables": 608308055261.3737,
+  "alt_change_24h": -6.3649613567901,
+  "fetched_at_utc": "2026-11-26 10:50"
  },
  "telegram": {
   "sth_state": "below",
@@ -25,24 +25,16 @@
  "urpd": {
   "latest_date": "2026-11-26",
   "changed": [
-   "2026-11-25",
    "2026-11-26"
   ],
   "errors": []
  },
  "research": {
-  "updated": {
-   "supply_in_loss": 1,
-   "supply_in_loss_percent": 1,
-   "sth_realized_price": 1,
-   "lth_realized_price": 1
-  },
+  "updated": {},
   "errors": []
  },
  "realized": {
-  "updated": {
-   "btc_price": 1
-  },
+  "updated": {},
   "errors": [],
   "pending": [
    "realized_profit",
@@ -50,13 +42,13 @@
   ]
  },
  "onchain": {
-  "updated": {
-   "mvrv": 1,
-   "nupl": 1,
-   "sopr": 1
-  },
+  "updated": {},
   "errors": [],
-  "pending": [],
+  "pending": [
+   "mvrv",
+   "nupl",
+   "sopr"
+  ],
   "mvrv_estimate": {
    "k": 1.0045,
    "calib_days": 30,
@@ -67,15 +59,15 @@
  "etf": {
   "errors": [],
   "source": "SoSoValue",
-  "latest": "2026-11-24",
-  "sessions": 509,
+  "latest": "2026-11-25",
+  "sessions": 510,
   "notes": [],
   "alts": {
-   "NEAR": "35 phiên",
-   "LINK": "36 phiên",
-   "ETH": "36 phiên",
-   "SOL": "36 phiên",
-   "XRP": "36 phiên"
+   "NEAR": "36 phiên",
+   "LINK": "37 phiên",
+   "ETH": "37 phiên",
+   "SOL": "37 phiên",
+   "XRP": "37 phiên"
   }
  },
  "market_extra": {
