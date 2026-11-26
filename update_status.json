@@ -1,50 +1,66 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-25 15:34",
+ "last_run_utc": "2026-11-26 00:20",
  "market": {
-  "total_mcap": 2019106204401.235,
-  "total_mcap_change_24h": -5.95410018420219,
-  "btc_mcap": 1167201380598.6467,
-  "btc_change_24h": -3.254150262927296,
-  "usdt_usdc": 243539599268.00787,
-  "adjusted_btc_dom": 65.73684012890452,
-  "alt_ex_stables": 608365224534.5806,
-  "alt_change_24h": -12.698507351269473,
-  "fetched_at_utc": "2026-11-25 15:33"
+  "total_mcap": 2125155872222.2476,
+  "total_mcap_change_24h": -0.7996057076227766,
+  "btc_mcap": 1233697814541.744,
+  "btc_change_24h": 3.031376518425066,
+  "usdt_usdc": 242962083512.2171,
+  "adjusted_btc_dom": 65.54573827317026,
+  "alt_ex_stables": 648495974168.2866,
+  "alt_change_24h": -7.614957996577354,
+  "fetched_at_utc": "2026-11-26 00:19"
  },
  "telegram": {
   "sth_state": "below",
   "loss_state": "above",
-  "last_daily": "2026-11-25"
+  "last_daily": "2026-11-26"
+ },
+ "hodl": {
+  "days": 5839,
+  "last": "2026-11-26",
+  "errors": []
  },
  "urpd": {
-  "latest_date": "2026-11-25",
+  "latest_date": "2026-11-26",
   "changed": [
-   "2026-11-25"
+   "2026-11-25",
+   "2026-11-26"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
-  "errors": [],
-  "pending": []
- },
- "onchain": {
-  "updated": {},
+  "updated": {
+   "btc_price": 1
+  },
   "errors": [],
   "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ],
+   "realized_profit",
+   "realized_loss"
+  ]
+ },
+ "onchain": {
+  "updated": {
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
+  },
+  "errors": [],
+  "pending": [],
   "mvrv_estimate": {
-   "k": 1.0051,
+   "k": 1.0045,
    "calib_days": 30,
-   "bg_last": "2026-11-18",
+   "bg_last": "2026-11-19",
    "est_days": 7
   }
  },
@@ -52,8 +68,15 @@
   "errors": [],
   "source": "SoSoValue",
   "latest": "2026-11-24",
-  "sessions": 510,
-  "skipped": "đã lấy 1.3 giờ trước"
+  "sessions": 509,
+  "notes": [],
+  "alts": {
+   "NEAR": "35 phiên",
+   "LINK": "36 phiên",
+   "ETH": "36 phiên",
+   "SOL": "36 phiên",
+   "XRP": "36 phiên"
+  }
  },
  "market_extra": {
   "done": {
@@ -62,11 +85,6 @@
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
   },
-  "errors": []
- },
- "hodl": {
-  "days": 5838,
-  "last": "2026-11-25",
   "errors": []
  }
 }

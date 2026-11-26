@@ -1,5 +1,5 @@
 {
- "updated_at_utc": "2026-11-25 15:33",
+ "updated_at_utc": "2026-11-26 00:19",
  "daily": {
   "2025-10-03": {
    "stables_total": 298069179501.0,
@@ -3812,8 +3812,8 @@
    "stables_total": 287772030504.0,
    "usdt": 175535152553.0,
    "usdc": 69461568509.0,
-   "cb_premium_pct": -0.0017126398920375152,
-   "cb_premium_hours": 20,
+   "cb_premium_pct": -0.003328073133861005,
+   "cb_premium_hours": 11,
    "oi_usd": 3458826730.1744,
    "perp_volume_usd": 12430307569.2851,
    "long_short_ratio": 2.83,
@@ -3990,29 +3990,40 @@
    "fng_class": "Extreme Fear",
    "oi_usd": 2688666680.9729,
    "perp_volume_usd": 9965376221.8964,
-   "long_short_ratio": 2.67,
-   "taker_sell": 6867139.6,
-   "taker_buy": 6601174.03,
+   "long_short_ratio": 2.71,
+   "taker_sell": 7198498.9799999995,
+   "taker_buy": 6942981.99,
    "cb_premium_pct": -0.005759212361074646,
    "cb_premium_hours": 24
   },
   "2026-11-25": {
-   "funding_apr": 6.486626863417801,
-   "price": 58226.6,
-   "stables_total": 282439693134.85,
-   "usdt": 174161561183.61,
-   "usdc": 69034473660.5,
+   "funding_apr": 5.72610966371465,
+   "price": 60458.1,
+   "stables_total": 282477385151.21,
+   "usdt": 174173769584.66,
+   "usdc": 69030691623.74,
    "fng": 13.0,
    "fng_class": "Extreme Fear",
-   "cb_premium_pct": -0.021201284021107186,
-   "cb_premium_hours": 16
+   "cb_premium_pct": -0.005912571688719559,
+   "cb_premium_hours": 24,
+   "oi_usd": 2719417061.6682,
+   "perp_volume_usd": 8886189701.0426,
+   "long_short_ratio": 2.7,
+   "taker_sell": 2745553.41,
+   "taker_buy": 3196220.84
+  },
+  "2026-11-26": {
+   "funding_apr": 10.95,
+   "price": 61109.4,
+   "fng": 11.0,
+   "fng_class": "Extreme Fear"
   }
  },
  "now": {
-  "hl_funding_apr": 2.2739208000000004,
-  "hl_oi_usd": 2051126162.78478,
-  "cb_premium_now": -0.24863167489903581,
-  "cb_premium_hour_utc": "2026-11-25 15:00"
+  "hl_funding_apr": 10.950000000000001,
+  "hl_oi_usd": 2258786104.442034,
+  "cb_premium_now": 0.36828929141987654,
+  "cb_premium_hour_utc": "2026-11-26 00:00"
  },
  "errors": []
 }
