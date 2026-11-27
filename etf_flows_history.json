@@ -1,23 +1,7 @@
 {
- "updated_at_utc": "2026-11-26 21:28",
+ "updated_at_utc": "2026-11-27 03:33",
  "source": "SoSoValue",
  "daily": {
-  "2024-11-26": {
-   "total": -122800000,
-   "funds": {
-    "IBIT": 0,
-    "FBTC": -95700000,
-    "BITB": 6500000,
-    "ARKB": 0,
-    "BTCO": -2300000,
-    "EZBC": 0,
-    "BRRR": 0,
-    "HODL": 0,
-    "BTCW": 0,
-    "GBTC": -36100000,
-    "BTC": 4800000
-   }
-  },
   "2024-11-27": {
    "total": 103000000,
    "funds": {

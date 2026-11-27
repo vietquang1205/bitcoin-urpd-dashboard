@@ -1,58 +1,65 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-26 21:29",
+ "last_run_utc": "2026-11-27 03:34",
  "market": {
-  "total_mcap": 2109767658845.5203,
-  "total_mcap_change_24h": -1.8985450012939764,
-  "btc_mcap": 1222987617509.7563,
-  "btc_change_24h": 0.7335035576402096,
-  "usdt_usdc": 243067995354.5232,
-  "adjusted_btc_dom": 65.51603567670836,
-  "alt_ex_stables": 643712045981.2407,
-  "alt_change_24h": -7.169596569302195,
-  "fetched_at_utc": "2026-11-26 21:28"
+  "total_mcap": 2131305255038.2134,
+  "total_mcap_change_24h": -1.3828349273500224,
+  "btc_mcap": 1239179748906.9407,
+  "btc_change_24h": 1.5610660710704451,
+  "usdt_usdc": 243048355897.12866,
+  "adjusted_btc_dom": 65.62559096013942,
+  "alt_ex_stables": 649077150234.144,
+  "alt_change_24h": -7.0127921630973145,
+  "fetched_at_utc": "2026-11-27 03:33"
  },
  "telegram": {
   "sth_state": "below",
   "loss_state": "above",
-  "last_daily": "2026-11-26"
+  "last_daily": "2026-11-27"
  },
  "hodl": {
-  "days": 5839,
-  "last": "2026-11-26",
+  "days": 5840,
+  "last": "2026-11-27",
   "errors": []
  },
  "urpd": {
-  "latest_date": "2026-11-26",
+  "latest_date": "2026-11-27",
   "changed": [
-   "2026-11-26"
+   "2026-11-26",
+   "2026-11-27"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
+  "updated": {
+   "realized_profit": 2,
+   "realized_loss": 2,
+   "btc_price": 1
+  },
   "errors": [],
-  "pending": [
-   "realized_profit",
-   "realized_loss"
-  ]
+  "pending": []
  },
  "onchain": {
-  "updated": {},
+  "updated": {
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
+  },
   "errors": [],
-  "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ],
+  "pending": [],
   "mvrv_estimate": {
-   "k": 1.0045,
+   "k": 1.0038,
    "calib_days": 30,
-   "bg_last": "2026-11-19",
+   "bg_last": "2026-11-20",
    "est_days": 7
   }
  },
@@ -60,7 +67,7 @@
   "errors": [],
   "source": "SoSoValue",
   "latest": "2026-11-25",
-  "sessions": 510,
+  "sessions": 509,
   "notes": [],
   "alts": {
    "NEAR": "36 phiên",
@@ -72,7 +79,7 @@
  },
  "market_extra": {
   "done": {
-   "phái sinh": 180,
+   "phái sinh": 181,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
