@@ -1,16 +1,16 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-27 13:52",
+ "last_run_utc": "2026-11-27 22:42",
  "market": {
-  "total_mcap": 2098677286078.3992,
-  "total_mcap_change_24h": -2.99745708203673,
-  "btc_mcap": 1236752683486.9668,
-  "btc_change_24h": 0.9901010618938225,
-  "usdt_usdc": 243035443373.81845,
-  "adjusted_btc_dom": 66.64824294349879,
-  "alt_ex_stables": 618889159217.6139,
-  "alt_change_24h": -11.066489870605256,
-  "fetched_at_utc": "2026-11-27 13:51"
+  "total_mcap": 2078138194495.5752,
+  "total_mcap_change_24h": -4.108080087042617,
+  "btc_mcap": 1200877605214.5146,
+  "btc_change_24h": -1.353207628677175,
+  "usdt_usdc": 243083313923.6106,
+  "adjusted_btc_dom": 65.44096407842666,
+  "alt_ex_stables": 634177275357.4501,
+  "alt_change_24h": -10.273248664190216,
+  "fetched_at_utc": "2026-11-27 22:41"
  },
  "telegram": {
   "sth_state": "below",
@@ -69,7 +69,7 @@
  },
  "market_extra": {
   "done": {
-   "phái sinh": 181,
+   "phái sinh": 180,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
