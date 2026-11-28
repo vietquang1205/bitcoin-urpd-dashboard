@@ -221,3 +221,16 @@ ce8b9ff34bfba8179225c7c923f03d8068b5d0e90eeb3014fc5c81cc27d312c7 | Nhóm bitwise
 houseofstake.sputnik-dao.near | Quỹ House of Stake — stake 3tr (24/11) | whale
 # • 8347f7bd… → 9797b6e8… → 3d9ccff5… 783k (23/11) — nguồn nạp vào ví gom.
 8347f7bd316503ec6dcb3b72589e884a50c457ec02dd0ae7461b04f8b056c482 | Nguồn 783k nạp vào 3d9ccff5 (23/11) | whale
+
+# ── Thêm 27/11/2026 ──
+# • 0278f39e… (bên xoay vòng với 52435fe9) chuyển 4.302.931 NEAR sang ví MỚI 87c39c84… (25/11 19:42 UTC) — ví mới đang giữ nguyên.
+87c39c840f29c97e29bb58cbaf2625532ed0720af98497c8118a2413053af646 | Ví mới nhận 4,30tr từ 0278f39e (25/11) — đang giữ | whale
+# • 1fc0d96b… → 9797b6e8… → 3d9ccff5… 2,13tr (25/11), 9797b6e8 là ví trung chuyển của cụm quỹ.
+9797b6e83d14ef62e663dc97e67bc51b98a2111bffec464df934830d1fa323bf | Cụm quỹ NEAR — ví trung chuyển 2,13tr về 3d9ccff5 (25/11) | whale
+# • 3d9ccff5… → a9ec3a29… → ccb91e1d… 900k (25/11); ccb91e1d nhận 500k/400k/900k (18–25/11), chuyển 457k (26/11).
+ccb91e1db61e8d7e1d4ae3e043001140132959a86ee35a548b6563a46284a6ea | Cụm quỹ NEAR — ví nhận 1,8tr (18–25/11) | whale
+176dc2f83a9b7cd11f94421728680a12787ff687f094d5d6e4a6a593bee52f1d | Cụm quỹ NEAR — ví con nhận 1,2tr (25/11) | whale
+# • a4d497b0… gửi 1,16tr cho 943ee8c1… (26/11) — 943ee8c1 từng là đầu chuỗi bán 9241a07e → 52435fe9.
+a4d497b04eee1c0bbc18cd860a32b3f89018907d71c8720223110df1b97083fe | Gửi 1,16tr vào chuỗi bán 943ee8c1 (26/11) | whale
+# • ef2b348b… rút 1 triệu khỏi svrn-ai.poolv1.near (26/11), đang giữ — liên quan validator SVRN.
+ef2b348b27e5a02517077a97a9a48aee1ac18728ab2bcb1ff614db65d095c48a | Rút 1tr khỏi svrn-ai pool (26/11) — đang giữ | whale
