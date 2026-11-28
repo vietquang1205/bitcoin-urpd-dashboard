@@ -234,3 +234,16 @@ ccb91e1db61e8d7e1d4ae3e043001140132959a86ee35a548b6563a46284a6ea | Cụm quỹ N
 a4d497b04eee1c0bbc18cd860a32b3f89018907d71c8720223110df1b97083fe | Gửi 1,16tr vào chuỗi bán 943ee8c1 (26/11) | whale
 # • ef2b348b… rút 1 triệu khỏi svrn-ai.poolv1.near (26/11), đang giữ — liên quan validator SVRN.
 ef2b348b27e5a02517077a97a9a48aee1ac18728ab2bcb1ff614db65d095c48a | Rút 1tr khỏi svrn-ai pool (26/11) — đang giữ | whale
+
+# ── Thêm 28/11/2026 ──
+# • GIAO HÀNG CHO ETF: cụm quỹ gom 5,45tr NEAR (3d9ccff5 rút 3tr từ binancecold3 21:52 UTC 27/11; 98446b9d, ccb91e1d,
+#   1e6ef846, 498eee3c dồn về) → af097686… → 23ced430 (nhóm bitwise_2) → chia 4 ví × 1.047.270 + 785k + 262k + 209k
+#   → STAKE vào bitwise_2.poolv1.near (02:12 UTC 28/11). Khớp ETF NRR hút +$16,2M (~5,3tr NEAR) phiên 25/11.
+af09768659017107aad46477428f1ca3c267ff8b95d96bb1ab8a272f8df7c8f6 | Ví gom 5,45tr giao cho nhóm Bitwise (27/11) | whale
+98446b9dd40b9dd365be9d7def69e33b6a3cb790daa95a9b447d64bb3c65d780 | Cụm quỹ NEAR — ví trung chuyển về af097686 | whale
+d0f46f15684105dcb9e929b977e343688dc4f96c43f50b4f4602bbc2bfa8a74a | Bitwise (ETF NRR?) — stake 1,05tr bitwise_2 (28/11) | whale
+88ffdfd2c640765926c4b8abb776b97be3a2e8f67d2b0d0111801d2bff4205cb | Bitwise (ETF NRR?) — stake 1,05tr bitwise_2 (28/11) | whale
+69c53962570dbb29a6a7a271a3188aab3f55f7447854f8c697408e842e36d80a | Bitwise (ETF NRR?) — stake 1,05tr bitwise_2 (28/11) | whale
+81dd0644e3f57ae614051e546ebb6aa0dabe7d322508f99e50cfd0d3151c6008 | Bitwise (ETF NRR?) — stake 1,05tr bitwise_2 (28/11) | whale
+# • c8bde664… gửi 999.990 vào 3d9ccff5 (28/11 11:48 UTC) — nguồn nạp mới vào ví gom.
+c8bde664accb6e317a4d34474b4bd5808766d70710f5da7d2de502cae8e8ffc4 | Nguồn 1tr nạp vào 3d9ccff5 (28/11) | whale
