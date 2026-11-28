@@ -1,12 +1,12 @@
 # Đặt file này tại: .github/workflows/near-fast.yml   (file MỚI, để cạnh update-data.yml)
-# V5.8 — Lần chạy NHANH mỗi giờ chỉ cho NEAR: quét hủy stake + chuyển lớn của ví cá mập + gửi cảnh báo bán Telegram.
+# V5.9.1 — Lần chạy NHANH mỗi 30 phút chỉ cho NEAR: quét hủy stake + chuyển lớn của ví cá mập + gửi cảnh báo bán Telegram.
 # Không lấy giá/TVL/phái sinh/tin (lần chạy chính 2 giờ/lần vẫn làm việc đó), nên chạy nhanh (~8–10 phút).
 name: NEAR fast scan
 
 on:
   schedule:
-    # Phút 47 mỗi giờ — lệch 30 phút so với lần chạy chính (phút 17) để quét đều mỗi ~1 giờ.
-    - cron: "47 * * * *"
+    # V5.9.1: mỗi 30 phút (phút 07 và 37) — lệch với lần chạy chính (phút 17) để không chen nhau.
+    - cron: "7,37 * * * *"
   workflow_dispatch:             # cho phép bấm "Run workflow" chạy tay
 
 permissions:
