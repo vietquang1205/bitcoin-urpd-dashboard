@@ -25,7 +25,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-LINK_VERSION = "V1.0"
+LINK_VERSION = "V1.1"
 UPDATE_MODE = "--update-data" in sys.argv
 
 LINK_FILE = "link_history.json"
@@ -447,12 +447,19 @@ def _vn(ts):
         return ts or "—"
 
 
-NEWS_POS = ("partnership", "partners", "launch", "launches", "launched", "upgrade", "listing", "lists", "etf",
-            "approval", "approved", "inflows", "adoption", "record", "surge", "surges", "rally", "rallies", "jumps",
-            "soars", "breakout", "integration", "integrates", "milestone", "acquires", "bullish", "gains")
+# V1.1: bỏ chữ "etf" đơn lẻ khỏi nhóm tích cực (tin "ETF bị rút" từng bị chấm tích cực); thêm nhiều từ tiêu cực.
+# Từ tiêu cực được xét TRƯỚC, nên tin có cả tốt lẫn xấu sẽ bị tính là tiêu cực.
+NEWS_POS = ("partnership", "partners", "launch", "launches", "launched", "upgrade", "listing", "lists",
+            "etf inflow", "etf inflows", "etf approval", "approval", "approved", "inflows", "adoption", "record high",
+            "surge", "surges", "rally", "rallies", "jumps", "soars", "breakout", "integration", "integrates",
+            "integrated", "milestone", "acquires", "bullish", "gains", "rebounds", "recovers", "reclaims",
+            "reserve adds", "accumulates", "accumulation", "buys", "buyback", "purchases", "adopts", "selects")
 NEWS_NEG = ("hack", "hacked", "exploit", "outage", "delist", "delisting", "lawsuit", "sues", "unlock", "unlocks",
-            "sell-off", "selloff", "plunge", "plunges", "drops", "falls", "slides", "tumbles", "outflows", "bearish",
-            "downgrade", "halt", "halts", "investigation", "scam", "dump", "crash")
+            "sell-off", "selloff", "plunge", "plunges", "drop", "drops", "falls", "fall", "slides", "slide", "tumbles",
+            "slips", "slip", "dips", "dip", "sinks", "slumps", "slump", "declines", "decline", "loses", "losses",
+            "outflow", "outflows", "exodus", "cut", "cuts", "bearish", "downgrade", "halt", "halts", "investigation",
+            "scam", "dump", "dumps", "crash", "crashes", "liquidations", "liquidated", "warning", "warns", "risk",
+            "breakdown", "breaks below", "below support", "weakness", "weak")
 
 
 # =============================================================================
@@ -802,11 +809,14 @@ def compute_link_report(df, price, mm, etf_sum, news):
     cats = []
 
     def cat(name, sigs):
-        sigs = [s for s in sigs if s[1] != "⚪"]
-        vals = [_score_of(s[1]) for s in sigs]
+        # V1.1: tín hiệu CHƯA CÓ dữ liệu (⚪) tính là trung tính (0) thay vì bỏ qua → điểm không bị thổi lên
+        # khi chỉ có 1–2 tín hiệu tốt (vd mới có ETF, chưa có số nạp/rút sàn & staking).
+        vals = [_score_of(s[1]) or 0 for s in sigs]
         cats.append({"name": name, "weight": REPORT_WEIGHTS[name],
-                     "score": float(np.mean(vals)) if vals else None,
-                     "signals": [{"label": s[0], "light": s[1], "detail": s[2]} for s in sigs]})
+                     "score": float(np.mean(vals)) if vals else 0.0,
+                     "missing": sum(1 for s in sigs if s[1] == "⚪"),
+                     "signals": [{"label": s[0], "light": s[1], "detail": s[2] if s[1] != "⚪" else (f"{s[2]} (tính trung tính)" if "chưa đủ" in s[2] else f"{s[2]} — chưa đủ dữ liệu, tính trung tính")}
+                                 for s in sigs]})
 
     vs50 = (price / e50 - 1) * 100
     cb = mm.get("realized_price") if mm else None
