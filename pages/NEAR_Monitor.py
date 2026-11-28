@@ -30,7 +30,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-NEAR_VERSION = "V5.9"
+NEAR_VERSION = "V5.9.1"
 UPDATE_MODE = "--update-data" in sys.argv
 FAST_MODE = "--fast" in sys.argv or os.environ.get("NEAR_FAST") == "1"   # V5.8: lần chạy nhanh mỗi giờ — chỉ quét chuyển lớn + cảnh báo
 
@@ -304,7 +304,7 @@ TRANSFER_MIN = 50_000           # chuyển lớn từ 50k NEAR
 CHILD_MIN = 20_000              # cá voi/ví con chuyển ≥ 20k sang ví mới → coi là "ví con" (chia nhỏ để giấu)
 CHILD_IDLE_DROP_DAYS = 30       # V5.6: chỉ bỏ ví con khi KHÔNG còn NEAR và đứng im > 30 ngày
 CHILD_EMPTY_NEAR = 1.0          # số dư < 1 NEAR (và không stake / wrap / Intents) = coi là ví rỗng
-CHILD_MAX = 200                 # V5.8: tối đa 200 ví con (120 đã đầy ngày 22/11)
+CHILD_MAX = 300                 # V5.9.1: tối đa 300 ví con (200 đã đầy ngày 27/11)
 CHILD_MAX_DEPTH = 3             # tối đa 3 tầng (cá voi → con → cháu → chắt)
 NB_MAX_CALLS_FREE = 12          # NearBlocks gói miễn phí: 6 lượt/phút, 333 lượt/ngày → tối đa 12 lượt/lần chạy
 NB_MAX_CALLS_KEY = 45
@@ -317,6 +317,8 @@ TRANSFER_INTERVAL_H = 2         # nhờ lọc bằng dấu vân tay RPC, quét c
 # Đo thực tế 17/11/2026: ~9–10 lượt/phút không key → giãn 7 giây/lượt. Có FASTNEAR_API_KEY thì nhanh hơn.
 FN_TRANSFERS_URL = "https://transfers.main.fastnear.com/v0/transfers"
 FN_MAX_CALLS_FREE = 54          # V5.8: 36 → 54 lượt/lần (~6,3 phút), FastNear chỉ giới hạn theo phút
+FN_MAX_CALLS_FAST = 90          # V5.9.1: lần chạy nhanh (mỗi 30 phút) quét tới 90 ví (~10,5 phút)
+ALERT_LOOP_WAIT_H = 5           # V5.9.1: ví từng chạy vòng tròn → chờ 5 giờ xem có rút lại không rồi mới cảnh báo
 FN_MAX_CALLS_KEY = 60
 FN_PAUSE_FREE = 7.0
 FN_PAUSE_KEY = 0.3
@@ -642,7 +644,7 @@ def update_big_transfers(data, watch, key="", fn_key=""):
         nb_day = {"d": now.strftime("%Y-%m-%d"), "n": 0}
     nb_left = max(0, NB_DAILY_CAP_FREE - nb_day.get("n", 0))
     sources = [
-        {"name": "fastnear", "max": FN_MAX_CALLS_KEY if fn_key else FN_MAX_CALLS_FREE,
+        {"name": "fastnear", "max": FN_MAX_CALLS_KEY if fn_key else (FN_MAX_CALLS_FAST if FAST_MODE else FN_MAX_CALLS_FREE),
          "pause": FN_PAUSE_KEY if fn_key else FN_PAUSE_FREE, "used": 0, "next": 0.0, "dead": False, "ok": 0},
         {"name": "nearblocks", "max": NB_MAX_CALLS_KEY if key else min(NB_MAX_CALLS_FREE, nb_left),
          "pause": NB_PAUSE_KEY if key else NB_PAUSE_FREE, "used": 0, "next": 0.0, "dead": False, "ok": 0},
@@ -855,15 +857,29 @@ def mark_loops(data, exch, now=None):
         if t.get("kind") in ("to_exchange", "from_exchange"):
             t.pop("loop", None)
             t.pop("loop_via", None)
+    # V5.9.1 — "học" chủ của ví trung chuyển: O gửi ~X cho A, A nạp ~X lên sàn trong 1 giờ (kiểu địa chỉ nạp).
+    # Ghi nhớ cặp (A → O) để những ngày sau, dù app không quét được lệnh O → A, vẫn ghép được vòng tròn.
+    learned = data.setdefault("loop_owners", {})
+    for t in tr:
+        if t.get("kind") != "to_exchange":
+            continue
+        T = _ts(t["time_utc"])
+        for u in inbound.get(t["from"], []):
+            tu = _ts(u["time_utc"])
+            if (T - timedelta(hours=1) <= tu <= T and u.get("from") not in exch and near(u["amount"], t["amount"])):
+                lst = learned.setdefault(t["from"], [])
+                if u["from"] not in lst:
+                    lst.append(u["from"])
     used, n = set(), 0
     for t in sorted(tr, key=lambda x: x["time_utc"]):
         if t.get("kind") != "to_exchange":
             continue
         a, amt, T = t["from"], t["amount"], _ts(t["time_utc"])
-        owners = [a]
+        owners = [a] + [o for o in learned.get(a, []) if o != a]
         for u in inbound.get(a, []):             # ví trung chuyển: A vừa nhận ~X từ O trong 1 giờ trước
             tu = _ts(u["time_utc"])
-            if T - timedelta(hours=1) <= tu <= T and u.get("from") not in exch and near(u["amount"], amt):
+            if (T - timedelta(hours=1) <= tu <= T and u.get("from") not in exch and near(u["amount"], amt)
+                    and u["from"] not in owners):
                 owners.append(u["from"])
         hit = None
         for o in owners:
@@ -1823,7 +1839,7 @@ def run_near_update():
     watch += [{"account": a, "label": child_label(data, a) or f"Ví con — {a}", "type": "whale"}
               for a in (data.get("children") or {}) if a not in listed]
     snap, fails = {}, []
-    for w in ([] if fast else watch[:320]):
+    for w in ([] if fast else watch[:420]):
         try:
             b = fetch_account(w["account"])
             snap[w["account"]] = {**b, "label": w["label"], "type": w["type"]}
@@ -2027,7 +2043,14 @@ def build_sell_alerts(data, watch, now=None):
     recent_unstakers = {e["account"] for e in data.get("stake_events") or []
                         if e.get("kind") in ("unstake", "withdraw") and e.get("time_utc", "") >= (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M")}
     tr = [t for t in data.get("big_transfers") or [] if t.get("time_utc", "") >= since]
-    dep = [t for t in tr if t.get("kind") == "to_exchange" and not t.get("loop")]
+    # V5.9.1: ví từng chạy vòng tròn ≥ 2 lần trong 9 ngày → lệnh nạp mới chờ ALERT_LOOP_WAIT_H giờ (xem có rút lại không)
+    loop_cnt = {}
+    for t in data.get("big_transfers") or []:
+        if t.get("kind") == "to_exchange" and t.get("loop"):
+            loop_cnt[t["from"]] = loop_cnt.get(t["from"], 0) + 1
+    wait_cut = (now - timedelta(hours=ALERT_LOOP_WAIT_H)).strftime("%Y-%m-%d %H:%M")
+    dep = [t for t in tr if t.get("kind") == "to_exchange" and not t.get("loop")
+           and not (loop_cnt.get(t["from"], 0) >= 2 and t["time_utc"] > wait_cut)]
     out = []
 
     def who(a):
