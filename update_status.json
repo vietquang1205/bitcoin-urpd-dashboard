@@ -1,75 +1,86 @@
 {
  "fatal": [],
- "last_run_utc": "2026-11-27 22:42",
+ "last_run_utc": "2026-11-28 07:44",
  "market": {
-  "total_mcap": 2078138194495.5752,
-  "total_mcap_change_24h": -4.108080087042617,
-  "btc_mcap": 1200877605214.5146,
-  "btc_change_24h": -1.353207628677175,
-  "usdt_usdc": 243083313923.6106,
-  "adjusted_btc_dom": 65.44096407842666,
-  "alt_ex_stables": 634177275357.4501,
-  "alt_change_24h": -10.273248664190216,
-  "fetched_at_utc": "2026-11-27 22:41"
+  "total_mcap": 2075962784986.824,
+  "total_mcap_change_24h": -5.423734931476394,
+  "btc_mcap": 1201541474074.2227,
+  "btc_change_24h": -2.9055994948097315,
+  "usdt_usdc": 243007931393.4872,
+  "adjusted_btc_dom": 65.55215867530578,
+  "alt_ex_stables": 631413379519.1141,
+  "alt_change_24h": -11.639538789746616,
+  "fetched_at_utc": "2026-11-28 07:43"
  },
  "telegram": {
   "sth_state": "below",
   "loss_state": "above",
-  "last_daily": "2026-11-27"
+  "last_daily": "2026-11-28"
  },
  "hodl": {
-  "days": 5840,
-  "last": "2026-11-27",
+  "days": 5841,
+  "last": "2026-11-28",
   "errors": []
  },
  "urpd": {
-  "latest_date": "2026-11-27",
+  "latest_date": "2026-11-28",
   "changed": [
-   "2026-11-27"
+   "2026-11-27",
+   "2026-11-28"
   ],
   "errors": []
  },
  "research": {
-  "updated": {},
+  "updated": {
+   "supply_in_loss": 1,
+   "supply_in_loss_percent": 1,
+   "sth_realized_price": 1,
+   "lth_realized_price": 1
+  },
   "errors": []
  },
  "realized": {
-  "updated": {},
-  "errors": [],
-  "pending": []
- },
- "onchain": {
-  "updated": {},
+  "updated": {
+   "btc_price": 1
+  },
   "errors": [],
   "pending": [
-   "mvrv",
-   "nupl",
-   "sopr"
-  ],
+   "realized_profit",
+   "realized_loss"
+  ]
+ },
+ "onchain": {
+  "updated": {
+   "mvrv": 1,
+   "nupl": 1,
+   "sopr": 1
+  },
+  "errors": [],
+  "pending": [],
   "mvrv_estimate": {
    "k": 1.0038,
    "calib_days": 30,
-   "bg_last": "2026-11-20",
+   "bg_last": "2026-11-21",
    "est_days": 7
   }
  },
  "etf": {
   "errors": [],
   "source": "SoSoValue",
-  "latest": "2026-11-25",
+  "latest": "2026-11-27",
   "sessions": 509,
   "notes": [],
   "alts": {
-   "NEAR": "36 phiên",
-   "LINK": "37 phiên",
-   "ETH": "37 phiên",
-   "SOL": "37 phiên",
-   "XRP": "37 phiên"
+   "NEAR": "37 phiên",
+   "LINK": "38 phiên",
+   "ETH": "38 phiên",
+   "SOL": "38 phiên",
+   "XRP": "38 phiên"
   }
  },
  "market_extra": {
   "done": {
-   "phái sinh": 180,
+   "phái sinh": 181,
    "stablecoin": 400,
    "coinbase premium": 13,
    "sợ hãi & tham lam": 400
